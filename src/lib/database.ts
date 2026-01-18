@@ -65,56 +65,52 @@ function parseScore(value: string | null): Score {
 // Matrix CRUD Operations
 // ============================================
 
+/** Row type for matrix queries */
+interface MatrixDbRow {
+  id: string;
+  name: string;
+  is_imported: number;
+  source_file: string | null;
+  parent_matrix_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Convert database row to CapabilityMatrix */
+function mapMatrixRow(row: MatrixDbRow): CapabilityMatrix {
+  return {
+    id: row.id,
+    name: row.name,
+    isImported: row.is_imported === 1,
+    sourceFile: row.source_file,
+    parentMatrixId: row.parent_matrix_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 /**
  * Get all matrices
  */
 export async function getAllMatrices(): Promise<CapabilityMatrix[]> {
   const database = await getDatabase();
-  const results = await database.select<
-    Array<{
-      id: string;
-      name: string;
-      is_imported: number;
-      source_file: string | null;
-      created_at: string;
-      updated_at: string;
-    }>
-  >("SELECT * FROM matrices ORDER BY created_at DESC");
+  const results = await database.select<MatrixDbRow[]>(
+    "SELECT * FROM matrices ORDER BY created_at DESC"
+  );
 
-  return results.map((row) => ({
-    id: row.id,
-    name: row.name,
-    isImported: row.is_imported === 1,
-    sourceFile: row.source_file,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return results.map(mapMatrixRow);
 }
 
 /**
- * Get user-created matrices only
+ * Get user-created matrices only (not imported)
  */
 export async function getUserMatrices(): Promise<CapabilityMatrix[]> {
   const database = await getDatabase();
-  const results = await database.select<
-    Array<{
-      id: string;
-      name: string;
-      is_imported: number;
-      source_file: string | null;
-      created_at: string;
-      updated_at: string;
-    }>
-  >("SELECT * FROM matrices WHERE is_imported = 0 ORDER BY created_at DESC");
+  const results = await database.select<MatrixDbRow[]>(
+    "SELECT * FROM matrices WHERE is_imported = 0 ORDER BY created_at DESC"
+  );
 
-  return results.map((row) => ({
-    id: row.id,
-    name: row.name,
-    isImported: false,
-    sourceFile: row.source_file,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return results.map(mapMatrixRow);
 }
 
 /**
@@ -122,25 +118,38 @@ export async function getUserMatrices(): Promise<CapabilityMatrix[]> {
  */
 export async function getImportedMatrices(): Promise<CapabilityMatrix[]> {
   const database = await getDatabase();
-  const results = await database.select<
-    Array<{
-      id: string;
-      name: string;
-      is_imported: number;
-      source_file: string | null;
-      created_at: string;
-      updated_at: string;
-    }>
-  >("SELECT * FROM matrices WHERE is_imported = 1 ORDER BY created_at DESC");
+  const results = await database.select<MatrixDbRow[]>(
+    "SELECT * FROM matrices WHERE is_imported = 1 ORDER BY created_at DESC"
+  );
 
-  return results.map((row) => ({
-    id: row.id,
-    name: row.name,
-    isImported: true,
-    sourceFile: row.source_file,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return results.map(mapMatrixRow);
+}
+
+/**
+ * Get template matrices only (user-created, not children of another matrix)
+ */
+export async function getTemplateMatrices(): Promise<CapabilityMatrix[]> {
+  const database = await getDatabase();
+  const results = await database.select<MatrixDbRow[]>(
+    "SELECT * FROM matrices WHERE parent_matrix_id IS NULL ORDER BY created_at DESC"
+  );
+
+  return results.map(mapMatrixRow);
+}
+
+/**
+ * Get child matrices for a parent template
+ */
+export async function getChildMatrices(
+  parentId: string
+): Promise<CapabilityMatrix[]> {
+  const database = await getDatabase();
+  const results = await database.select<MatrixDbRow[]>(
+    "SELECT * FROM matrices WHERE parent_matrix_id = $1 ORDER BY created_at DESC",
+    [parentId]
+  );
+
+  return results.map(mapMatrixRow);
 }
 
 /**
@@ -150,28 +159,13 @@ export async function getMatrixById(
   id: string
 ): Promise<CapabilityMatrix | null> {
   const database = await getDatabase();
-  const results = await database.select<
-    Array<{
-      id: string;
-      name: string;
-      is_imported: number;
-      source_file: string | null;
-      created_at: string;
-      updated_at: string;
-    }>
-  >("SELECT * FROM matrices WHERE id = $1", [id]);
+  const results = await database.select<MatrixDbRow[]>(
+    "SELECT * FROM matrices WHERE id = $1",
+    [id]
+  );
 
   if (results.length === 0) return null;
-
-  const row = results[0];
-  return {
-    id: row.id,
-    name: row.name,
-    isImported: row.is_imported === 1,
-    sourceFile: row.source_file,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+  return mapMatrixRow(results[0]);
 }
 
 /**
@@ -198,9 +192,17 @@ export async function createMatrix(
   const now = getCurrentTimestamp();
 
   await database.execute(
-    `INSERT INTO matrices (id, name, is_imported, source_file, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [id, input.name, input.isImported ? 1 : 0, input.sourceFile ?? null, now, now]
+    `INSERT INTO matrices (id, name, is_imported, source_file, parent_matrix_id, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      id,
+      input.name,
+      input.isImported ? 1 : 0,
+      input.sourceFile ?? null,
+      input.parentMatrixId ?? null,
+      now,
+      now,
+    ]
   );
 
   return {
@@ -208,6 +210,7 @@ export async function createMatrix(
     name: input.name,
     isImported: input.isImported ?? false,
     sourceFile: input.sourceFile ?? null,
+    parentMatrixId: input.parentMatrixId ?? null,
     createdAt: now,
     updatedAt: now,
   };

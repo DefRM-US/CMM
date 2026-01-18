@@ -8,7 +8,7 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 
 ## Current State
 
-**Completed (Phase 1 + Phase 2):**
+**Completed (Phase 1 + Phase 2 + Phase 3):**
 - Tauri v2 + React 19 + Vite scaffold
 - All dependencies installed (frontend + backend)
 - SQLite integration with Tauri SQL plugin configured
@@ -21,12 +21,15 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 - State management with React Context + useReducer
 - Auto-save with 500ms debounce
 - Confirmation dialogs for delete actions
+- Excel import functionality with file picker and preview
+- Tab navigation between Editor and Import views
+- Parent-child matrix linking for imported matrices
 
-**Ready for Phase 3:**
-- Matrix CRUD fully functional
-- Row CRUD with drag-and-drop reordering working
-- UI component library established (Button, Input, Select, Dialog)
-- Database layer supports imported matrices (isImported flag ready)
+**Ready for Phase 4:**
+- Excel import fully functional
+- Tabs UI component ready for adding Export tab
+- Parent matrix concept established (imported matrices link to templates)
+- File reading via `convertFileSrc` pattern ready for export save dialog
 
 ---
 
@@ -41,8 +44,10 @@ CREATE TABLE matrices (
   name TEXT NOT NULL,
   is_imported INTEGER NOT NULL DEFAULT 0,  -- 0 = user-created, 1 = imported
   source_file TEXT,                         -- original filename if imported
+  parent_matrix_id TEXT,                    -- links imported matrices to their template (Phase 3)
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (parent_matrix_id) REFERENCES matrices(id) ON DELETE CASCADE
 );
 
 -- Matrix rows table
@@ -178,41 +183,53 @@ CREATE TABLE app_settings (
 
 ---
 
-### Phase 3: Excel Import
+### Phase 3: Excel Import ✅ COMPLETE
 
 **Objective:** Parse and import Excel files.
 
 **Tasks:**
-1. Create import parser (`src/lib/excel/importer.ts`):
+1. ✅ Create import parser (`src/lib/excel/importer.ts`):
    - Use `xlsx` (SheetJS) for parsing
    - Detect header row (search for "requirement")
    - Extract company name from file or metadata
    - Validate capability scores (0-3)
    - Handle multiple sheets per workbook
 
-2. Create import UI:
+2. ✅ Create import UI:
    - `ImportTab.tsx` - file picker, preview list
    - `ImportPreview.tsx` - read-only table preview
 
-3. Features:
+3. ✅ Features:
    - Multi-file selection
    - Preview before import
    - Import individual or all
    - Remove from preview
 
-**Files to create:**
-- `src/lib/excel/importer.ts`
-- `src/components/import/ImportTab.tsx`
-- `src/components/import/ImportPreview.tsx`
+4. ✅ Schema change for parent-child matrix linking:
+   - Added `parent_matrix_id` column to matrices table
+   - Created migration `002_add_parent_matrix.sql`
 
-**Notes for Implementation:**
-- `xlsx` package already installed in package.json
-- Use `@tauri-apps/plugin-dialog` for native file picker (already configured)
-- Database functions ready: `createMatrix({ isImported: true, sourceFile: filename })`
-- Database functions ready: `getImportedMatrices()` to list imported matrices
-- Reuse `ScoreBadge` component for preview table score display
-- Reuse `Button` and `Dialog` components from `src/components/ui/`
-- Consider adding a Tabs component for Export/Import navigation (deferred from Phase 2)
+**Files created:**
+- `src-tauri/migrations/002_add_parent_matrix.sql` - schema migration
+- `src/lib/excel/importer.ts` - Excel parsing with xlsx library
+- `src/components/import/ImportTab.tsx` - main import UI with file picker
+- `src/components/import/ImportPreview.tsx` - preview table with ScoreBadge
+- `src/components/ui/Tabs.tsx` - reusable tab navigation component
+
+**Files modified:**
+- `src/types/matrix.ts` - added `parentMatrixId` to interfaces
+- `src/lib/database.ts` - added `parentMatrixId` support, `getChildMatrices()`, `getTemplateMatrices()`
+- `src/App.tsx` - added Tabs, ImportTab integration
+
+**Implementation Notes:**
+- Imported matrices are linked to their parent template via `parentMatrixId`
+- Each import creates a NEW matrix (not merging into existing)
+- File reading uses `convertFileSrc` + `fetch` for Tauri webview compatibility
+- After import, automatically switches to Editor tab and selects the imported matrix
+- Header detection scans first 30 rows for "requirement" keyword
+- Company name extracted from metadata or falls back to filename
+- Multi-sheet workbooks create separate matrices per sheet
+- Invalid scores become `null` (displayed as "-" badge)
 
 ---
 
@@ -351,7 +368,7 @@ CREATE TABLE app_settings (
 
 ```
 src/
-  App.tsx                          ✅ Created
+  App.tsx                          ✅ Created (updated Phase 3)
   main.tsx                         ✅ Created
   index.css                        ✅ Created
 
@@ -363,8 +380,8 @@ src/
       ExportTab.tsx                ⏳ Phase 4
       ExportModal.tsx              ⏳ Phase 4
     import/
-      ImportTab.tsx                ⏳ Phase 3
-      ImportPreview.tsx            ⏳ Phase 3
+      ImportTab.tsx                ✅ Created (Phase 3)
+      ImportPreview.tsx            ✅ Created (Phase 3)
     matrix/
       MatrixEditor.tsx             ✅ Created
       MatrixTable.tsx              ✅ Created
@@ -380,7 +397,7 @@ src/
       Input.tsx                    ✅ Created
       Select.tsx                   ✅ Created
       Dialog.tsx                   ✅ Created
-      Tabs.tsx                     ⏳ Phase 6
+      Tabs.tsx                     ✅ Created (Phase 3)
 
   contexts/
     MatrixContext.tsx              ✅ Created
@@ -391,15 +408,15 @@ src/
     useDebouncedSave.ts            ✅ Created
 
   lib/
-    database.ts                    ✅ Created
+    database.ts                    ✅ Created (updated Phase 3)
     comparison.ts                  ⏳ Phase 5
     utils.ts                       ✅ Created
     excel/
-      importer.ts                  ⏳ Phase 3
+      importer.ts                  ✅ Created (Phase 3)
       exporter.ts                  ⏳ Phase 4
 
   types/
-    matrix.ts                      ✅ Created
+    matrix.ts                      ✅ Created (updated Phase 3)
 
 src-tauri/
   src/
@@ -411,6 +428,7 @@ src-tauri/
     default.json                   ✅ Created
   migrations/
     001_create_tables.sql          ✅ Created
+    002_add_parent_matrix.sql      ✅ Created (Phase 3)
 ```
 
 ---

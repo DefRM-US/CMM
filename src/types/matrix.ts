@@ -40,6 +40,8 @@ export interface CapabilityMatrix {
   isImported: boolean;
   /** Original filename if imported */
   sourceFile: string | null;
+  /** Parent matrix ID - links imported matrices to their template */
+  parentMatrixId: string | null;
   /** ISO timestamp of creation */
   createdAt: string;
   /** ISO timestamp of last modification */
@@ -60,6 +62,7 @@ export interface CreateMatrixInput {
   name: string;
   isImported?: boolean;
   sourceFile?: string | null;
+  parentMatrixId?: string | null;
 }
 
 /**

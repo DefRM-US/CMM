@@ -1,0 +1,310 @@
+import { useState, useCallback } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import {
+  DocumentPlusIcon,
+  FolderOpenIcon,
+  ArrowDownTrayIcon,
+} from "@heroicons/react/24/outline";
+import { Button } from "../ui/Button";
+import { ImportPreview } from "./ImportPreview";
+import {
+  parseExcelFile,
+  getFilenameFromPath,
+  type ParsedMatrix,
+} from "../../lib/excel/importer";
+import * as db from "../../lib/database";
+import type { CapabilityMatrix } from "../../types/matrix";
+
+interface ImportTabProps {
+  /** Currently selected template matrix (parent for imports) */
+  activeMatrix: CapabilityMatrix | null;
+  /** Callback when an import is completed successfully */
+  onImportComplete: (matrixId: string) => void;
+}
+
+interface PendingMatrix extends ParsedMatrix {
+  /** Unique key for React list rendering */
+  key: string;
+}
+
+export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
+  const [pendingMatrices, setPendingMatrices] = useState<PendingMatrix[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [importingKey, setImportingKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Open file picker and parse selected Excel files
+   */
+  const handleChooseFiles = useCallback(async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const filePaths = await open({
+        multiple: true,
+        filters: [
+          {
+            name: "Excel Files",
+            extensions: ["xlsx", "xls"],
+          },
+        ],
+      });
+
+      if (!filePaths || filePaths.length === 0) {
+        setIsLoading(false);
+        return;
+      }
+
+      const errors: string[] = [];
+      const newMatrices: PendingMatrix[] = [];
+
+      for (const filePath of filePaths) {
+        try {
+          // Convert file path to URL and fetch contents
+          const fileUrl = convertFileSrc(filePath);
+          const response = await fetch(fileUrl);
+          const arrayBuffer = await response.arrayBuffer();
+          const filename = getFilenameFromPath(filePath);
+
+          // Parse the Excel file
+          const result = parseExcelFile(arrayBuffer, filename);
+
+          // Add parsed matrices with unique keys
+          for (const matrix of result.matrices) {
+            newMatrices.push({
+              ...matrix,
+              key: `${filename}-${matrix.sheetName || "default"}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            });
+          }
+
+          errors.push(...result.errors);
+        } catch (fileError) {
+          errors.push(
+            `Failed to read ${filePath}: ${fileError instanceof Error ? fileError.message : "Unknown error"}`
+          );
+        }
+      }
+
+      // Add new matrices to pending list
+      setPendingMatrices((prev) => [...prev, ...newMatrices]);
+
+      if (errors.length > 0) {
+        setError(errors.join("\n"));
+      }
+    } catch (err) {
+      setError(
+        `Failed to open files: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Remove a matrix from the pending list
+   */
+  const handleRemove = useCallback((key: string) => {
+    setPendingMatrices((prev) => prev.filter((m) => m.key !== key));
+  }, []);
+
+  /**
+   * Import a single matrix to the database
+   */
+  const handleImportOne = useCallback(
+    async (pendingMatrix: PendingMatrix) => {
+      if (!activeMatrix) {
+        setError("Please select a template matrix first");
+        return;
+      }
+
+      setImportingKey(pendingMatrix.key);
+      setError(null);
+
+      try {
+        // Create the matrix in the database
+        const matrix = await db.createMatrix({
+          name: pendingMatrix.name,
+          isImported: true,
+          sourceFile: pendingMatrix.sourceFile,
+          parentMatrixId: activeMatrix.id,
+        });
+
+        // Create all rows
+        for (let i = 0; i < pendingMatrix.rows.length; i++) {
+          const row = pendingMatrix.rows[i];
+          await db.createMatrixRow({
+            matrixId: matrix.id,
+            requirements: row.requirements,
+            experienceAndCapability: row.experienceAndCapability,
+            pastPerformance: row.pastPerformance,
+            comments: row.comments,
+            rowOrder: i,
+          });
+        }
+
+        // Remove from pending list
+        setPendingMatrices((prev) =>
+          prev.filter((m) => m.key !== pendingMatrix.key)
+        );
+
+        // Notify parent
+        onImportComplete(matrix.id);
+      } catch (err) {
+        setError(
+          `Failed to import ${pendingMatrix.name}: ${err instanceof Error ? err.message : "Unknown error"}`
+        );
+      } finally {
+        setImportingKey(null);
+      }
+    },
+    [activeMatrix, onImportComplete]
+  );
+
+  /**
+   * Import all pending matrices
+   */
+  const handleImportAll = useCallback(async () => {
+    if (!activeMatrix) {
+      setError("Please select a template matrix first");
+      return;
+    }
+
+    if (pendingMatrices.length === 0) return;
+
+    setIsLoading(true);
+    setError(null);
+    const errors: string[] = [];
+    let lastImportedId: string | null = null;
+
+    for (const pendingMatrix of pendingMatrices) {
+      try {
+        // Create the matrix in the database
+        const matrix = await db.createMatrix({
+          name: pendingMatrix.name,
+          isImported: true,
+          sourceFile: pendingMatrix.sourceFile,
+          parentMatrixId: activeMatrix.id,
+        });
+
+        // Create all rows
+        for (let i = 0; i < pendingMatrix.rows.length; i++) {
+          const row = pendingMatrix.rows[i];
+          await db.createMatrixRow({
+            matrixId: matrix.id,
+            requirements: row.requirements,
+            experienceAndCapability: row.experienceAndCapability,
+            pastPerformance: row.pastPerformance,
+            comments: row.comments,
+            rowOrder: i,
+          });
+        }
+
+        lastImportedId = matrix.id;
+      } catch (err) {
+        errors.push(
+          `Failed to import ${pendingMatrix.name}: ${err instanceof Error ? err.message : "Unknown error"}`
+        );
+      }
+    }
+
+    // Clear pending list
+    setPendingMatrices([]);
+
+    if (errors.length > 0) {
+      setError(errors.join("\n"));
+    }
+
+    // Notify parent with the last imported matrix
+    if (lastImportedId) {
+      onImportComplete(lastImportedId);
+    }
+
+    setIsLoading(false);
+  }, [activeMatrix, pendingMatrices, onImportComplete]);
+
+  return (
+    <div className="space-y-6">
+      {/* No active matrix warning */}
+      {!activeMatrix && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800">
+            Please select or create a template matrix in the Editor tab before
+            importing. Imported matrices will be linked to the selected
+            template.
+          </p>
+        </div>
+      )}
+
+      {/* Error display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700 whitespace-pre-wrap">{error}</p>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-3">
+        <Button onClick={handleChooseFiles} disabled={isLoading}>
+          <FolderOpenIcon className="w-5 h-5 mr-2" />
+          {pendingMatrices.length > 0 ? "Add More Files" : "Choose Excel Files"}
+        </Button>
+
+        {pendingMatrices.length > 0 && (
+          <Button
+            onClick={handleImportAll}
+            disabled={isLoading || !activeMatrix}
+          >
+            <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+            Import All ({pendingMatrices.length})
+          </Button>
+        )}
+
+        {isLoading && (
+          <div className="flex items-center text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
+            Processing...
+          </div>
+        )}
+      </div>
+
+      {/* Active template info */}
+      {activeMatrix && (
+        <div className="text-sm text-gray-600">
+          Importing to template:{" "}
+          <span className="font-medium text-gray-900">{activeMatrix.name}</span>
+        </div>
+      )}
+
+      {/* Pending matrices list */}
+      {pendingMatrices.length > 0 ? (
+        <div className="space-y-4">
+          <h2 className="text-lg font-medium text-gray-900">
+            Ready to Import ({pendingMatrices.length})
+          </h2>
+
+          <div className="space-y-4">
+            {pendingMatrices.map((matrix) => (
+              <ImportPreview
+                key={matrix.key}
+                matrix={matrix}
+                onImport={() => handleImportOne(matrix)}
+                onRemove={() => handleRemove(matrix.key)}
+                isImporting={importingKey === matrix.key}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-12 text-gray-500">
+          <DocumentPlusIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg mb-2">No files selected</p>
+          <p className="text-sm">
+            Click "Choose Excel Files" to select capability matrices to import.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

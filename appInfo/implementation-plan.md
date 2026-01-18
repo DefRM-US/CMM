@@ -8,17 +8,21 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 
 ## Current State
 
-**Exists:**
+**Completed (Phase 1):**
 - Tauri v2 + React 19 + Vite scaffold
-- Dependencies: `@tanstack/react-table`, `xlsx`, `@tauri-apps/api`
-- Basic `greet` Rust command as demo
-- Build/dev commands configured with Bun
+- All dependencies installed (frontend + backend)
+- SQLite integration with Tauri SQL plugin configured
+- Database migrations created and auto-run on startup
+- Tailwind CSS v4 configured with custom score colors
+- TypeScript types defined (`src/types/matrix.ts`)
+- Database service layer implemented (`src/lib/database.ts`)
+- Directory structure created for all future phases
 
-**Missing:**
-- All feature components
-- SQLite integration
-- Excel import/export logic
-- State management
+**Ready for Phase 2:**
+- Components directory structure exists
+- Hooks directory exists
+- Contexts directory exists
+- All CRUD database operations implemented
 
 ---
 
@@ -60,41 +64,50 @@ CREATE TABLE app_settings (
 
 ## Implementation Phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation ✅ COMPLETE
 
 **Objective:** Set up database, types, and styling infrastructure.
 
 **Tasks:**
-1. Install dependencies:
+1. ✅ Install dependencies:
    - Frontend: `@tauri-apps/plugin-sql`, `@tauri-apps/plugin-dialog`, `exceljs`, `@heroicons/react`, `@dnd-kit/core`, `@dnd-kit/sortable`, `tailwindcss`
    - Backend: `tauri-plugin-sql` (sqlite), `tauri-plugin-dialog`
 
-2. Configure Tauri SQL Plugin:
+2. ✅ Configure Tauri SQL Plugin:
    - Add to `Cargo.toml`
    - Register plugin in `lib.rs` with migrations
-   - Add permissions to `tauri.conf.json`
+   - Add permissions to `capabilities/default.json`
 
-3. Create database migrations in `src-tauri/migrations/`
+3. ✅ Create database migrations in `src-tauri/migrations/`
 
-4. Set up Tailwind CSS:
-   - `tailwind.config.js`, `postcss.config.js`
-   - Replace default CSS with Tailwind
+4. ✅ Set up Tailwind CSS v4:
+   - `postcss.config.js` with `@tailwindcss/postcss`
+   - `src/index.css` with `@import "tailwindcss"` and `@theme` for custom colors
 
-5. Create TypeScript types (`src/types/matrix.ts`)
+5. ✅ Create TypeScript types (`src/types/matrix.ts`)
 
-6. Create database service layer (`src/lib/database.ts`)
+6. ✅ Create database service layer (`src/lib/database.ts`)
 
-**Files to create/modify:**
-- `src-tauri/Cargo.toml`
-- `src-tauri/src/lib.rs`
-- `src-tauri/tauri.conf.json`
-- `src-tauri/capabilities/default.json`
-- `src-tauri/migrations/*.sql`
-- `src/types/matrix.ts`
-- `src/lib/database.ts`
-- `tailwind.config.js`
-- `postcss.config.js`
-- `src/index.css`
+7. ✅ Create utility functions (`src/lib/utils.ts`)
+
+**Files created/modified:**
+- `src-tauri/Cargo.toml` - added tauri-plugin-sql, tauri-plugin-dialog
+- `src-tauri/src/lib.rs` - registered plugins with migrations
+- `src-tauri/capabilities/default.json` - added sql and dialog permissions
+- `src-tauri/migrations/001_create_tables.sql` - database schema
+- `src/types/matrix.ts` - TypeScript interfaces and SCORE_CONFIG
+- `src/lib/database.ts` - full CRUD operations for matrices/rows/settings
+- `src/lib/utils.ts` - cn(), generateId(), formatDate(), debounce()
+- `postcss.config.js` - Tailwind v4 PostCSS config
+- `src/index.css` - Tailwind directives and component classes
+- `src/App.tsx` - placeholder with Tailwind styling
+- `src/main.tsx` - imports index.css
+
+**Implementation Notes:**
+- Tailwind v4 requires `@tailwindcss/postcss` plugin (not direct tailwindcss)
+- Score colors defined as CSS custom properties in `@theme` block
+- Database path is `sqlite:cmm.db` - stored in Tauri app data directory
+- Theme toggle feature will be added in Phase 2 (app_settings table ready)
 
 ---
 
@@ -133,7 +146,8 @@ CREATE TABLE app_settings (
 - `src/components/matrix/ScoreBadge.tsx`
 - `src/hooks/useMatrices.ts`
 - `src/hooks/useActiveMatrix.ts`
-- `src/lib/utils.ts`
+
+**Note:** `src/lib/utils.ts` was created in Phase 1
 
 ---
 
@@ -329,19 +343,19 @@ src-tauri/
 
 ---
 
-## Dependencies to Add
+## Dependencies ✅ INSTALLED
 
-**Frontend (bun add):**
-```bash
-bun add @tauri-apps/plugin-sql @tauri-apps/plugin-dialog exceljs @heroicons/react @dnd-kit/core @dnd-kit/sortable
-bun add -D tailwindcss postcss autoprefixer
-```
+**Frontend (package.json):**
+- `@tauri-apps/plugin-sql` - SQLite database access
+- `@tauri-apps/plugin-dialog` - Native file dialogs
+- `exceljs` - Excel export with styling
+- `@heroicons/react` - Icons
+- `@dnd-kit/core`, `@dnd-kit/sortable` - Drag-and-drop
+- `tailwindcss`, `@tailwindcss/postcss`, `postcss`, `autoprefixer` - Styling
 
 **Backend (Cargo.toml):**
-```toml
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-tauri-plugin-dialog = "2"
-```
+- `tauri-plugin-sql` with sqlite feature
+- `tauri-plugin-dialog`
 
 ---
 
@@ -361,4 +375,6 @@ tauri-plugin-dialog = "2"
 
 6. **State management:** React Context + useReducer (simple, sufficient for this app)
 
-7. **Styling:** Tailwind CSS with custom UI components (no shadcn/ui)
+7. **Styling:** Tailwind CSS v4 with custom UI components (no shadcn/ui)
+
+8. **Dark mode:** User-toggleable (stored in app_settings table, implemented in Phase 2)

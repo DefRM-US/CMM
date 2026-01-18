@@ -2,11 +2,12 @@ import { useState, useCallback, useContext } from "react";
 import { MatrixProvider, MatrixContext } from "./contexts/MatrixContext";
 import { MatrixEditor } from "./components/matrix/MatrixEditor";
 import { ImportTab } from "./components/import/ImportTab";
+import { ExportTab } from "./components/export/ExportTab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/Tabs";
 import { useActiveMatrix } from "./hooks/useActiveMatrix";
 import { useMatrices } from "./hooks/useMatrices";
 
-type TabValue = "editor" | "import";
+type TabValue = "editor" | "import" | "export";
 
 /**
  * Main app content - must be inside MatrixProvider to use context
@@ -58,6 +59,7 @@ function AppContent() {
             <TabsList>
               <TabsTrigger value="editor">Editor</TabsTrigger>
               <TabsTrigger value="import">Import</TabsTrigger>
+              <TabsTrigger value="export">Export</TabsTrigger>
             </TabsList>
 
             <TabsContent value="editor">
@@ -69,6 +71,10 @@ function AppContent() {
                 activeMatrix={activeMatrix}
                 onImportComplete={handleImportComplete}
               />
+            </TabsContent>
+
+            <TabsContent value="export">
+              <ExportTab activeMatrix={activeMatrix} />
             </TabsContent>
           </Tabs>
         </div>

@@ -51,20 +51,22 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   return createPortal(
     <dialog
       ref={dialogRef}
-      className="rounded-lg shadow-xl backdrop:bg-black/50 p-0 max-w-md w-full"
+      className="rounded-lg shadow-xl backdrop:bg-black/50 p-0 max-w-md w-full bg-white dark:bg-gray-800"
     >
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             aria-label="Close dialog"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-        {children}
+        <div className="text-gray-700 dark:text-gray-300">
+          {children}
+        </div>
       </div>
     </dialog>,
     document.body

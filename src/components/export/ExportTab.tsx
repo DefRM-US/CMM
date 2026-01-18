@@ -12,6 +12,7 @@ import {
   type ExportMetadata,
 } from "../../lib/excel/exporter";
 import type { CapabilityMatrixWithRows } from "../../types/matrix";
+import { useToast } from "../../contexts/ToastContext";
 
 interface ExportTabProps {
   /** Currently active matrix to export */
@@ -21,7 +22,7 @@ interface ExportTabProps {
 export function ExportTab({ activeMatrix }: ExportTabProps) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showError, showSuccess } = useToast();
 
   /**
    * Handle export to Excel file
@@ -29,12 +30,11 @@ export function ExportTab({ activeMatrix }: ExportTabProps) {
   const handleExport = useCallback(
     async (metadata: ExportMetadata) => {
       if (!activeMatrix) {
-        setError("No matrix selected for export");
+        showError("No matrix selected for export");
         return;
       }
 
       setIsExporting(true);
-      setError(null);
 
       try {
         // Generate filename suggestion
@@ -72,15 +72,16 @@ export function ExportTab({ activeMatrix }: ExportTabProps) {
 
         // Close modal on success
         setShowExportModal(false);
+        showSuccess("Matrix exported successfully");
       } catch (err) {
-        setError(
+        showError(
           `Failed to export: ${err instanceof Error ? err.message : "Unknown error"}`
         );
       } finally {
         setIsExporting(false);
       }
     },
-    [activeMatrix]
+    [activeMatrix, showError, showSuccess]
   );
 
   return (
@@ -91,13 +92,6 @@ export function ExportTab({ activeMatrix }: ExportTabProps) {
           <p className="text-yellow-800">
             Please select or create a matrix in the Editor tab to export.
           </p>
-        </div>
-      )}
-
-      {/* Error display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700 whitespace-pre-wrap">{error}</p>
         </div>
       )}
 

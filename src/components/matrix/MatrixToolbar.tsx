@@ -61,7 +61,7 @@ export function MatrixToolbar({
   return (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-gray-700">Matrix:</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Matrix:</label>
         <Select
           options={matrixOptions}
           value={activeMatrixId}
@@ -109,7 +109,7 @@ export function MatrixToolbar({
           <div>
             <label
               htmlFor="matrix-name"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Matrix Name
             </label>
@@ -146,7 +146,7 @@ export function MatrixToolbar({
         onClose={() => setShowDeleteDialog(false)}
         title="Delete Matrix"
       >
-        <p className="text-gray-600 mb-4">
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
           Are you sure you want to delete "{activeMatrix?.name}"? This will
           permanently remove all rows and cannot be undone.
         </p>

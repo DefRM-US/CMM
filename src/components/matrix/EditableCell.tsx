@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import type { UpdateMatrixRowInput } from "../../types/matrix";
 
 interface EditableCellProps {
@@ -10,14 +10,16 @@ interface EditableCellProps {
   >;
   onUpdate: (rowId: string, updates: UpdateMatrixRowInput) => void;
   placeholder?: string;
+  onNavigate?: (direction: "next" | "prev") => void;
 }
 
-export function EditableCell({
+export const EditableCell = memo(function EditableCell({
   value,
   rowId,
   field,
   onUpdate,
   placeholder = "Click to edit",
+  onNavigate,
 }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
@@ -57,9 +59,18 @@ export function EditableCell({
       } else if (e.key === "Escape") {
         setLocalValue(value);
         setIsEditing(false);
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        // Save current value
+        if (localValue !== value) {
+          onUpdate(rowId, { [field]: localValue });
+        }
+        setIsEditing(false);
+        // Navigate to next/prev cell
+        onNavigate?.(e.shiftKey ? "prev" : "next");
       }
     },
-    [value]
+    [value, localValue, rowId, field, onUpdate, onNavigate]
   );
 
   if (isEditing) {
@@ -79,11 +90,11 @@ export function EditableCell({
   return (
     <div
       onDoubleClick={handleDoubleClick}
-      className="px-2 py-1 min-h-[40px] cursor-text rounded hover:bg-gray-100 transition-colors text-sm whitespace-pre-wrap"
+      className="px-2 py-1 min-h-[40px] cursor-text rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm whitespace-pre-wrap"
     >
       {value || (
-        <span className="text-gray-400 italic">{placeholder}</span>
+        <span className="text-gray-400 dark:text-gray-500 italic">{placeholder}</span>
       )}
     </div>
   );
-}
+});

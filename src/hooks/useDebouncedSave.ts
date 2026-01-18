@@ -5,9 +5,21 @@ import type { UpdateMatrixRowInput } from "../types/matrix";
 // Track pending saves per row
 const pendingSaves = new Map<string, UpdateMatrixRowInput>();
 
-export function useDebouncedSave(delay: number = 500) {
+interface UseDebouncedSaveOptions {
+  delay?: number;
+  onError?: (error: Error) => void;
+}
+
+export function useDebouncedSave(options: UseDebouncedSaveOptions = {}) {
+  const { delay = 500, onError } = options;
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+  const onErrorRef = useRef(onError);
+
+  // Keep onError ref updated
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   // Perform the actual save
   const performSave = useCallback(async () => {
@@ -19,6 +31,9 @@ export function useDebouncedSave(delay: number = 500) {
         await updateMatrixRow(rowId, updates);
       } catch (error) {
         console.error(`Failed to save row ${rowId}:`, error);
+        if (onErrorRef.current && error instanceof Error) {
+          onErrorRef.current(error);
+        }
       }
     }
   }, []);

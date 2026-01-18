@@ -5,6 +5,7 @@ import { MatrixToolbar } from "./MatrixToolbar";
 import { MatrixTable } from "./MatrixTable";
 import { InlineEditableName } from "./InlineEditableName";
 import { EmptyState } from "./EmptyState";
+import { useToast } from "../../contexts/ToastContext";
 
 export function MatrixEditor() {
   const {
@@ -27,6 +28,7 @@ export function MatrixEditor() {
     reorderRows,
   } = useActiveMatrix();
 
+  const { showError } = useToast();
   const [initialized, setInitialized] = useState(false);
 
   // Load matrices on mount
@@ -35,6 +37,13 @@ export function MatrixEditor() {
       loadMatrices().then(() => setInitialized(true));
     }
   }, [initialized, loadMatrices]);
+
+  // Show errors via toast
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error, showError]);
 
   const isLoading = matricesLoading || activeLoading;
 
@@ -74,15 +83,6 @@ export function MatrixEditor() {
   const handleCreateFirstMatrix = useCallback(() => {
     handleCreateMatrix("Matrix 1");
   }, [handleCreateMatrix]);
-
-  // Error display
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-        <p className="text-red-700">{error}</p>
-      </div>
-    );
-  }
 
   // Loading state
   if (!initialized || (isLoading && matrices.length === 0)) {

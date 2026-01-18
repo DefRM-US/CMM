@@ -8,7 +8,7 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 
 ## Current State
 
-**Completed (Phase 1 + Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6):**
+**Completed (Phase 1 + Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7):**
 - Tauri v2 + React 19 + Vite scaffold
 - All dependencies installed (frontend + backend)
 - SQLite integration with Tauri SQL plugin configured
@@ -33,12 +33,14 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 - Hover tooltips showing past performance and comments
 - Window configuration: 1200x800 default, 900x600 minimum
 - App title consistency (window title matches in-app header)
+- Toast notification system with centralized context (ToastContext)
+- Error boundary for graceful React error handling
+- Tab navigation between cells (Tab/Shift+Tab for next/prev)
+- Performance optimization via React.memo on cell components
+- Dark mode with system preference detection and manual toggle
+- Theme persistence in app_settings database
 
-**Ready for Phase 7 (Polish):**
-- All four tabs fully functional
-- Comparison data aggregation with exact requirement matching
-- Toast component available for notifications
-- App settings table ready for dark mode toggle
+**All phases complete. App ready for production.**
 
 ---
 
@@ -368,24 +370,46 @@ CREATE TABLE app_settings (
 
 ---
 
-### Phase 7: Polish
+### Phase 7: Polish ✅ COMPLETE
 
 **Objective:** Error handling, UX refinements.
 
 **Tasks:**
-1. Error boundaries and toast notifications
+1. ✅ Error boundaries and toast notifications
 2. ✅ (Done in Phase 2) Empty state messages
 3. ✅ (Done in Phase 2) Confirmation dialogs (delete matrix, delete row)
-4. Keyboard navigation (Tab between cells, Enter to save)
+4. ✅ Keyboard navigation (Tab between cells, Enter to save)
 5. ✅ (Done in Phase 2) Performance: debounced saves (500ms)
-6. Virtualize table if 100+ rows (use @tanstack/react-virtual)
-7. Dark mode toggle (app_settings table ready)
+6. ⏸️ Virtualize table if 100+ rows - DEFERRED (typical usage is 20-50 rows, added memoization instead)
+7. ✅ Dark mode toggle (with system preference detection)
 
-**Notes for Implementation:**
-- Error display exists in MatrixEditor but could use toast notifications
-- Consider adding keyboard shortcuts (Ctrl+N for new matrix, etc.)
-- TanStack Table supports virtualization - may need to refactor MatrixTable
-- Dark mode: add theme context, CSS variables for dark colors, toggle in header
+**Files created:**
+- `src/contexts/ToastContext.tsx` - Toast queue management with useReducer
+- `src/contexts/ThemeContext.tsx` - Theme state management with system preference detection
+- `src/components/ErrorBoundary.tsx` - Class component for React error handling
+
+**Files modified:**
+- `src/App.tsx` - Wrapped with ErrorBoundary, ThemeProvider, ToastProvider; added theme toggle button
+- `src/index.css` - Added dark mode CSS variables and component variants
+- `src/components/ui/Dialog.tsx` - Dark mode variants
+- `src/components/ui/Tabs.tsx` - Dark mode variants
+- `src/components/matrix/MatrixTable.tsx` - Cell navigation context, dark mode
+- `src/components/matrix/EditableCell.tsx` - Tab navigation, memoization, dark mode
+- `src/components/matrix/ScoreSelector.tsx` - Tab navigation, memoization, dark mode
+- `src/components/matrix/DraggableRow.tsx` - Memoization, dark mode
+- `src/components/matrix/ScoreBadge.tsx` - Memoization
+- `src/components/import/ImportTab.tsx` - Toast notifications
+- `src/components/export/ExportTab.tsx` - Toast notifications
+- `src/components/matrix/MatrixEditor.tsx` - Toast error display
+- `src/hooks/useDebouncedSave.ts` - Error callback for save failures
+
+**Implementation Notes:**
+- ToastContext provides centralized toast notifications (success, error, info)
+- ThemeContext auto-detects system preference on first load, persists to database
+- Tab/Shift+Tab navigation moves between editable cells in the table
+- React.memo added to cell components for performance optimization
+- Dark mode toggle in header (sun/moon icon)
+- All UI components updated with dark: Tailwind variants
 
 ---
 
@@ -404,48 +428,51 @@ CREATE TABLE app_settings (
 
 ```
 src/
-  App.tsx                          ✅ Created (updated Phase 5)
+  App.tsx                          ✅ Created (updated Phase 7)
   main.tsx                         ✅ Created
-  index.css                        ✅ Created
+  index.css                        ✅ Created (updated Phase 7)
 
   components/
+    ErrorBoundary.tsx              ✅ Created (Phase 7)
     comparison/
       ComparisonTab.tsx            ✅ Created (Phase 5)
       ComparisonTable.tsx          ✅ Created (Phase 5)
       ComparisonTooltip.tsx        ✅ Created (Phase 5)
       index.ts                     ✅ Created (Phase 5)
     export/
-      ExportTab.tsx                ✅ Created (Phase 4)
+      ExportTab.tsx                ✅ Created (Phase 4, updated Phase 7)
       ExportModal.tsx              ✅ Created (Phase 4)
       ExportPreview.tsx            ✅ Created (Phase 4)
     import/
-      ImportTab.tsx                ✅ Created (Phase 3)
+      ImportTab.tsx                ✅ Created (Phase 3, updated Phase 7)
       ImportPreview.tsx            ✅ Created (Phase 3)
     matrix/
-      MatrixEditor.tsx             ✅ Created
-      MatrixTable.tsx              ✅ Created
+      MatrixEditor.tsx             ✅ Created (updated Phase 7)
+      MatrixTable.tsx              ✅ Created (updated Phase 7)
       MatrixToolbar.tsx            ✅ Created
-      ScoreSelector.tsx            ✅ Created
-      ScoreBadge.tsx               ✅ Created
-      EditableCell.tsx             ✅ Created
-      DraggableRow.tsx             ✅ Created
+      ScoreSelector.tsx            ✅ Created (updated Phase 7)
+      ScoreBadge.tsx               ✅ Created (updated Phase 7)
+      EditableCell.tsx             ✅ Created (updated Phase 7)
+      DraggableRow.tsx             ✅ Created (updated Phase 7)
       InlineEditableName.tsx       ✅ Created
       EmptyState.tsx               ✅ Created
     ui/
       Button.tsx                   ✅ Created
       Input.tsx                    ✅ Created
       Select.tsx                   ✅ Created
-      Dialog.tsx                   ✅ Created
-      Tabs.tsx                     ✅ Created (Phase 3)
+      Dialog.tsx                   ✅ Created (updated Phase 7)
+      Tabs.tsx                     ✅ Created (Phase 3, updated Phase 7)
       Toast.tsx                    ✅ Created (Phase 5)
 
   contexts/
     MatrixContext.tsx              ✅ Created
+    ToastContext.tsx               ✅ Created (Phase 7)
+    ThemeContext.tsx               ✅ Created (Phase 7)
 
   hooks/
     useMatrices.ts                 ✅ Created
     useActiveMatrix.ts             ✅ Created
-    useDebouncedSave.ts            ✅ Created
+    useDebouncedSave.ts            ✅ Created (updated Phase 7)
 
   lib/
     database.ts                    ✅ Created (updated Phase 5)

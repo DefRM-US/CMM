@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useRef, createContext, useContext, useEffect } from "react";
 import {
   createColumnHelper,
   flexRender,
@@ -31,6 +31,18 @@ import { ScoreSelector } from "./ScoreSelector";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 
+// Cell navigation context
+interface CellNavigation {
+  navigate: (rowId: string, colIndex: number, direction: "next" | "prev") => void;
+  registerCell: (rowId: string, colIndex: number, element: HTMLElement | null) => void;
+}
+
+const CellNavigationContext = createContext<CellNavigation | null>(null);
+
+export function useCellNavigation() {
+  return useContext(CellNavigationContext);
+}
+
 interface MatrixTableProps {
   rows: CapabilityMatrixRow[];
   onUpdateRow: (rowId: string, updates: UpdateMatrixRowInput) => void;
@@ -41,6 +53,64 @@ interface MatrixTableProps {
 
 const columnHelper = createColumnHelper<CapabilityMatrixRow>();
 
+// Editable column indices: requirements=0, score=1, pastPerformance=2, comments=3
+const EDITABLE_COLS = 4;
+
+// Wrapper for EditableCell with navigation
+function NavigableEditableCell({
+  rowId,
+  colIndex,
+  ...props
+}: React.ComponentProps<typeof EditableCell> & { colIndex: number }) {
+  const nav = useCellNavigation();
+  const divRef = useRef<HTMLDivElement>(null);
+
+  // Register cell ref on mount
+  useEffect(() => {
+    if (divRef.current) {
+      nav?.registerCell(rowId, colIndex, divRef.current);
+    }
+    return () => nav?.registerCell(rowId, colIndex, null);
+  }, [nav, rowId, colIndex]);
+
+  return (
+    <div ref={divRef} tabIndex={-1}>
+      <EditableCell
+        {...props}
+        rowId={rowId}
+        onNavigate={(direction) => nav?.navigate(rowId, colIndex, direction)}
+      />
+    </div>
+  );
+}
+
+// Wrapper for ScoreSelector with navigation
+function NavigableScoreSelector({
+  rowId,
+  colIndex,
+  ...props
+}: React.ComponentProps<typeof ScoreSelector> & { rowId: string; colIndex: number }) {
+  const nav = useCellNavigation();
+  const divRef = useRef<HTMLDivElement>(null);
+
+  // Register cell ref on mount
+  useEffect(() => {
+    if (divRef.current) {
+      nav?.registerCell(rowId, colIndex, divRef.current);
+    }
+    return () => nav?.registerCell(rowId, colIndex, null);
+  }, [nav, rowId, colIndex]);
+
+  return (
+    <div ref={divRef} tabIndex={-1}>
+      <ScoreSelector
+        {...props}
+        onNavigate={(direction) => nav?.navigate(rowId, colIndex, direction)}
+      />
+    </div>
+  );
+}
+
 export function MatrixTable({
   rows,
   onUpdateRow,
@@ -49,6 +119,61 @@ export function MatrixTable({
   onAddRow,
 }: MatrixTableProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  // Register a cell for navigation
+  const registerCell = useCallback((rowId: string, colIndex: number, element: HTMLElement | null) => {
+    const key = `${rowId}-${colIndex}`;
+    if (element) {
+      cellRefs.current.set(key, element);
+    } else {
+      cellRefs.current.delete(key);
+    }
+  }, []);
+
+  // Navigate to next/prev cell
+  const navigate = useCallback((rowId: string, colIndex: number, direction: "next" | "prev") => {
+    const rowIndex = rows.findIndex(r => r.id === rowId);
+    if (rowIndex === -1) return;
+
+    let newRowIndex = rowIndex;
+    let newColIndex = colIndex;
+
+    if (direction === "next") {
+      newColIndex++;
+      if (newColIndex >= EDITABLE_COLS) {
+        newColIndex = 0;
+        newRowIndex++;
+      }
+    } else {
+      newColIndex--;
+      if (newColIndex < 0) {
+        newColIndex = EDITABLE_COLS - 1;
+        newRowIndex--;
+      }
+    }
+
+    // Bounds check
+    if (newRowIndex < 0 || newRowIndex >= rows.length) {
+      return;
+    }
+
+    const newRowId = rows[newRowIndex].id;
+    const key = `${newRowId}-${newColIndex}`;
+    const element = cellRefs.current.get(key);
+
+    if (element) {
+      // For editable cells, trigger double-click to enter edit mode
+      // For score selector, just focus
+      element.focus();
+      if (newColIndex !== 1) {
+        // Trigger double-click for EditableCell
+        element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      }
+    }
+  }, [rows]);
+
+  const cellNavigation = useMemo(() => ({ navigate, registerCell }), [navigate, registerCell]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -104,63 +229,68 @@ export function MatrixTable({
         ),
       }),
 
-      // Requirements
+      // Requirements (colIndex: 0)
       columnHelper.accessor("requirements", {
         header: "Requirements",
         size: 300,
         cell: ({ row, getValue }) => (
-          <EditableCell
+          <NavigableEditableCell
             value={getValue()}
             rowId={row.original.id}
             field="requirements"
             onUpdate={onUpdateRow}
             placeholder="Enter requirement..."
+            colIndex={0}
           />
         ),
       }),
 
-      // Experience and Capability
+      // Experience and Capability (colIndex: 1)
       columnHelper.accessor("experienceAndCapability", {
         header: "Experience & Capability",
         size: 180,
         cell: ({ row, getValue }) => (
-          <ScoreSelector
+          <NavigableScoreSelector
             value={getValue()}
             onChange={(score) =>
               onUpdateRow(row.original.id, {
                 experienceAndCapability: score,
               })
             }
+            rowId={row.original.id}
+            colIndex={1}
           />
         ),
       }),
 
-      // Past Performance
+      // Past Performance (colIndex: 2)
       columnHelper.accessor("pastPerformance", {
         header: "Past Performance",
         size: 200,
         cell: ({ row, getValue }) => (
-          <EditableCell
+          <NavigableEditableCell
             value={getValue()}
             rowId={row.original.id}
             field="pastPerformance"
             onUpdate={onUpdateRow}
             placeholder="Enter past performance..."
+            colIndex={2}
           />
         ),
       }),
 
-      // Comments
+      // Comments (colIndex: 3)
       columnHelper.accessor("comments", {
         header: "Comments",
         size: 250,
         cell: ({ row, getValue }) => (
-          <EditableCell
+          <NavigableEditableCell
             value={getValue()}
             rowId={row.original.id}
             field="comments"
             onUpdate={onUpdateRow}
             placeholder="Enter comments..."
+            colIndex={3}
           />
         ),
       }),
@@ -193,8 +323,9 @@ export function MatrixTable({
   const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
 
   return (
+    <CellNavigationContext.Provider value={cellNavigation}>
     <div className="space-y-4">
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -207,7 +338,7 @@ export function MatrixTable({
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-100 border-b border-gray-200"
+                      className="px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-100 border-b border-gray-200 dark:text-gray-100 dark:bg-gray-700 dark:border-gray-600"
                       style={{ width: header.getSize() }}
                     >
                       {flexRender(
@@ -260,5 +391,6 @@ export function MatrixTable({
         </div>
       </Dialog>
     </div>
+    </CellNavigationContext.Provider>
   );
 }

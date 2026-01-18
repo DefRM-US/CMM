@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { flexRender, type Row } from "@tanstack/react-table";
@@ -7,7 +8,7 @@ interface DraggableRowProps {
   row: Row<CapabilityMatrixRow>;
 }
 
-export function DraggableRow({ row }: DraggableRowProps) {
+export const DraggableRow = memo(function DraggableRow({ row }: DraggableRowProps) {
   const {
     attributes,
     listeners,
@@ -29,7 +30,7 @@ export function DraggableRow({ row }: DraggableRowProps) {
       {row.getVisibleCells().map((cell) => (
         <td
           key={cell.id}
-          className="px-4 py-3 text-sm text-gray-700 border-b border-gray-200"
+          className="px-4 py-3 text-sm text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700"
           style={{ width: cell.column.getSize() }}
         >
           {cell.column.id === "drag-handle" ? (
@@ -46,10 +47,10 @@ export function DraggableRow({ row }: DraggableRowProps) {
       ))}
     </tr>
   );
-}
+});
 
 // Drag handle icon component
-export function DragHandle() {
+export const DragHandle = memo(function DragHandle() {
   return (
     <div className="flex flex-col gap-0.5 items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600">
       <div className="w-3 h-0.5 bg-current rounded" />
@@ -57,4 +58,4 @@ export function DragHandle() {
       <div className="w-3 h-0.5 bg-current rounded" />
     </div>
   );
-}
+});

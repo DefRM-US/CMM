@@ -15,6 +15,7 @@ import {
 } from "../../lib/excel/importer";
 import * as db from "../../lib/database";
 import type { CapabilityMatrix } from "../../types/matrix";
+import { useToast } from "../../contexts/ToastContext";
 
 interface ImportTabProps {
   /** Currently selected template matrix (parent for imports) */
@@ -32,13 +33,12 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
   const [pendingMatrices, setPendingMatrices] = useState<PendingMatrix[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [importingKey, setImportingKey] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { showError, showSuccess } = useToast();
 
   /**
    * Open file picker and parse selected Excel files
    */
   const handleChooseFiles = useCallback(async () => {
-    setError(null);
     setIsLoading(true);
 
     try {
@@ -91,16 +91,16 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
       setPendingMatrices((prev) => [...prev, ...newMatrices]);
 
       if (errors.length > 0) {
-        setError(errors.join("\n"));
+        showError(errors.length === 1 ? errors[0] : `${errors.length} errors occurred while parsing files`);
       }
     } catch (err) {
-      setError(
+      showError(
         `Failed to open files: ${err instanceof Error ? err.message : "Unknown error"}`
       );
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   /**
    * Remove a matrix from the pending list
@@ -115,12 +115,11 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
   const handleImportOne = useCallback(
     async (pendingMatrix: PendingMatrix) => {
       if (!activeMatrix) {
-        setError("Please select a template matrix first");
+        showError("Please select a template matrix first");
         return;
       }
 
       setImportingKey(pendingMatrix.key);
-      setError(null);
 
       try {
         // Create the matrix in the database
@@ -149,17 +148,19 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
           prev.filter((m) => m.key !== pendingMatrix.key)
         );
 
+        showSuccess(`Imported "${pendingMatrix.name}" successfully`);
+
         // Notify parent
         onImportComplete(matrix.id);
       } catch (err) {
-        setError(
+        showError(
           `Failed to import ${pendingMatrix.name}: ${err instanceof Error ? err.message : "Unknown error"}`
         );
       } finally {
         setImportingKey(null);
       }
     },
-    [activeMatrix, onImportComplete]
+    [activeMatrix, onImportComplete, showError, showSuccess]
   );
 
   /**
@@ -167,16 +168,16 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
    */
   const handleImportAll = useCallback(async () => {
     if (!activeMatrix) {
-      setError("Please select a template matrix first");
+      showError("Please select a template matrix first");
       return;
     }
 
     if (pendingMatrices.length === 0) return;
 
     setIsLoading(true);
-    setError(null);
     const errors: string[] = [];
     let lastImportedId: string | null = null;
+    let successCount = 0;
 
     for (const pendingMatrix of pendingMatrices) {
       try {
@@ -202,6 +203,7 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
         }
 
         lastImportedId = matrix.id;
+        successCount++;
       } catch (err) {
         errors.push(
           `Failed to import ${pendingMatrix.name}: ${err instanceof Error ? err.message : "Unknown error"}`
@@ -213,7 +215,9 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
     setPendingMatrices([]);
 
     if (errors.length > 0) {
-      setError(errors.join("\n"));
+      showError(`${errors.length} of ${pendingMatrices.length} imports failed`);
+    } else {
+      showSuccess(`Imported ${successCount} matrices successfully`);
     }
 
     // Notify parent with the last imported matrix
@@ -222,7 +226,7 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
     }
 
     setIsLoading(false);
-  }, [activeMatrix, pendingMatrices, onImportComplete]);
+  }, [activeMatrix, pendingMatrices, onImportComplete, showError, showSuccess]);
 
   return (
     <div className="space-y-6">
@@ -234,13 +238,6 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
             importing. Imported matrices will be linked to the selected
             template.
           </p>
-        </div>
-      )}
-
-      {/* Error display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700 whitespace-pre-wrap">{error}</p>
         </div>
       )}
 

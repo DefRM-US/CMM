@@ -14,7 +14,12 @@ export function useActiveMatrix() {
   }
 
   const { state, dispatch } = context;
-  const queueSave = useDebouncedSave(500);
+  const queueSave = useDebouncedSave({
+    delay: 500,
+    onError: (error) => {
+      dispatch({ type: "SET_ERROR", payload: `Failed to save: ${error.message}` });
+    },
+  });
   const initialLoadDone = useRef(false);
 
   // Select a matrix (load its rows)

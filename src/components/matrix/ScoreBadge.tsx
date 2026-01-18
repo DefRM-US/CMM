@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "../../lib/utils";
 import { SCORE_CONFIG, type Score } from "../../types/matrix";
 
@@ -6,7 +7,7 @@ interface ScoreBadgeProps {
   className?: string;
 }
 
-export function ScoreBadge({ score, className }: ScoreBadgeProps) {
+export const ScoreBadge = memo(function ScoreBadge({ score, className }: ScoreBadgeProps) {
   if (score === null) {
     return (
       <span
@@ -27,4 +28,4 @@ export function ScoreBadge({ score, className }: ScoreBadgeProps) {
       {score}
     </span>
   );
-}
+});

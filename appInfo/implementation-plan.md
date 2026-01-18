@@ -8,7 +8,7 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 
 ## Current State
 
-**Completed (Phase 1):**
+**Completed (Phase 1 + Phase 2):**
 - Tauri v2 + React 19 + Vite scaffold
 - All dependencies installed (frontend + backend)
 - SQLite integration with Tauri SQL plugin configured
@@ -16,13 +16,17 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 - Tailwind CSS v4 configured with custom score colors
 - TypeScript types defined (`src/types/matrix.ts`)
 - Database service layer implemented (`src/lib/database.ts`)
-- Directory structure created for all future phases
+- Core matrix editor UI with TanStack Table
+- Drag-and-drop row reordering with @dnd-kit
+- State management with React Context + useReducer
+- Auto-save with 500ms debounce
+- Confirmation dialogs for delete actions
 
-**Ready for Phase 2:**
-- Components directory structure exists
-- Hooks directory exists
-- Contexts directory exists
-- All CRUD database operations implemented
+**Ready for Phase 3:**
+- Matrix CRUD fully functional
+- Row CRUD with drag-and-drop reordering working
+- UI component library established (Button, Input, Select, Dialog)
+- Database layer supports imported matrices (isImported flag ready)
 
 ---
 
@@ -111,43 +115,66 @@ CREATE TABLE app_settings (
 
 ---
 
-### Phase 2: Core Matrix Editor
+### Phase 2: Core Matrix Editor ✅ COMPLETE
 
 **Objective:** Build the primary matrix editing interface.
 
 **Tasks:**
-1. Create basic UI components:
-   - Button, Input, Select, Dialog, Tabs
+1. ✅ Create basic UI components:
+   - Button, Input, Select, Dialog (Tabs deferred - not needed yet)
 
-2. Create matrix components:
+2. ✅ Create matrix components:
    - `MatrixEditor.tsx` - container with matrix selector
    - `MatrixTable.tsx` - TanStack Table with editable cells
    - `ScoreSelector.tsx` - dropdown for 0-3 scores
    - `ScoreBadge.tsx` - color-coded score display
 
-3. Implement drag-and-drop row reordering with @dnd-kit
+3. ✅ Implement drag-and-drop row reordering with @dnd-kit
 
-4. Implement custom hooks:
+4. ✅ Implement custom hooks:
    - `useMatrices.ts` - CRUD operations, state management
    - `useActiveMatrix.ts` - active selection tracking
+   - `useDebouncedSave.ts` - auto-save with debouncing
 
-5. Features:
-   - Create/delete matrices
-   - Add/edit/delete rows
+5. ✅ Features:
+   - Create/delete matrices (with confirmation dialogs)
+   - Add/edit/delete rows (with confirmation dialogs)
    - Drag-and-drop row reordering
-   - Auto-save on cell changes
-   - Switch between matrices
+   - Auto-save on cell changes (500ms debounce)
+   - Switch between matrices via dropdown
+   - Inline matrix name editing (double-click)
+   - Empty state with "Create Your First Matrix" prompt
 
-**Files to create:**
-- `src/components/ui/*.tsx` (Button, Input, Select, Dialog, Tabs)
-- `src/components/matrix/MatrixEditor.tsx`
-- `src/components/matrix/MatrixTable.tsx`
-- `src/components/matrix/ScoreSelector.tsx`
-- `src/components/matrix/ScoreBadge.tsx`
-- `src/hooks/useMatrices.ts`
-- `src/hooks/useActiveMatrix.ts`
+**Files created:**
+- `src/components/ui/Button.tsx` - variants: primary, secondary, danger
+- `src/components/ui/Input.tsx` - forwardRef wrapper for input element
+- `src/components/ui/Select.tsx` - dropdown with options array
+- `src/components/ui/Dialog.tsx` - modal using HTML dialog element + portal
+- `src/components/matrix/ScoreBadge.tsx` - color-coded score display
+- `src/components/matrix/ScoreSelector.tsx` - dropdown with score options
+- `src/components/matrix/EditableCell.tsx` - double-click to edit, textarea
+- `src/components/matrix/DraggableRow.tsx` - @dnd-kit sortable row wrapper
+- `src/components/matrix/MatrixTable.tsx` - TanStack Table with DnD context
+- `src/components/matrix/InlineEditableName.tsx` - double-click to rename
+- `src/components/matrix/MatrixToolbar.tsx` - matrix selector + new/delete buttons
+- `src/components/matrix/EmptyState.tsx` - empty state prompt
+- `src/components/matrix/MatrixEditor.tsx` - main container component
+- `src/contexts/MatrixContext.tsx` - state management with useReducer
+- `src/hooks/useMatrices.ts` - matrix list operations
+- `src/hooks/useActiveMatrix.ts` - active matrix + row operations
+- `src/hooks/useDebouncedSave.ts` - debounced database saves
 
-**Note:** `src/lib/utils.ts` was created in Phase 1
+**Files modified:**
+- `src/App.tsx` - wrapped with MatrixProvider, renders MatrixEditor
+
+**Implementation Notes:**
+- New matrices start with 1 empty row (user preference)
+- Dark mode deferred to Phase 7 (polish)
+- TanStack Table used for data grid (not custom table)
+- EditableCell uses textarea (supports multi-line) with double-click activation
+- Confirmation dialogs for both matrix and row deletion
+- Active matrix ID persisted to app_settings for session restore
+- Optimistic updates with error recovery (reload on failure)
 
 ---
 
@@ -178,6 +205,15 @@ CREATE TABLE app_settings (
 - `src/components/import/ImportTab.tsx`
 - `src/components/import/ImportPreview.tsx`
 
+**Notes for Implementation:**
+- `xlsx` package already installed in package.json
+- Use `@tauri-apps/plugin-dialog` for native file picker (already configured)
+- Database functions ready: `createMatrix({ isImported: true, sourceFile: filename })`
+- Database functions ready: `getImportedMatrices()` to list imported matrices
+- Reuse `ScoreBadge` component for preview table score display
+- Reuse `Button` and `Dialog` components from `src/components/ui/`
+- Consider adding a Tabs component for Export/Import navigation (deferred from Phase 2)
+
 ---
 
 ### Phase 4: Excel Export
@@ -201,6 +237,14 @@ CREATE TABLE app_settings (
 - `src/lib/excel/exporter.ts`
 - `src/components/export/ExportModal.tsx`
 - `src/components/export/ExportTab.tsx`
+
+**Notes for Implementation:**
+- `exceljs` package already installed in package.json
+- Use `@tauri-apps/plugin-dialog` save dialog (already configured in capabilities)
+- Score colors defined in `SCORE_CONFIG` (`src/types/matrix.ts`) - use for Excel cell formatting
+- Reuse `Button`, `Input`, `Dialog` components from `src/components/ui/`
+- `formatDateForFilename()` utility already exists in `src/lib/utils.ts`
+- Active matrix data available via `useActiveMatrix()` hook
 
 ---
 
@@ -229,6 +273,14 @@ CREATE TABLE app_settings (
 - `src/components/comparison/ComparisonTable.tsx`
 - `src/components/comparison/ComparisonTooltip.tsx`
 
+**Notes for Implementation:**
+- Use `getAllMatrices()` + `getMatrixWithRows()` to load all data for comparison
+- Reuse `ScoreBadge` component for score cell display
+- Reuse `Dialog` component for delete confirmations
+- Consider using `createPortal` for tooltip (same pattern as Dialog)
+- Matrix deletion already implemented in `useMatrices()` hook
+- May need to add bulk row deletion to database.ts (delete by requirement text across matrices)
+
 ---
 
 ### Phase 6: Main App Integration
@@ -236,23 +288,30 @@ CREATE TABLE app_settings (
 **Objective:** Combine all components into cohesive app.
 
 **Tasks:**
-1. Create main layout in `App.tsx`:
+1. ✅ (Done in Phase 2) Create main layout in `App.tsx`:
    - Header with app title
-   - Comparison section (visible when matrices exist)
-   - Tabs: Export | Import
+   - MatrixEditor as main content
+   - ⏳ TODO: Add Comparison section (visible when matrices exist)
+   - ⏳ TODO: Add Tabs for Export | Import navigation
 
-2. Create context provider (`src/contexts/MatrixContext.tsx`)
+2. ✅ (Done in Phase 2) Create context provider (`src/contexts/MatrixContext.tsx`)
 
 3. Update window config:
    - Size: 1200x800
    - Title: "Capability Matrix Management"
 
-4. Add empty states and confirmation dialogs
+4. ✅ (Done in Phase 2) Add empty states and confirmation dialogs
 
 **Files to modify/create:**
-- `src/App.tsx`
-- `src/contexts/MatrixContext.tsx`
-- `src-tauri/tauri.conf.json`
+- `src/App.tsx` - add Tabs, Comparison section
+- `src/components/ui/Tabs.tsx` - new component for tab navigation
+- `src-tauri/tauri.conf.json` - update window size
+
+**Notes for Implementation:**
+- MatrixContext already created and working
+- App.tsx structure established - just needs tabs and comparison added
+- Consider layout: Comparison at top, Tabs (Editor | Import | Export) below
+- Or: Tabs for all views (Comparison | Editor | Import | Export)
 
 ---
 
@@ -262,11 +321,18 @@ CREATE TABLE app_settings (
 
 **Tasks:**
 1. Error boundaries and toast notifications
-2. Empty state messages
-3. Confirmation dialogs (delete matrix, clear all, etc.)
-4. Keyboard navigation
-5. Performance: debounced saves, memoization
-6. Virtualize table if 100+ rows
+2. ✅ (Done in Phase 2) Empty state messages
+3. ✅ (Done in Phase 2) Confirmation dialogs (delete matrix, delete row)
+4. Keyboard navigation (Tab between cells, Enter to save)
+5. ✅ (Done in Phase 2) Performance: debounced saves (500ms)
+6. Virtualize table if 100+ rows (use @tanstack/react-virtual)
+7. Dark mode toggle (app_settings table ready)
+
+**Notes for Implementation:**
+- Error display exists in MatrixEditor but could use toast notifications
+- Consider adding keyboard shortcuts (Ctrl+N for new matrix, etc.)
+- TanStack Table supports virtualization - may need to refactor MatrixTable
+- Dark mode: add theme context, CSS variables for dark colors, toggle in header
 
 ---
 
@@ -285,60 +351,66 @@ CREATE TABLE app_settings (
 
 ```
 src/
-  App.tsx
-  main.tsx
-  index.css
+  App.tsx                          ✅ Created
+  main.tsx                         ✅ Created
+  index.css                        ✅ Created
 
   components/
     comparison/
-      ComparisonTable.tsx
-      ComparisonTooltip.tsx
+      ComparisonTable.tsx          ⏳ Phase 5
+      ComparisonTooltip.tsx        ⏳ Phase 5
     export/
-      ExportTab.tsx
-      ExportModal.tsx
+      ExportTab.tsx                ⏳ Phase 4
+      ExportModal.tsx              ⏳ Phase 4
     import/
-      ImportTab.tsx
-      ImportPreview.tsx
+      ImportTab.tsx                ⏳ Phase 3
+      ImportPreview.tsx            ⏳ Phase 3
     matrix/
-      MatrixEditor.tsx
-      MatrixTable.tsx
-      ScoreSelector.tsx
-      ScoreBadge.tsx
+      MatrixEditor.tsx             ✅ Created
+      MatrixTable.tsx              ✅ Created
+      MatrixToolbar.tsx            ✅ Created
+      ScoreSelector.tsx            ✅ Created
+      ScoreBadge.tsx               ✅ Created
+      EditableCell.tsx             ✅ Created
+      DraggableRow.tsx             ✅ Created
+      InlineEditableName.tsx       ✅ Created
+      EmptyState.tsx               ✅ Created
     ui/
-      Button.tsx
-      Input.tsx
-      Select.tsx
-      Dialog.tsx
-      Tabs.tsx
+      Button.tsx                   ✅ Created
+      Input.tsx                    ✅ Created
+      Select.tsx                   ✅ Created
+      Dialog.tsx                   ✅ Created
+      Tabs.tsx                     ⏳ Phase 6
 
   contexts/
-    MatrixContext.tsx
+    MatrixContext.tsx              ✅ Created
 
   hooks/
-    useMatrices.ts
-    useActiveMatrix.ts
+    useMatrices.ts                 ✅ Created
+    useActiveMatrix.ts             ✅ Created
+    useDebouncedSave.ts            ✅ Created
 
   lib/
-    database.ts
-    comparison.ts
-    utils.ts
+    database.ts                    ✅ Created
+    comparison.ts                  ⏳ Phase 5
+    utils.ts                       ✅ Created
     excel/
-      importer.ts
-      exporter.ts
+      importer.ts                  ⏳ Phase 3
+      exporter.ts                  ⏳ Phase 4
 
   types/
-    matrix.ts
+    matrix.ts                      ✅ Created
 
 src-tauri/
   src/
-    lib.rs
-    main.rs
-  Cargo.toml
-  tauri.conf.json
+    lib.rs                         ✅ Created
+    main.rs                        ✅ Created
+  Cargo.toml                       ✅ Created
+  tauri.conf.json                  ✅ Created
   capabilities/
-    default.json
+    default.json                   ✅ Created
   migrations/
-    001_create_tables.sql
+    001_create_tables.sql          ✅ Created
 ```
 
 ---
@@ -361,20 +433,39 @@ src-tauri/
 
 ## Design Decisions
 
-1. **Row reordering:** Drag-and-drop enabled using @dnd-kit
+1. **Row reordering:** Drag-and-drop enabled using @dnd-kit (✅ implemented)
+   - Uses PointerSensor with 5px activation distance
+   - SortableContext with verticalListSortingStrategy
+   - Optimistic UI updates with database persistence
 
 2. **Export file location:** Native Tauri file dialog for user to choose save location
 
 3. **Undo/redo:** Not implemented (keep simple)
 
-4. **Performance:** Virtualize table if 100+ rows
+4. **Performance:**
+   - Debounced auto-save (500ms) to reduce database writes (✅ implemented)
+   - Virtualize table if 100+ rows (Phase 7)
 
 5. **Excel libraries:**
    - `xlsx` (SheetJS) for importing - robust parsing
    - `exceljs` for exporting - full styling and conditional formatting support
 
-6. **State management:** React Context + useReducer (simple, sufficient for this app)
+6. **State management:** React Context + useReducer (✅ implemented)
+   - MatrixContext provides state and dispatch
+   - useMatrices hook for matrix list operations
+   - useActiveMatrix hook for active matrix + row operations
+   - useDebouncedSave hook for batched database writes
 
-7. **Styling:** Tailwind CSS v4 with custom UI components (no shadcn/ui)
+7. **Styling:** Tailwind CSS v4 with custom UI components (no shadcn/ui) (✅ implemented)
+   - Custom Button, Input, Select, Dialog components
+   - Score colors as CSS custom properties
+   - Reusable component classes in index.css
 
-8. **Dark mode:** User-toggleable (stored in app_settings table, implemented in Phase 2)
+8. **Dark mode:** User-toggleable (stored in app_settings table, deferred to Phase 7)
+
+9. **Cell editing:** Double-click to edit pattern (✅ implemented)
+   - EditableCell component with textarea for multi-line support
+   - Enter to save, Escape to cancel
+   - Blur also triggers save
+
+10. **New matrices:** Start with 1 empty row (user preference, ✅ implemented)

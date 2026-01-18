@@ -1,15 +1,17 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { cn } from "../../lib/utils";
 
 interface DialogProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+export function Dialog({ open, onClose, title, children, className }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -51,20 +53,30 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   return createPortal(
     <dialog
       ref={dialogRef}
-      className="rounded-lg shadow-xl backdrop:bg-black/50 p-0 max-w-md w-full bg-white dark:bg-gray-800"
+      className={cn(
+        "rounded-xl shadow-xl p-0 max-w-md w-full",
+        "backdrop:bg-black/60 backdrop:backdrop-blur-sm",
+        "bg-[var(--card)] border border-[var(--border)]",
+        className
+      )}
     >
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">{title}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className={cn(
+              "p-1 rounded-md transition-colors",
+              "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+              "hover:bg-[var(--accent)]",
+              "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]/50"
+            )}
             aria-label="Close dialog"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-        <div className="text-gray-700 dark:text-gray-300">
+        <div className="text-[var(--foreground)]">
           {children}
         </div>
       </div>

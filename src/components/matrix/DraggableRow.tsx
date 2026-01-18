@@ -22,7 +22,7 @@ export const DraggableRow = memo(function DraggableRow({ row }: DraggableRowProp
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    backgroundColor: isDragging ? "#f9fafb" : undefined,
+    backgroundColor: isDragging ? "var(--accent)" : undefined,
   };
 
   return (
@@ -30,7 +30,7 @@ export const DraggableRow = memo(function DraggableRow({ row }: DraggableRowProp
       {row.getVisibleCells().map((cell) => (
         <td
           key={cell.id}
-          className="px-4 py-3 text-sm text-gray-700 border-b border-gray-200 dark:text-gray-300 dark:border-gray-700"
+          className="px-4 py-3 text-sm text-[var(--foreground)] border-b border-[var(--border)]"
           style={{ width: cell.column.getSize() }}
         >
           {cell.column.id === "drag-handle" ? (
@@ -52,7 +52,7 @@ export const DraggableRow = memo(function DraggableRow({ row }: DraggableRowProp
 // Drag handle icon component
 export const DragHandle = memo(function DragHandle() {
   return (
-    <div className="flex flex-col gap-0.5 items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600">
+    <div className="flex flex-col gap-0.5 items-center justify-center w-6 h-6 text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
       <div className="w-3 h-0.5 bg-current rounded" />
       <div className="w-3 h-0.5 bg-current rounded" />
       <div className="w-3 h-0.5 bg-current rounded" />

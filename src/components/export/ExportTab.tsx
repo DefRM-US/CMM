@@ -88,8 +88,8 @@ export function ExportTab({ activeMatrix }: ExportTabProps) {
     <div className="space-y-6">
       {/* No active matrix warning */}
       {!activeMatrix && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">
+        <div className="bg-[var(--warning)]/10 border border-[var(--warning)] rounded-lg p-4">
+          <p className="text-[var(--warning)]">
             Please select or create a matrix in the Editor tab to export.
           </p>
         </div>
@@ -106,8 +106,8 @@ export function ExportTab({ activeMatrix }: ExportTabProps) {
         </Button>
 
         {isExporting && (
-          <div className="flex items-center text-gray-500">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
+          <div className="flex items-center text-[var(--muted-foreground)]">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--primary)] mr-2" />
             Exporting...
           </div>
         )}
@@ -115,21 +115,21 @@ export function ExportTab({ activeMatrix }: ExportTabProps) {
 
       {/* Active matrix info */}
       {activeMatrix && (
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-[var(--muted-foreground)]">
           Exporting:{" "}
-          <span className="font-medium text-gray-900">{activeMatrix.name}</span>
+          <span className="font-medium text-[var(--foreground)]">{activeMatrix.name}</span>
         </div>
       )}
 
       {/* Preview section */}
       {activeMatrix ? (
         <div className="space-y-4">
-          <h2 className="text-lg font-medium text-gray-900">Export Preview</h2>
+          <h2 className="text-lg font-medium text-[var(--foreground)]">Export Preview</h2>
           <ExportPreview matrix={activeMatrix} />
         </div>
       ) : (
-        <div className="text-center py-12 text-gray-500">
-          <DocumentTextIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <div className="text-center py-12 text-[var(--muted-foreground)]">
+          <DocumentTextIcon className="w-12 h-12 mx-auto mb-4 text-[var(--muted-foreground)]/50" />
           <p className="text-lg mb-2">No matrix selected</p>
           <p className="text-sm">
             Select a matrix in the Editor tab to preview and export.

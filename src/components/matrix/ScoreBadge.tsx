@@ -12,7 +12,7 @@ export const ScoreBadge = memo(function ScoreBadge({ score, className }: ScoreBa
     return (
       <span
         className={cn(
-          "score-badge bg-gray-100 text-gray-400 border border-gray-300",
+          "score-badge bg-[var(--muted)] text-[var(--muted-foreground)] border border-[var(--border)]",
           className
         )}
       >

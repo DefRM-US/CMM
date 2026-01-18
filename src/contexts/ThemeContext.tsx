@@ -36,10 +36,11 @@ function getSystemTheme(): Theme {
 }
 
 function applyTheme(theme: Theme) {
-  if (theme === "dark") {
-    document.documentElement.classList.add("dark");
+  // DEFRM Design System: dark is default, light requires .light class
+  if (theme === "light") {
+    document.documentElement.classList.add("light");
   } else {
-    document.documentElement.classList.remove("dark");
+    document.documentElement.classList.remove("light");
   }
 }
 

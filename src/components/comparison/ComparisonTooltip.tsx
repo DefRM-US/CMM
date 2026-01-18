@@ -30,7 +30,7 @@ export function ComparisonTooltip({
 
   return createPortal(
     <div
-      className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-sm pointer-events-none"
+      className="fixed z-50 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg p-3 max-w-sm pointer-events-none"
       style={{
         top,
         left,
@@ -39,8 +39,8 @@ export function ComparisonTooltip({
       role="tooltip"
     >
       {/* Header with company name and score */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-        <span className="font-medium text-gray-900 truncate mr-2">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-[var(--border)]">
+        <span className="font-medium text-[var(--foreground)] truncate mr-2">
           {matrixName}
         </span>
         <ScoreBadge score={score} />
@@ -49,10 +49,10 @@ export function ComparisonTooltip({
       {/* Past Performance */}
       {hasPastPerformance && (
         <div className="mb-3">
-          <p className="text-xs font-medium text-gray-500 uppercase mb-1">
+          <p className="text-xs font-medium text-[var(--muted-foreground)] uppercase mb-1">
             Past Performance
           </p>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-4">
+          <p className="text-sm text-[var(--foreground)] whitespace-pre-wrap line-clamp-4">
             {pastPerformance}
           </p>
         </div>
@@ -61,10 +61,10 @@ export function ComparisonTooltip({
       {/* Comments */}
       {hasComments && (
         <div>
-          <p className="text-xs font-medium text-gray-500 uppercase mb-1">
+          <p className="text-xs font-medium text-[var(--muted-foreground)] uppercase mb-1">
             Comments
           </p>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap line-clamp-4">
+          <p className="text-sm text-[var(--foreground)] whitespace-pre-wrap line-clamp-4">
             {comments}
           </p>
         </div>

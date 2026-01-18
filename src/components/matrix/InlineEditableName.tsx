@@ -62,7 +62,7 @@ export function InlineEditableName({ value, onSave }: InlineEditableNameProps) {
         onChange={(e) => setLocalValue(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className="text-xl font-semibold text-gray-900 bg-white border border-blue-500 rounded px-2 py-1 outline-none"
+        className="text-xl font-semibold text-[var(--foreground)] bg-[var(--input)] border border-[var(--primary)] rounded px-2 py-1 outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]/50"
       />
     );
   }
@@ -73,8 +73,8 @@ export function InlineEditableName({ value, onSave }: InlineEditableNameProps) {
       className="group flex items-center gap-2 cursor-pointer"
       title="Double-click to edit"
     >
-      <h2 className="text-xl font-semibold text-gray-900">{value}</h2>
-      <PencilIcon className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <h2 className="text-xl font-semibold text-[var(--foreground)]">{value}</h2>
+      <PencilIcon className="w-4 h-4 text-[var(--muted-foreground)] opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );
 }

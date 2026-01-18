@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, memo } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { SCORE_CONFIG, type Score } from "../../types/matrix";
 import { ScoreBadge } from "./ScoreBadge";
@@ -15,13 +16,18 @@ const scoreOptions: Score[] = [3, 2, 1, 0, null];
 
 export const ScoreSelector = memo(function ScoreSelector({ value, onChange, disabled, onNavigate }: ScoreSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const isInContainer = containerRef.current?.contains(target);
+      const isInDropdown = dropdownRef.current?.contains(target);
+      if (!isInContainer && !isInDropdown) {
         setIsOpen(false);
       }
     };
@@ -29,6 +35,17 @@ export const ScoreSelector = memo(function ScoreSelector({ value, onChange, disa
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+  }, [isOpen]);
 
   // Close on escape
   useEffect(() => {
@@ -66,19 +83,23 @@ export const ScoreSelector = memo(function ScoreSelector({ value, onChange, disa
         onKeyDown={handleKeyDown}
         disabled={disabled}
         className={cn(
-          "flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors min-w-[140px]",
+          "flex items-center gap-2 px-2 py-1 rounded hover:bg-[var(--accent)] transition-colors min-w-[140px]",
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
         <ScoreBadge score={value} />
-        <span className="text-sm text-gray-600 dark:text-gray-300 flex-1 text-left">
+        <span className="text-sm text-[var(--muted-foreground)] flex-1 text-left">
           {getLabel(value)}
         </span>
-        <ChevronDownIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+        <ChevronDownIcon className="w-4 h-4 text-[var(--muted-foreground)]" />
       </button>
 
-      {isOpen && (
-        <div className="absolute z-10 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 min-w-[180px]">
+      {isOpen && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-50 bg-[var(--card)] border border-[var(--border)] rounded-md shadow-lg py-1 min-w-[180px]"
+          style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+        >
           {scoreOptions.map((score) => (
             <button
               key={score ?? "null"}
@@ -87,22 +108,23 @@ export const ScoreSelector = memo(function ScoreSelector({ value, onChange, disa
                 setIsOpen(false);
               }}
               className={cn(
-                "flex items-center gap-3 w-full px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left transition-colors",
-                score === value && "bg-blue-50 dark:bg-blue-900/30"
+                "flex items-center gap-3 w-full px-3 py-2 hover:bg-[var(--accent)] text-left transition-colors",
+                score === value && "bg-[var(--primary)]/10"
               )}
             >
               <ScoreBadge score={score} />
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{getLabel(score)}</span>
+                <span className="text-sm font-medium text-[var(--foreground)]">{getLabel(score)}</span>
                 {score !== null && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <span className="text-xs text-[var(--muted-foreground)]">
                     {SCORE_CONFIG[score].description.split(" - ")[0]}
                   </span>
                 )}
               </div>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

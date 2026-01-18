@@ -64,29 +64,26 @@ export function Select({
         disabled={disabled}
         className={cn(
           "flex items-center justify-between w-full px-3 py-2 text-left",
-          "bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
-          "text-sm",
+          "rounded-md shadow-sm text-sm transition-colors",
+          "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--ring)]/50",
+          "bg-[var(--input)] border border-[var(--border)]",
           disabled && "opacity-50 cursor-not-allowed",
-          !selectedOption && "text-gray-500 dark:text-gray-400"
+          selectedOption ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]"
         )}
       >
-        <span className={cn(
-          "truncate",
-          selectedOption ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"
-        )}>
+        <span className="truncate">
           {displayText}
         </span>
         <ChevronDownIcon className={cn(
-          "w-4 h-4 ml-2 flex-shrink-0 text-gray-400 dark:text-gray-500 transition-transform",
+          "w-4 h-4 ml-2 flex-shrink-0 text-[var(--muted-foreground)] transition-transform",
           isOpen && "rotate-180"
         )} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 max-h-60 overflow-auto">
+        <div className="absolute z-50 mt-1 w-full rounded-md shadow-lg py-1 max-h-60 overflow-auto bg-[var(--card)] border border-[var(--border)]">
           {options.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+            <div className="px-3 py-2 text-sm text-[var(--muted-foreground)]">
               No options
             </div>
           ) : (
@@ -99,11 +96,11 @@ export function Select({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "flex items-center w-full px-3 py-2 text-sm text-left",
-                  "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
+                  "flex items-center w-full px-3 py-2 text-sm text-left transition-colors",
+                  "hover:bg-[var(--accent)]",
                   option.value === value
-                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                    : "text-gray-900 dark:text-white"
+                    ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                    : "text-[var(--foreground)]"
                 )}
               >
                 {option.label}

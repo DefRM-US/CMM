@@ -51,7 +51,7 @@ export function ComparisonTable({
 
   if (data.rows.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center py-8 text-[var(--muted-foreground)]">
         <p>No requirements to compare.</p>
         <p className="text-sm mt-1">
           Add requirements to your matrices to see them here.
@@ -61,14 +61,14 @@ export function ComparisonTable({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left">
+          <thead className="bg-[var(--muted)] text-left">
             <tr>
               {/* Requirements column header - sticky */}
               <th
-                className="px-4 py-3 font-medium text-gray-700 sticky left-0 bg-gray-50 z-10 min-w-[300px] border-r border-gray-200"
+                className="px-4 py-3 font-medium text-[var(--foreground)] sticky left-0 bg-[var(--muted)] z-10 min-w-[300px] border-r border-[var(--border)]"
               >
                 Requirements
               </th>
@@ -76,7 +76,7 @@ export function ComparisonTable({
               {data.matrices.map((matrix) => (
                 <th
                   key={matrix.id}
-                  className="px-4 py-3 font-medium text-gray-700 text-center min-w-[120px]"
+                  className="px-4 py-3 font-medium text-[var(--foreground)] text-center min-w-[120px]"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <span
@@ -87,7 +87,7 @@ export function ComparisonTable({
                     </span>
                     <button
                       onClick={() => onDeleteMatrix(matrix.id, matrix.name)}
-                      className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                      className="text-[var(--muted-foreground)] hover:text-[var(--destructive)] transition-colors flex-shrink-0"
                       title={`Delete ${matrix.name}`}
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -97,15 +97,15 @@ export function ComparisonTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-[var(--border)]">
             {data.rows.map((row) => (
-              <tr key={row.normalizedRequirement} className="hover:bg-gray-50">
+              <tr key={row.normalizedRequirement} className="hover:bg-[var(--accent)]">
                 {/* Requirement cell with delete button - sticky */}
-                <td className="px-4 py-3 text-gray-900 sticky left-0 bg-white z-10 border-r border-gray-200">
+                <td className="px-4 py-3 text-[var(--foreground)] sticky left-0 bg-[var(--card)] z-10 border-r border-[var(--border)]">
                   <div className="flex items-start gap-2">
                     <button
                       onClick={() => onDeleteRequirement(row.requirement)}
-                      className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5"
+                      className="text-[var(--muted-foreground)] hover:text-[var(--destructive)] transition-colors flex-shrink-0 mt-0.5"
                       title="Delete requirement from all companies"
                     >
                       <TrashIcon className="w-4 h-4" />

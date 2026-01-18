@@ -232,8 +232,8 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
     <div className="space-y-6">
       {/* No active matrix warning */}
       {!activeMatrix && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">
+        <div className="bg-[var(--secondary)] border border-[var(--border)] rounded-lg p-4">
+          <p className="text-[var(--secondary-foreground)]">
             Please select or create a template matrix in the Editor tab before
             importing. Imported matrices will be linked to the selected
             template.
@@ -259,8 +259,8 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
         )}
 
         {isLoading && (
-          <div className="flex items-center text-gray-500">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
+          <div className="flex items-center text-[var(--muted-foreground)]">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--primary)] mr-2" />
             Processing...
           </div>
         )}
@@ -268,16 +268,16 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
 
       {/* Active template info */}
       {activeMatrix && (
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-[var(--muted-foreground)]">
           Importing to template:{" "}
-          <span className="font-medium text-gray-900">{activeMatrix.name}</span>
+          <span className="font-medium text-[var(--foreground)]">{activeMatrix.name}</span>
         </div>
       )}
 
       {/* Pending matrices list */}
       {pendingMatrices.length > 0 ? (
         <div className="space-y-4">
-          <h2 className="text-lg font-medium text-gray-900">
+          <h2 className="text-lg font-medium text-[var(--foreground)]">
             Ready to Import ({pendingMatrices.length})
           </h2>
 
@@ -294,8 +294,8 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 text-gray-500">
-          <DocumentPlusIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <div className="text-center py-12 text-[var(--muted-foreground)]">
+          <DocumentPlusIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p className="text-lg mb-2">No files selected</p>
           <p className="text-sm">
             Click "Choose Excel Files" to select capability matrices to import.

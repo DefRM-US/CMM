@@ -14,11 +14,11 @@ export function ExportPreview({ matrix }: ExportPreviewProps) {
   const remainingRows = sortedRows.length - MAX_PREVIEW_ROWS;
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-        <h3 className="font-medium text-gray-900">{matrix.name}</h3>
-        <p className="text-sm text-gray-500">
+      <div className="bg-[var(--muted)] px-4 py-3 border-b border-[var(--border)]">
+        <h3 className="font-medium text-[var(--foreground)]">{matrix.name}</h3>
+        <p className="text-sm text-[var(--muted-foreground)]">
           {matrix.rows.length} row{matrix.rows.length !== 1 ? "s" : ""} will be
           exported
         </p>
@@ -27,33 +27,33 @@ export function ExportPreview({ matrix }: ExportPreviewProps) {
       {/* Preview Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left">
+          <thead className="bg-[var(--muted)] text-left">
             <tr>
-              <th className="px-4 py-2 font-medium text-gray-700 w-1/2">
+              <th className="px-4 py-2 font-medium text-[var(--foreground)] w-1/2">
                 Requirements
               </th>
-              <th className="px-4 py-2 font-medium text-gray-700 w-20 text-center">
+              <th className="px-4 py-2 font-medium text-[var(--foreground)] w-20 text-center">
                 Score
               </th>
-              <th className="px-4 py-2 font-medium text-gray-700">
+              <th className="px-4 py-2 font-medium text-[var(--foreground)]">
                 Past Performance
               </th>
-              <th className="px-4 py-2 font-medium text-gray-700">Comments</th>
+              <th className="px-4 py-2 font-medium text-[var(--foreground)]">Comments</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-[var(--border)]">
             {previewRows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 text-gray-900">
+              <tr key={row.id} className="hover:bg-[var(--accent)]">
+                <td className="px-4 py-2 text-[var(--foreground)]">
                   <span className="line-clamp-2">{row.requirements}</span>
                 </td>
                 <td className="px-4 py-2 text-center">
                   <ScoreBadge score={row.experienceAndCapability} />
                 </td>
-                <td className="px-4 py-2 text-gray-600">
+                <td className="px-4 py-2 text-[var(--muted-foreground)]">
                   <span className="line-clamp-2">{row.pastPerformance}</span>
                 </td>
-                <td className="px-4 py-2 text-gray-600">
+                <td className="px-4 py-2 text-[var(--muted-foreground)]">
                   <span className="line-clamp-2">{row.comments}</span>
                 </td>
               </tr>
@@ -64,14 +64,14 @@ export function ExportPreview({ matrix }: ExportPreviewProps) {
 
       {/* Show more indicator */}
       {remainingRows > 0 && (
-        <div className="bg-gray-50 px-4 py-2 text-sm text-gray-500 text-center border-t border-gray-200">
+        <div className="bg-[var(--muted)] px-4 py-2 text-sm text-[var(--muted-foreground)] text-center border-t border-[var(--border)]">
           ...and {remainingRows} more row{remainingRows !== 1 ? "s" : ""}
         </div>
       )}
 
       {/* Empty state */}
       {matrix.rows.length === 0 && (
-        <div className="px-4 py-8 text-center text-gray-500">
+        <div className="px-4 py-8 text-center text-[var(--muted-foreground)]">
           This matrix has no rows to export.
         </div>
       )}

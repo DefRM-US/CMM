@@ -52,9 +52,9 @@ export function ExportModal({
         <div>
           <label
             htmlFor="company-name"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-[var(--foreground)] mb-1"
           >
-            Company Name <span className="text-red-500">*</span>
+            Company Name <span className="text-[var(--destructive)]">*</span>
           </label>
           <Input
             id="company-name"
@@ -69,7 +69,7 @@ export function ExportModal({
         <div>
           <label
             htmlFor="export-date"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-[var(--foreground)] mb-1"
           >
             Date
           </label>
@@ -84,7 +84,7 @@ export function ExportModal({
         <div>
           <label
             htmlFor="export-version"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-medium text-[var(--foreground)] mb-1"
           >
             Version
           </label>

@@ -88,7 +88,7 @@ export function MatrixEditor() {
   if (!initialized || (isLoading && matrices.length === 0)) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
       </div>
     );
   }
@@ -129,13 +129,13 @@ export function MatrixEditor() {
           />
 
           {/* Row count footer */}
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-[var(--muted-foreground)]">
             {activeMatrix.rows.length} row
             {activeMatrix.rows.length !== 1 ? "s" : ""}
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-[var(--muted-foreground)]">
           Select a matrix from the dropdown or create a new one.
         </div>
       )}

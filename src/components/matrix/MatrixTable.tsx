@@ -223,7 +223,7 @@ export function MatrixTable({
         header: "#",
         size: 50,
         cell: ({ row }) => (
-          <span className="text-gray-500 text-sm font-medium">
+          <span className="text-[var(--muted-foreground)] text-sm font-medium">
             {row.index + 1}
           </span>
         ),
@@ -303,7 +303,7 @@ export function MatrixTable({
         cell: ({ row }) => (
           <button
             onClick={() => setDeleteConfirm(row.original.id)}
-            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+            className="text-[var(--muted-foreground)] hover:text-[var(--destructive)] transition-colors p-1"
             aria-label="Delete row"
           >
             <TrashIcon className="w-4 h-4" />
@@ -325,7 +325,7 @@ export function MatrixTable({
   return (
     <CellNavigationContext.Provider value={cellNavigation}>
     <div className="space-y-4">
-      <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+      <div className="overflow-x-auto border border-[var(--border)] rounded-lg">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -338,7 +338,7 @@ export function MatrixTable({
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-100 border-b border-gray-200 dark:text-gray-100 dark:bg-gray-700 dark:border-gray-600"
+                      className="px-4 py-3 text-left text-sm font-semibold text-[var(--foreground)] bg-[var(--muted)] border-b border-[var(--border)]"
                       style={{ width: header.getSize() }}
                     >
                       {flexRender(
@@ -375,7 +375,7 @@ export function MatrixTable({
         onClose={() => setDeleteConfirm(null)}
         title="Delete Row"
       >
-        <p className="text-gray-600 mb-4">
+        <p className="text-[var(--muted-foreground)] mb-4">
           Are you sure you want to delete this row? This cannot be undone.
         </p>
         <div className="flex justify-end gap-3">

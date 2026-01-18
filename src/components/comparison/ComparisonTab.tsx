@@ -254,7 +254,7 @@ export function ComparisonTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading comparison data...</div>
+        <div className="text-[var(--muted-foreground)]">Loading comparison data...</div>
       </div>
     );
   }
@@ -263,7 +263,7 @@ export function ComparisonTab() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <div className="text-red-500 mb-4">{error}</div>
+        <div className="text-[var(--destructive)] mb-4">{error}</div>
         <Button onClick={() => window.location.reload()}>Reload</Button>
       </div>
     );
@@ -272,8 +272,8 @@ export function ComparisonTab() {
   // Empty state - no matrices at all
   if (matricesWithRows.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <TableCellsIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+      <div className="text-center py-12 text-[var(--muted-foreground)]">
+        <TableCellsIcon className="w-12 h-12 mx-auto mb-4 text-[var(--muted-foreground)]" />
         <p className="text-lg mb-2">No matrices to compare</p>
         <p className="text-sm">
           Create or import matrices in the Editor and Import tabs to start
@@ -289,7 +289,7 @@ export function ComparisonTab() {
       <div className="space-y-6">
         {/* Visibility toggles */}
         <div>
-          <p className="text-sm text-gray-600 mb-3">Companies:</p>
+          <p className="text-sm text-[var(--muted-foreground)] mb-3">Companies:</p>
           <div className="flex flex-wrap gap-2">
             {matricesWithRows.map((matrix) => (
               <button
@@ -297,7 +297,7 @@ export function ComparisonTab() {
                 onClick={() => toggleMatrixVisibility(matrix.id)}
                 className={cn(
                   "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors",
-                  "bg-gray-100 text-gray-400 line-through"
+                  "bg-[var(--muted)] text-[var(--muted-foreground)] line-through"
                 )}
                 title="Click to show this company"
               >
@@ -308,8 +308,8 @@ export function ComparisonTab() {
           </div>
         </div>
 
-        <div className="text-center py-12 text-gray-500">
-          <EyeSlashIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <div className="text-center py-12 text-[var(--muted-foreground)]">
+          <EyeSlashIcon className="w-12 h-12 mx-auto mb-4 text-[var(--muted-foreground)]" />
           <p className="text-lg mb-2">All companies hidden</p>
           <p className="text-sm">
             Click on a company above to show it in the comparison.
@@ -323,16 +323,16 @@ export function ComparisonTab() {
     <div className="space-y-6">
       {/* Statistics header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-[var(--muted-foreground)]">
           Comparing{" "}
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-[var(--foreground)]">
             {comparisonData.rows.length}
           </span>{" "}
           requirements across{" "}
-          <span className="font-medium text-gray-900">{visibleCount}</span>{" "}
+          <span className="font-medium text-[var(--foreground)]">{visibleCount}</span>{" "}
           {visibleCount === 1 ? "company" : "companies"}
           {hiddenMatrixIds.size > 0 && (
-            <span className="text-gray-400">
+            <span className="text-[var(--muted-foreground)]">
               {" "}
               ({hiddenMatrixIds.size} hidden)
             </span>
@@ -342,7 +342,7 @@ export function ComparisonTab() {
 
       {/* Visibility toggles */}
       <div>
-        <p className="text-sm text-gray-600 mb-3">Companies:</p>
+        <p className="text-sm text-[var(--muted-foreground)] mb-3">Companies:</p>
         <div className="flex flex-wrap gap-2">
           {matricesWithRows.map((matrix) => {
             const isHidden = hiddenMatrixIds.has(matrix.id);
@@ -353,8 +353,8 @@ export function ComparisonTab() {
                 className={cn(
                   "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors",
                   isHidden
-                    ? "bg-gray-100 text-gray-400 line-through"
-                    : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    ? "bg-[var(--muted)] text-[var(--muted-foreground)] line-through"
+                    : "bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90"
                 )}
                 title={isHidden ? "Click to show" : "Click to hide"}
               >
@@ -389,11 +389,11 @@ export function ComparisonTab() {
       >
         {deleteConfirm?.type === "matrix" && (
           <div className="space-y-4">
-            <p className="text-gray-700">
+            <p className="text-[var(--foreground)]">
               Are you sure you want to delete{" "}
               <strong>{deleteConfirm.matrixName}</strong>?
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--muted-foreground)]">
               This will permanently remove this company and all its capability
               data.
             </p>
@@ -413,24 +413,24 @@ export function ComparisonTab() {
 
         {deleteConfirm?.type === "requirement" && deleteConfirm.requirementInfo && (
           <div className="space-y-4">
-            <p className="text-gray-700">
+            <p className="text-[var(--foreground)]">
               Delete this requirement from all companies?
             </p>
-            <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded line-clamp-2">
+            <p className="text-sm text-[var(--muted-foreground)] bg-[var(--muted)] p-2 rounded line-clamp-2">
               "{deleteConfirm.requirement}"
             </p>
             {deleteConfirm.requirementInfo.companiesWithData.length > 0 && (
               <div>
-                <p className="text-sm text-amber-600 mb-2">
+                <p className="text-sm text-[var(--warning)] mb-2">
                   Companies with data in this row:
                 </p>
-                <ul className="text-sm text-gray-600 space-y-1 max-h-32 overflow-y-auto">
+                <ul className="text-sm text-[var(--muted-foreground)] space-y-1 max-h-32 overflow-y-auto">
                   {deleteConfirm.requirementInfo.companiesWithData.map((company) => (
                     <li key={company.matrixId} className="flex items-center gap-2">
-                      <span className="text-gray-400">•</span>
+                      <span className="text-[var(--muted-foreground)]">•</span>
                       <span className="font-medium">{company.matrixName}</span>
                       {company.score !== null && (
-                        <span className="text-gray-500">
+                        <span className="text-[var(--muted-foreground)]">
                           (score: {company.score}
                           {company.hasComments && ", has comments"}
                           {company.hasPastPerformance && ", has past performance"})

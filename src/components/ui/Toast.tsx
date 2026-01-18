@@ -55,9 +55,10 @@ export function Toast({
     <div
       className={cn(
         "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
-        "bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg",
+        "px-4 py-3 rounded-lg shadow-lg",
         "flex items-center gap-3 min-w-[280px] max-w-md",
         "transition-all duration-200 ease-out",
+        "bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)]",
         isVisible && !isLeaving
           ? "opacity-100 translate-y-0"
           : "opacity-0 translate-y-4"
@@ -69,7 +70,7 @@ export function Toast({
       {action && (
         <button
           onClick={handleActionClick}
-          className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+          className="text-sm font-medium text-[var(--primary)] hover:opacity-80 transition-colors"
         >
           {action.label}
         </button>
@@ -77,7 +78,7 @@ export function Toast({
 
       <button
         onClick={handleClose}
-        className="text-gray-400 hover:text-white transition-colors"
+        className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
         aria-label="Dismiss"
       >
         <XMarkIcon className="w-4 h-4" />

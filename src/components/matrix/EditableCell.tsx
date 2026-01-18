@@ -90,10 +90,10 @@ export const EditableCell = memo(function EditableCell({
   return (
     <div
       onDoubleClick={handleDoubleClick}
-      className="px-2 py-1 min-h-[40px] cursor-text rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm whitespace-pre-wrap"
+      className="px-2 py-1 min-h-[40px] cursor-text rounded hover:bg-[var(--accent)] transition-colors text-sm whitespace-pre-wrap"
     >
       {value || (
-        <span className="text-gray-400 dark:text-gray-500 italic">{placeholder}</span>
+        <span className="text-[var(--muted-foreground)] italic">{placeholder}</span>
       )}
     </div>
   );

@@ -530,6 +530,113 @@ export async function createMatrixWithRows(
 }
 
 /**
+ * Delete all rows matching a requirement text across all matrices
+ * Used for comparison view bulk deletion
+ * Returns deleted rows data for potential undo
+ */
+export async function deleteRowsByRequirement(
+  requirement: string
+): Promise<{
+  deletedCount: number;
+  affectedMatrixIds: string[];
+  deletedRows: CapabilityMatrixRow[];
+}> {
+  const database = await getDatabase();
+  const normalizedReq = requirement.trim().toLowerCase();
+
+  // Find all matching rows with their data (for undo support)
+  const rows = await database.select<
+    Array<{
+      id: string;
+      matrix_id: string;
+      requirements: string;
+      experience_and_capability: string | null;
+      past_performance: string;
+      comments: string;
+      row_order: number;
+    }>
+  >(
+    "SELECT * FROM matrix_rows WHERE LOWER(TRIM(requirements)) = $1",
+    [normalizedReq]
+  );
+
+  if (rows.length === 0) {
+    return { deletedCount: 0, affectedMatrixIds: [], deletedRows: [] };
+  }
+
+  // Map to CapabilityMatrixRow for return
+  const deletedRows: CapabilityMatrixRow[] = rows.map((row) => ({
+    id: row.id,
+    matrixId: row.matrix_id,
+    requirements: row.requirements,
+    experienceAndCapability: parseScore(row.experience_and_capability),
+    pastPerformance: row.past_performance,
+    comments: row.comments,
+    rowOrder: row.row_order,
+  }));
+
+  // Delete all matching rows
+  await database.execute(
+    "DELETE FROM matrix_rows WHERE LOWER(TRIM(requirements)) = $1",
+    [normalizedReq]
+  );
+
+  // Get unique affected matrix IDs
+  const affectedMatrixIds = [...new Set(rows.map((r) => r.matrix_id))];
+
+  // Update timestamps for affected matrices
+  const now = getCurrentTimestamp();
+  for (const matrixId of affectedMatrixIds) {
+    await database.execute(
+      "UPDATE matrices SET updated_at = $1 WHERE id = $2",
+      [now, matrixId]
+    );
+  }
+
+  return {
+    deletedCount: rows.length,
+    affectedMatrixIds,
+    deletedRows,
+  };
+}
+
+/**
+ * Restore previously deleted rows (for undo functionality)
+ */
+export async function restoreRows(
+  rows: CapabilityMatrixRow[]
+): Promise<void> {
+  const database = await getDatabase();
+  const now = getCurrentTimestamp();
+  const affectedMatrixIds = new Set<string>();
+
+  for (const row of rows) {
+    await database.execute(
+      `INSERT INTO matrix_rows (id, matrix_id, requirements, experience_and_capability, past_performance, comments, row_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        row.id,
+        row.matrixId,
+        row.requirements,
+        row.experienceAndCapability?.toString() ?? null,
+        row.pastPerformance,
+        row.comments,
+        row.rowOrder,
+      ]
+    );
+    affectedMatrixIds.add(row.matrixId);
+  }
+
+  // Update timestamps for affected matrices
+  for (const matrixId of affectedMatrixIds) {
+    await database.execute(
+      "UPDATE matrices SET updated_at = $1 WHERE id = $2",
+      [now, matrixId]
+    );
+  }
+}
+
+/**
  * Count total matrices
  */
 export async function countMatrices(): Promise<{

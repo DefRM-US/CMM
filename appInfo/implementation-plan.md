@@ -8,7 +8,7 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 
 ## Current State
 
-**Completed (Phase 1 + Phase 2 + Phase 3 + Phase 4 + Phase 5):**
+**Completed (Phase 1 + Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6):**
 - Tauri v2 + React 19 + Vite scaffold
 - All dependencies installed (frontend + backend)
 - SQLite integration with Tauri SQL plugin configured
@@ -31,11 +31,14 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 - Delete company/requirement with confirmation dialogs
 - Undo toast for requirement deletions
 - Hover tooltips showing past performance and comments
+- Window configuration: 1200x800 default, 900x600 minimum
+- App title consistency (window title matches in-app header)
 
-**Ready for Phase 6/7:**
+**Ready for Phase 7 (Polish):**
 - All four tabs fully functional
 - Comparison data aggregation with exact requirement matching
 - Toast component available for notifications
+- App settings table ready for dark mode toggle
 
 ---
 
@@ -345,24 +348,23 @@ CREATE TABLE app_settings (
 
 2. ✅ (Done in Phase 2) Create context provider (`src/contexts/MatrixContext.tsx`)
 
-3. ⏳ Update window config:
-   - Size: 1200x800
+3. ✅ Update window config:
+   - Size: 1200x800 (default), 900x600 (minimum)
    - Title: "Capability Matrix Management"
 
 4. ✅ (Done in Phase 2) Add empty states and confirmation dialogs
 
-**Files to modify/create:**
+**Files modified:**
 - ✅ `src/App.tsx` - Tabs complete (Editor, Import, Export, Compare)
 - ✅ `src/components/ui/Tabs.tsx` - tab navigation component created in Phase 3
-- ⏳ `src-tauri/tauri.conf.json` - update window size (minor task)
+- ✅ `src-tauri/tauri.conf.json` - window config updated (1200x800 default, 900x600 min)
 
-**Notes for Implementation:**
-- MatrixContext already created and working
-- App.tsx structure complete with 3 tabs
-- Comparison view will be added in Phase 5 - consider:
-  - Adding as 4th tab: "Comparison"
-  - Or showing above tabs when 2+ matrices exist
-- Tab pattern established: controlled tabs with `activeTab` state, typed `TabValue`
+**Implementation Notes:**
+- MatrixContext created and working
+- App.tsx structure complete with 4 tabs
+- Window has minimum size constraints to prevent unusable layouts
+- App header h1 matches window title for consistency
+- Tab pattern: controlled tabs with `activeTab` state, typed `TabValue`
 
 ---
 

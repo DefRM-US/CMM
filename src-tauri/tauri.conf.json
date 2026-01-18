@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "capability-matrix-management",
-        "width": 800,
-        "height": 600
+        "title": "Capability Matrix Management",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600
       }
     ],
     "security": {

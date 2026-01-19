@@ -16,6 +16,8 @@ export interface CapabilityMatrixRow {
   id: string;
   /** Foreign key reference to parent matrix */
   matrixId: string;
+  /** Hierarchical requirement number (e.g., "1", "1.1", "1.2.1") */
+  requirementNumber: string;
   /** The requirement text from the RFP/PWS */
   requirements: string;
   /** Capability score (0-3) or null if unset */
@@ -70,6 +72,7 @@ export interface CreateMatrixInput {
  */
 export interface CreateMatrixRowInput {
   matrixId: string;
+  requirementNumber?: string;
   requirements?: string;
   experienceAndCapability?: Score;
   pastPerformance?: string;
@@ -81,6 +84,7 @@ export interface CreateMatrixRowInput {
  * Input type for updating a matrix row
  */
 export interface UpdateMatrixRowInput {
+  requirementNumber?: string;
   requirements?: string;
   experienceAndCapability?: Score;
   pastPerformance?: string;

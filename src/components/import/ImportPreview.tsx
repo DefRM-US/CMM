@@ -61,6 +61,9 @@ export function ImportPreview({
         <table className="w-full text-sm">
           <thead className="bg-[var(--muted)] text-left">
             <tr>
+              <th className="px-4 py-2 font-medium text-[var(--foreground)] w-16">
+                Req #
+              </th>
               <th className="px-4 py-2 font-medium text-[var(--foreground)] w-1/2">
                 Requirements
               </th>
@@ -76,6 +79,9 @@ export function ImportPreview({
           <tbody className="divide-y divide-[var(--border)]">
             {previewRows.map((row, index) => (
               <tr key={index} className="hover:bg-[var(--accent)]">
+                <td className="px-4 py-2 text-[var(--muted-foreground)] font-mono text-xs">
+                  {row.requirementNumber}
+                </td>
                 <td className="px-4 py-2 text-[var(--foreground)]">
                   <span className="line-clamp-2">{row.requirements}</span>
                 </td>

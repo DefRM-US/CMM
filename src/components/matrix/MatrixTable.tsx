@@ -27,9 +27,11 @@ import type {
 } from "../../types/matrix";
 import { DraggableRow, DragHandle } from "./DraggableRow";
 import { EditableCell } from "./EditableCell";
+import { RequirementNumberCell } from "./RequirementNumberCell";
 import { ScoreSelector } from "./ScoreSelector";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
+import { getDepth } from "../../lib/requirementNumber";
 
 // Cell navigation context
 interface CellNavigation {
@@ -53,8 +55,8 @@ interface MatrixTableProps {
 
 const columnHelper = createColumnHelper<CapabilityMatrixRow>();
 
-// Editable column indices: requirements=0, score=1, pastPerformance=2, comments=3
-const EDITABLE_COLS = 4;
+// Editable column indices: reqNumber=0, requirements=1, score=2, pastPerformance=3, comments=4
+const EDITABLE_COLS = 5;
 
 // Wrapper for EditableCell with navigation
 function NavigableEditableCell({
@@ -105,6 +107,34 @@ function NavigableScoreSelector({
     <div ref={divRef} tabIndex={-1}>
       <ScoreSelector
         {...props}
+        onNavigate={(direction) => nav?.navigate(rowId, colIndex, direction)}
+      />
+    </div>
+  );
+}
+
+// Wrapper for RequirementNumberCell with navigation
+function NavigableRequirementNumberCell({
+  rowId,
+  colIndex,
+  ...props
+}: Omit<React.ComponentProps<typeof RequirementNumberCell>, "onNavigate"> & { colIndex: number }) {
+  const nav = useCellNavigation();
+  const divRef = useRef<HTMLDivElement>(null);
+
+  // Register cell ref on mount
+  useEffect(() => {
+    if (divRef.current) {
+      nav?.registerCell(rowId, colIndex, divRef.current);
+    }
+    return () => nav?.registerCell(rowId, colIndex, null);
+  }, [nav, rowId, colIndex]);
+
+  return (
+    <div ref={divRef} tabIndex={-1}>
+      <RequirementNumberCell
+        {...props}
+        rowId={rowId}
         onNavigate={(direction) => nav?.navigate(rowId, colIndex, direction)}
       />
     </div>
@@ -163,11 +193,21 @@ export function MatrixTable({
     const element = cellRefs.current.get(key);
 
     if (element) {
-      // Focus the cell - for textareas this will trigger edit mode automatically
-      // For score selector, it will just focus
+      // Look for focusable elements in order of priority:
+      // 1. textarea (edit mode text cell)
+      // 2. input (edit mode req # cell)
+      // 3. div with tabIndex (display mode - clicking triggers edit)
       const textarea = element.querySelector("textarea");
+      const input = element.querySelector("input");
+      const focusableDiv = element.querySelector("div[tabindex]") as HTMLElement;
+
       if (textarea) {
         textarea.focus();
+      } else if (input) {
+        input.focus();
+      } else if (focusableDiv) {
+        // Click to trigger edit mode
+        focusableDiv.click();
       } else {
         element.focus();
       }
@@ -218,35 +258,44 @@ export function MatrixTable({
         cell: () => <DragHandle />,
       }),
 
-      // Row number
-      columnHelper.display({
-        id: "row-number",
-        header: "#",
-        size: 50,
-        cell: ({ row }) => (
-          <span className="text-[var(--muted-foreground)] text-sm font-medium">
-            {row.index + 1}
-          </span>
-        ),
-      }),
-
-      // Requirements (colIndex: 0)
-      columnHelper.accessor("requirements", {
-        header: "Requirements",
-        size: 300,
+      // Requirement Number (colIndex: 0)
+      columnHelper.accessor("requirementNumber", {
+        header: "Req #",
+        size: 80,
         cell: ({ row, getValue }) => (
-          <NavigableEditableCell
+          <NavigableRequirementNumberCell
             value={getValue()}
             rowId={row.original.id}
-            field="requirements"
+            rowIndex={row.index}
+            allRows={rows}
             onUpdate={onUpdateRow}
-            placeholder="Enter requirement..."
             colIndex={0}
           />
         ),
       }),
 
-      // Experience and Capability (colIndex: 1)
+      // Requirements (colIndex: 1) - with indentation based on depth
+      columnHelper.accessor("requirements", {
+        header: "Requirements",
+        size: 300,
+        cell: ({ row, getValue }) => {
+          const depth = getDepth(row.original.requirementNumber);
+          return (
+            <div style={{ paddingLeft: `${depth * 16}px` }}>
+              <NavigableEditableCell
+                value={getValue()}
+                rowId={row.original.id}
+                field="requirements"
+                onUpdate={onUpdateRow}
+                placeholder="Enter requirement..."
+                colIndex={1}
+              />
+            </div>
+          );
+        },
+      }),
+
+      // Experience and Capability (colIndex: 2)
       columnHelper.accessor("experienceAndCapability", {
         header: "Experience & Capability",
         size: 180,
@@ -259,12 +308,12 @@ export function MatrixTable({
               })
             }
             rowId={row.original.id}
-            colIndex={1}
+            colIndex={2}
           />
         ),
       }),
 
-      // Past Performance (colIndex: 2)
+      // Past Performance (colIndex: 3)
       columnHelper.accessor("pastPerformance", {
         header: "Past Performance",
         size: 200,
@@ -275,12 +324,12 @@ export function MatrixTable({
             field="pastPerformance"
             onUpdate={onUpdateRow}
             placeholder="Enter past performance..."
-            colIndex={2}
+            colIndex={3}
           />
         ),
       }),
 
-      // Comments (colIndex: 3)
+      // Comments (colIndex: 4)
       columnHelper.accessor("comments", {
         header: "Comments",
         size: 250,
@@ -291,7 +340,7 @@ export function MatrixTable({
             field="comments"
             onUpdate={onUpdateRow}
             placeholder="Enter comments..."
-            colIndex={3}
+            colIndex={4}
           />
         ),
       }),
@@ -312,7 +361,7 @@ export function MatrixTable({
         ),
       }),
     ],
-    [onUpdateRow]
+    [onUpdateRow, rows]
   );
 
   const table = useReactTable({

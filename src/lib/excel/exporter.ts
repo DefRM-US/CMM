@@ -4,6 +4,7 @@ import {
   type CapabilityMatrixWithRows,
   type Score,
 } from "../../types/matrix";
+import { compareRequirementNumbers } from "../requirementNumber";
 
 /**
  * Export metadata for the Excel file
@@ -67,8 +68,9 @@ export async function exportMatrixToExcel(
 
   const worksheet = workbook.addWorksheet("Capability Matrix");
 
-  // Set column widths
+  // Set column widths (Req # is first column)
   worksheet.columns = [
+    { key: "requirementNumber", width: 12 },
     { key: "requirements", width: 50 },
     { key: "experienceAndCapability", width: 25 },
     { key: "pastPerformance", width: 30 },
@@ -80,15 +82,15 @@ export async function exportMatrixToExcel(
   titleRow.getCell(1).value = "Draft PWS - Capability Matrix";
   titleRow.getCell(1).font = { bold: true, size: 14 };
 
-  // Legend in columns C and D (rows 1-4)
+  // Legend in columns D and E (rows 1-4) - shifted by one due to new Req # column
   const legendScores: Array<Exclude<Score, null>> = [3, 2, 1, 0];
   for (let i = 0; i < legendScores.length; i++) {
     const score = legendScores[i];
     const config = SCORE_CONFIG[score];
     const row = worksheet.getRow(i + 1);
 
-    // Score value in column C
-    const scoreCell = row.getCell(3);
+    // Score value in column D
+    const scoreCell = row.getCell(4);
     scoreCell.value = score;
     scoreCell.fill = getScoreFill(score) as ExcelJS.Fill;
     scoreCell.font = getScoreFont(score);
@@ -100,70 +102,79 @@ export async function exportMatrixToExcel(
       right: { style: "thin" },
     };
 
-    // Description in column D
-    const descCell = row.getCell(4);
+    // Description in column E
+    const descCell = row.getCell(5);
     descCell.value = config.description;
     descCell.alignment = { wrapText: true, vertical: "top" };
   }
 
-  // Row 5: Company Name
+  // Row 5: Company Name (spans columns A-B)
   const companyRow = worksheet.getRow(5);
   companyRow.getCell(1).value = "Company Name";
   companyRow.getCell(1).font = { bold: true };
-  companyRow.getCell(2).value = metadata.companyName;
+  companyRow.getCell(3).value = metadata.companyName;
 
   // Row 6: Date
   const dateRow = worksheet.getRow(6);
   dateRow.getCell(1).value = "Date";
   dateRow.getCell(1).font = { bold: true };
-  dateRow.getCell(2).value = metadata.date;
+  dateRow.getCell(3).value = metadata.date;
 
   // Row 7: Version
   const versionRow = worksheet.getRow(7);
   versionRow.getCell(1).value = "Version";
   versionRow.getCell(1).font = { bold: true };
-  versionRow.getCell(2).value = metadata.version;
+  versionRow.getCell(3).value = metadata.version;
 
   // Row 8: Empty (spacer)
   // Already empty by default
 
-  // Row 9: Headers
+  // Row 9: Headers (with Req # as first column)
   const headerRow = worksheet.getRow(9);
   headerRow.values = [
+    "Req #",
     "Requirements",
     "Experience and Capability",
     "Past Performance",
     "Comments",
   ];
   headerRow.font = { bold: true };
-  headerRow.eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFD9D9D9" },
-    };
-    cell.border = {
-      top: { style: "thin" },
-      bottom: { style: "thin" },
-      left: { style: "thin" },
-      right: { style: "thin" },
-    };
-    cell.alignment = { horizontal: "center", vertical: "middle" };
+  headerRow.eachCell((cell, colNumber) => {
+    if (colNumber <= 5) {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFD9D9D9" },
+      };
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    }
   });
 
-  // Row 10+: Data rows
-  const sortedRows = [...matrix.rows].sort((a, b) => a.rowOrder - b.rowOrder);
+  // Row 10+: Data rows - sorted by requirement number
+  const sortedRows = [...matrix.rows].sort((a, b) =>
+    compareRequirementNumbers(a.requirementNumber, b.requirementNumber)
+  );
 
   for (let i = 0; i < sortedRows.length; i++) {
     const matrixRow = sortedRows[i];
     const excelRow = worksheet.getRow(10 + i);
 
+    // Req # column
+    excelRow.getCell(1).value = matrixRow.requirementNumber;
+    excelRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+
     // Requirements column
-    excelRow.getCell(1).value = matrixRow.requirements;
-    excelRow.getCell(1).alignment = { wrapText: true, vertical: "top" };
+    excelRow.getCell(2).value = matrixRow.requirements;
+    excelRow.getCell(2).alignment = { wrapText: true, vertical: "top" };
 
     // Experience and Capability column (with styling)
-    const scoreCell = excelRow.getCell(2);
+    const scoreCell = excelRow.getCell(3);
     scoreCell.value =
       matrixRow.experienceAndCapability !== null
         ? matrixRow.experienceAndCapability
@@ -177,16 +188,16 @@ export async function exportMatrixToExcel(
     scoreCell.alignment = { horizontal: "center", vertical: "middle" };
 
     // Past Performance column
-    excelRow.getCell(3).value = matrixRow.pastPerformance;
-    excelRow.getCell(3).alignment = { wrapText: true, vertical: "top" };
+    excelRow.getCell(4).value = matrixRow.pastPerformance;
+    excelRow.getCell(4).alignment = { wrapText: true, vertical: "top" };
 
     // Comments column
-    excelRow.getCell(4).value = matrixRow.comments;
-    excelRow.getCell(4).alignment = { wrapText: true, vertical: "top" };
+    excelRow.getCell(5).value = matrixRow.comments;
+    excelRow.getCell(5).alignment = { wrapText: true, vertical: "top" };
 
     // Add borders to all cells
     excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      if (colNumber <= 4) {
+      if (colNumber <= 5) {
         cell.border = {
           top: { style: "thin" },
           bottom: { style: "thin" },
@@ -197,12 +208,12 @@ export async function exportMatrixToExcel(
     });
   }
 
-  // Add conditional formatting for the score column
+  // Add conditional formatting for the score column (now column C)
   // This allows the formatting to persist when users edit values in Excel
   const lastDataRow = 10 + sortedRows.length - 1;
   if (sortedRows.length > 0) {
     worksheet.addConditionalFormatting({
-      ref: `B10:B${lastDataRow}`,
+      ref: `C10:C${lastDataRow}`,
       rules: [
         {
           type: "cellIs",

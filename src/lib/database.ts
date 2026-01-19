@@ -255,6 +255,7 @@ export async function getMatrixRows(
     Array<{
       id: string;
       matrix_id: string;
+      requirement_number: string;
       requirements: string;
       experience_and_capability: string | null;
       past_performance: string;
@@ -268,6 +269,7 @@ export async function getMatrixRows(
   return results.map((row) => ({
     id: row.id,
     matrixId: row.matrix_id,
+    requirementNumber: row.requirement_number,
     requirements: row.requirements,
     experienceAndCapability: parseScore(row.experience_and_capability),
     pastPerformance: row.past_performance,
@@ -296,11 +298,12 @@ export async function createMatrixRow(
   }
 
   await database.execute(
-    `INSERT INTO matrix_rows (id, matrix_id, requirements, experience_and_capability, past_performance, comments, row_order)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO matrix_rows (id, matrix_id, requirement_number, requirements, experience_and_capability, past_performance, comments, row_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       id,
       input.matrixId,
+      input.requirementNumber ?? "",
       input.requirements ?? "",
       input.experienceAndCapability?.toString() ?? null,
       input.pastPerformance ?? "",
@@ -315,6 +318,7 @@ export async function createMatrixRow(
   return {
     id,
     matrixId: input.matrixId,
+    requirementNumber: input.requirementNumber ?? "",
     requirements: input.requirements ?? "",
     experienceAndCapability: input.experienceAndCapability ?? null,
     pastPerformance: input.pastPerformance ?? "",
@@ -337,6 +341,10 @@ export async function updateMatrixRow(
   const values: (string | number | null)[] = [];
   let paramIndex = 1;
 
+  if (input.requirementNumber !== undefined) {
+    updates.push(`requirement_number = $${paramIndex++}`);
+    values.push(input.requirementNumber);
+  }
   if (input.requirements !== undefined) {
     updates.push(`requirements = $${paramIndex++}`);
     values.push(input.requirements);
@@ -549,6 +557,7 @@ export async function deleteRowsByRequirement(
     Array<{
       id: string;
       matrix_id: string;
+      requirement_number: string;
       requirements: string;
       experience_and_capability: string | null;
       past_performance: string;
@@ -568,6 +577,7 @@ export async function deleteRowsByRequirement(
   const deletedRows: CapabilityMatrixRow[] = rows.map((row) => ({
     id: row.id,
     matrixId: row.matrix_id,
+    requirementNumber: row.requirement_number,
     requirements: row.requirements,
     experienceAndCapability: parseScore(row.experience_and_capability),
     pastPerformance: row.past_performance,
@@ -612,11 +622,12 @@ export async function restoreRows(
 
   for (const row of rows) {
     await database.execute(
-      `INSERT INTO matrix_rows (id, matrix_id, requirements, experience_and_capability, past_performance, comments, row_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO matrix_rows (id, matrix_id, requirement_number, requirements, experience_and_capability, past_performance, comments, row_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         row.id,
         row.matrixId,
+        row.requirementNumber,
         row.requirements,
         row.experienceAndCapability?.toString() ?? null,
         row.pastPerformance,

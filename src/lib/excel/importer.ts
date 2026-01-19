@@ -5,6 +5,7 @@ import type { Score } from "../../types/matrix";
  * Parsed row from an Excel file
  */
 export interface ParsedRow {
+  requirementNumber: string;
   requirements: string;
   experienceAndCapability: Score;
   pastPerformance: string;
@@ -79,27 +80,88 @@ function getCellString(cell: XLSX.CellObject | undefined): string {
 }
 
 /**
- * Find the header row by searching for "requirement" keyword
- * Searches first 30 rows
+ * Header detection result
  */
-function findHeaderRowIndex(sheet: XLSX.WorkSheet): number {
+interface HeaderInfo {
+  row: number;
+  hasReqNumberColumn: boolean;
+  reqNumberCol: number;
+  requirementsCol: number;
+  scoreCol: number;
+  pastPerfCol: number;
+  commentsCol: number;
+}
+
+/**
+ * Find the header row and detect column layout
+ * Searches first 30 rows for "requirement" keyword
+ * Also detects if there's a "Req #" column
+ */
+function findHeaderInfo(sheet: XLSX.WorkSheet): HeaderInfo {
   const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
   const maxRow = Math.min(range.e.r, 29); // Check first 30 rows (0-indexed)
 
   for (let row = 0; row <= maxRow; row++) {
+    // Check each column for header keywords
+    let foundReqNumber = -1;
+    let foundRequirements = -1;
+
     for (let col = range.s.c; col <= range.e.c; col++) {
       const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
       const cell = sheet[cellAddress];
       const value = getCellString(cell).toLowerCase();
 
-      if (value.includes("requirement")) {
-        return row;
+      // Check for "Req #" or similar
+      if (value.includes("req #") || value.includes("req#") || value === "requirement number" || value === "req number") {
+        foundReqNumber = col;
+      }
+      // Check for "Requirements" (but not "Req #")
+      else if (value.includes("requirement") && !value.includes("#")) {
+        foundRequirements = col;
+      }
+    }
+
+    // If we found requirements column, this is likely the header row
+    if (foundRequirements >= 0) {
+      const hasReqNumberColumn = foundReqNumber >= 0;
+
+      // Determine column positions based on whether Req # column exists
+      if (hasReqNumberColumn) {
+        // New format: Req # | Requirements | Score | Past Perf | Comments
+        return {
+          row,
+          hasReqNumberColumn: true,
+          reqNumberCol: foundReqNumber,
+          requirementsCol: foundRequirements,
+          scoreCol: foundRequirements + 1,
+          pastPerfCol: foundRequirements + 2,
+          commentsCol: foundRequirements + 3,
+        };
+      } else {
+        // Old format: Requirements | Score | Past Perf | Comments
+        return {
+          row,
+          hasReqNumberColumn: false,
+          reqNumberCol: -1,
+          requirementsCol: foundRequirements,
+          scoreCol: foundRequirements + 1,
+          pastPerfCol: foundRequirements + 2,
+          commentsCol: foundRequirements + 3,
+        };
       }
     }
   }
 
-  // Default to row 1 (index 0 is often a title)
-  return 0;
+  // Default to row 0, old format starting at column A
+  return {
+    row: 0,
+    hasReqNumberColumn: false,
+    reqNumberCol: -1,
+    requirementsCol: 0,
+    scoreCol: 1,
+    pastPerfCol: 2,
+    commentsCol: 3,
+  };
 }
 
 /**
@@ -150,35 +212,50 @@ function parseWorksheet(
 ): ParsedMatrix | null {
   const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
 
-  // Find header row
-  const headerRow = findHeaderRowIndex(sheet);
+  // Find header row and column layout
+  const headerInfo = findHeaderInfo(sheet);
 
   // Extract company name
   const name = extractCompanyName(sheet, filename, sheetName);
 
   // Parse data rows (starting after header)
   const rows: ParsedRow[] = [];
-  for (let row = headerRow + 1; row <= range.e.r; row++) {
-    // Column A: Requirements
-    const reqCell = sheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
+  let autoNumber = 1; // For auto-generating numbers when not present
+
+  for (let row = headerInfo.row + 1; row <= range.e.r; row++) {
+    // Requirements column
+    const reqCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.requirementsCol })];
     const requirements = getCellString(reqCell);
 
     // Skip empty requirement rows
     if (!requirements) continue;
 
-    // Column B: Experience and Capability (score)
-    const scoreCell = sheet[XLSX.utils.encode_cell({ r: row, c: 1 })];
+    // Req # column (if present)
+    let requirementNumber = "";
+    if (headerInfo.hasReqNumberColumn && headerInfo.reqNumberCol >= 0) {
+      const reqNumCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.reqNumberCol })];
+      requirementNumber = getCellString(reqNumCell);
+    }
+
+    // If no requirement number, auto-generate a sequential one
+    if (!requirementNumber) {
+      requirementNumber = String(autoNumber++);
+    }
+
+    // Score column
+    const scoreCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.scoreCol })];
     const experienceAndCapability = validateScore(scoreCell?.v);
 
-    // Column C: Past Performance
-    const ppCell = sheet[XLSX.utils.encode_cell({ r: row, c: 2 })];
+    // Past Performance column
+    const ppCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.pastPerfCol })];
     const pastPerformance = getCellString(ppCell);
 
-    // Column D: Comments
-    const commentsCell = sheet[XLSX.utils.encode_cell({ r: row, c: 3 })];
+    // Comments column
+    const commentsCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.commentsCol })];
     const comments = getCellString(commentsCell);
 
     rows.push({
+      requirementNumber,
       requirements,
       experienceAndCapability,
       pastPerformance,

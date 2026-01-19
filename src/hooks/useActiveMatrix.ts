@@ -2,6 +2,7 @@ import { useContext, useCallback, useEffect, useRef } from "react";
 import { MatrixContext } from "../contexts/MatrixContext";
 import * as db from "../lib/database";
 import { useDebouncedSave } from "./useDebouncedSave";
+import { compareRequirementNumbers } from "../lib/requirementNumber";
 import type {
   CapabilityMatrixRow,
   UpdateMatrixRowInput,
@@ -35,6 +36,14 @@ export function useActiveMatrix() {
       try {
         const matrixWithRows = await db.getMatrixWithRows(id);
         await db.setActiveMatrixId(id);
+
+        // Sort rows by requirement number
+        if (matrixWithRows) {
+          matrixWithRows.rows = [...matrixWithRows.rows].sort((a, b) =>
+            compareRequirementNumbers(a.requirementNumber, b.requirementNumber)
+          );
+        }
+
         dispatch({ type: "SET_ACTIVE_MATRIX", payload: matrixWithRows });
       } catch (error) {
         console.error("Failed to load matrix:", error);

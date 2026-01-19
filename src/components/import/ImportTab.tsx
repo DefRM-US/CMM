@@ -135,6 +135,7 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
           const row = pendingMatrix.rows[i];
           await db.createMatrixRow({
             matrixId: matrix.id,
+            requirementNumber: row.requirementNumber,
             requirements: row.requirements,
             experienceAndCapability: row.experienceAndCapability,
             pastPerformance: row.pastPerformance,
@@ -194,6 +195,7 @@ export function ImportTab({ activeMatrix, onImportComplete }: ImportTabProps) {
           const row = pendingMatrix.rows[i];
           await db.createMatrixRow({
             matrixId: matrix.id,
+            requirementNumber: row.requirementNumber,
             requirements: row.requirements,
             experienceAndCapability: row.experienceAndCapability,
             pastPerformance: row.pastPerformance,

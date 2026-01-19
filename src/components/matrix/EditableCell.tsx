@@ -18,34 +18,30 @@ export const EditableCell = memo(function EditableCell({
   rowId,
   field,
   onUpdate,
-  placeholder = "Click to edit",
+  placeholder = "Enter text...",
   onNavigate,
 }: EditableCellProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync local value when external value changes
   useEffect(() => {
-    if (!isEditing) {
+    if (!isFocused) {
       setLocalValue(value);
     }
-  }, [value, isEditing]);
+  }, [value, isFocused]);
 
-  // Focus and select on entering edit mode
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleDoubleClick = useCallback(() => {
-    setIsEditing(true);
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    // Select all text on focus for easy replacement
+    setTimeout(() => {
+      inputRef.current?.select();
+    }, 0);
   }, []);
 
   const handleBlur = useCallback(() => {
-    setIsEditing(false);
+    setIsFocused(false);
     if (localValue !== value) {
       onUpdate(rowId, { [field]: localValue });
     }
@@ -58,14 +54,14 @@ export const EditableCell = memo(function EditableCell({
         (e.currentTarget as HTMLTextAreaElement).blur();
       } else if (e.key === "Escape") {
         setLocalValue(value);
-        setIsEditing(false);
+        inputRef.current?.blur();
       } else if (e.key === "Tab") {
         e.preventDefault();
         // Save current value
         if (localValue !== value) {
           onUpdate(rowId, { [field]: localValue });
         }
-        setIsEditing(false);
+        setIsFocused(false);
         // Navigate to next/prev cell
         onNavigate?.(e.shiftKey ? "prev" : "next");
       }
@@ -73,28 +69,21 @@ export const EditableCell = memo(function EditableCell({
     [value, localValue, rowId, field, onUpdate, onNavigate]
   );
 
-  if (isEditing) {
-    return (
-      <textarea
-        ref={inputRef}
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        className="input w-full min-h-[60px] resize-none text-sm"
-        rows={2}
-      />
-    );
-  }
-
   return (
-    <div
-      onDoubleClick={handleDoubleClick}
-      className="px-2 py-1 min-h-[40px] cursor-text rounded hover:bg-[var(--accent)] transition-colors text-sm whitespace-pre-wrap"
-    >
-      {value || (
-        <span className="text-[var(--muted-foreground)] italic">{placeholder}</span>
-      )}
-    </div>
+    <textarea
+      ref={inputRef}
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      className={`w-full min-h-[40px] resize-none text-sm px-2 py-1 rounded border transition-colors bg-transparent ${
+        isFocused
+          ? "border-[var(--ring)] bg-[var(--background)]"
+          : "border-transparent hover:border-[var(--border)]"
+      }`}
+      rows={1}
+    />
   );
 });

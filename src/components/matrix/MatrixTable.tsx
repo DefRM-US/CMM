@@ -163,12 +163,13 @@ export function MatrixTable({
     const element = cellRefs.current.get(key);
 
     if (element) {
-      // For editable cells, trigger double-click to enter edit mode
-      // For score selector, just focus
-      element.focus();
-      if (newColIndex !== 1) {
-        // Trigger double-click for EditableCell
-        element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      // Focus the cell - for textareas this will trigger edit mode automatically
+      // For score selector, it will just focus
+      const textarea = element.querySelector("textarea");
+      if (textarea) {
+        textarea.focus();
+      } else {
+        element.focus();
       }
     }
   }, [rows]);

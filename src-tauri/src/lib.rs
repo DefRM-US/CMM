@@ -16,6 +16,12 @@ pub fn run() {
             sql: include_str!("../migrations/001_create_tables.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 2,
+            description: "add_requirement_number",
+            sql: include_str!("../migrations/002_add_requirement_number.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

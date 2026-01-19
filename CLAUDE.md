@@ -24,17 +24,65 @@ bun run tauri build    # Full native app build
 
 ## Architecture
 
-**Frontend (src/):** React 19 + TypeScript + Vite
-- Entry: `main.tsx` → `App.tsx`
-- UI: TanStack Table for data grids
-- Excel: xlsx (SheetJS) for import/export
+### Frontend (src/)
+React 19 + TypeScript + Vite + Tailwind CSS 4
 
-**Backend (src-tauri/):** Rust + Tauri v2
-- Entry: `main.rs` → `lib.rs`
-- Commands exposed via `#[tauri::command]` macro
-- Invoke from frontend: `import { invoke } from '@tauri-apps/api/core'`
+**Entry:** `main.tsx` → `App.tsx` (wraps with ErrorBoundary, ThemeProvider, ToastProvider, MatrixProvider)
 
-**Storage:** Browser localStorage keyed by context ID (planned migration to SQLite via Tauri SQL plugin)
+**Component Organization:**
+- `components/matrix/` - Matrix editor, table, toolbar, row components
+- `components/comparison/` - Side-by-side matrix comparison view
+- `components/import/` - Excel import UI and preview
+- `components/export/` - Export modal and preview
+- `components/ui/` - Reusable UI primitives (Button, Dialog, Tabs, etc.)
+
+**State Management:**
+- `contexts/MatrixContext.tsx` - Global matrix state via useReducer pattern
+- `contexts/ThemeContext.tsx` - Light/dark theme toggle
+- `contexts/ToastContext.tsx` - Toast notifications
+
+**Custom Hooks:**
+- `hooks/useMatrices.ts` - CRUD operations for matrices
+- `hooks/useActiveMatrix.ts` - Active matrix selection and row operations
+- `hooks/useDebouncedSave.ts` - Debounced persistence
+
+**Data Layer:**
+- `lib/database.ts` - SQLite operations via Tauri SQL plugin (singleton pattern)
+- `lib/excel/importer.ts` - Parse Excel files using xlsx (SheetJS)
+- `lib/excel/exporter.ts` - Generate Excel files using exceljs
+- `lib/comparison.ts` - Build comparison data across matrices
+- `lib/requirementNumber.ts` - Hierarchical requirement numbering logic
+
+**Types:** `types/matrix.ts` - Core types (CapabilityMatrix, CapabilityMatrixRow, Score, etc.)
+
+### Backend (src-tauri/)
+Rust + Tauri v2
+
+**Entry:** `main.rs` → `lib.rs`
+
+**Plugins Used:**
+- `tauri-plugin-sql` - SQLite database with migrations
+- `tauri-plugin-dialog` - Native file dialogs
+- `tauri-plugin-fs` - Filesystem access
+- `tauri-plugin-opener` - Open URLs/files
+
+**Database:** SQLite stored as `cmm.db`. Migrations in `src-tauri/migrations/`. Tables: `matrices`, `matrix_rows`, `app_settings`.
+
+## Design System
+
+Uses DefRM design system (documented in `appInfo/DEFRM_DESIGN_SYSTEM.md`):
+- OKLCH color tokens for light/dark themes
+- Glassmorphic card effects with backdrop-blur
+- Geist font family (with Poppins fallback)
+- `cn()` utility from `lib/utils.ts` for class merging
+
+## Capability Scores
+
+Scores are 0-3 integers (or null). Configuration in `types/matrix.ts` as `SCORE_CONFIG`:
+- 3 (Blue #4472C4) - Excellent capability
+- 2 (Green #70AD47) - Good capability
+- 1 (Yellow #FFC000) - Some capability
+- 0 (Gray #E5E5E5) - No capability
 
 ## Build Outputs
 
@@ -52,4 +100,4 @@ bun run tauri build    # Full native app build
 
 Detailed feature specs and data models are in `appInfo/`:
 - `capability-matrix-feature.md` - User workflows, data models, Excel format specs
-- `tech_stack.md` - Technology overview and project structure
+- `DEFRM_DESIGN_SYSTEM.md` - Design tokens, component patterns, accessibility

@@ -1,85 +1,94 @@
-# DefRM CMM - Capability Matrix Management
+# CMM Multiplatform
 
-A desktop application for managing capability matrices when responding to RFPs. Create standardized matrices, collect partner responses, and compare capabilities across companies to build your strongest consortium.
+Capability Matrix Management - Cross-platform React Native monorepo for macOS, iOS, Android, and Windows.
 
-## Why DefRM CMM?
+## Project Structure
 
-- **Streamline teaming decisions** - Compare capability scores across all potential partners in one view
-- **Standardize your process** - Create consistent capability matrices that partners can easily complete
-- **Excel-native workflow** - Export and import standard Excel spreadsheets
-- **100% local and private** - All data stays on your machine. No cloud, no accounts, no tracking. Your competitive intelligence remains yours.
-
-## How It Works
-
-1. **Create** - Build your capability matrix with requirements from the RFP/PWS
-2. **Export** - Generate formatted Excel spreadsheets to send to potential teaming partners
-3. **Collect** - Partners fill in their capability scores (0-3 scale) and return the spreadsheet
-4. **Import** - Load all partner responses back into the app
-5. **Compare** - View every company side-by-side with color-coded scores
-6. **Decide** - Identify which combination of partners gives you the strongest consortium
-
-## Features
-
-- **Matrix Editor** - Add, edit, and reorder requirements with drag-and-drop
-- **Capability Scoring** - 0-3 scale with color-coded badges (None/Some/Good/Excellent)
-- **Excel Export** - Professional spreadsheets with conditional formatting, legend, and company metadata
-- **Bulk Import** - Load multiple partner spreadsheets at once with automatic header detection
-- **Comparison View** - Grand comparison table showing all requirements across all companies
-- **Details on Hover** - View past performance and comments without leaving the comparison view
-- **Auto-Save** - Changes are saved automatically as you work
-- **Light & Dark Themes** - Choose your preferred appearance
-
-## Installation
-
-### Download (Recommended)
-
-Download the latest release for your platform:
-
-- **macOS** - `.dmg` installer
-- **Windows** - `.msi` installer
-
-[View Releases](https://github.com/DefRM-US/CMM/releases)
-
-### Build from Source
-
-Prerequisites: [Bun](https://bun.sh/) and [Rust](https://rustup.rs/)
-
-```bash
-git clone git@github.com:DefRM-US/CMM.git
-cd CMM
-bun install
-bun run tauri build
+```
+cmm-multiplatform/
+├── apps/
+│   ├── mobile/         # Expo app (iOS + Android) - Placeholder
+│   ├── macos/          # React Native macOS app
+│   └── windows/        # React Native Windows app - Placeholder
+├── packages/
+│   ├── core/           # Pure TypeScript (types, business logic, excel)
+│   ├── state/          # React state management (contexts, hooks)
+│   ├── db/             # Database abstraction (expo-sqlite)
+│   └── ui/             # Shared UI components - Placeholder
+├── turbo.json          # Turborepo configuration
+├── pnpm-workspace.yaml # pnpm workspace configuration
+└── tsconfig.base.json  # Shared TypeScript configuration
 ```
 
-Installers will be created in `src-tauri/target/release/bundle/`.
+## Prerequisites
+
+- Node.js >= 18
+- pnpm >= 9.0
+- For macOS app: Xcode with macOS SDK
+- For Windows app: Visual Studio with Windows SDK (future)
 
 ## Getting Started
 
-1. Launch DefRM CMM
-2. Click **New Matrix** to create your first capability matrix
-3. Add requirements from your RFP or PWS
-4. Rate your own company's capabilities for each requirement
-5. Go to the **Export** tab to generate an Excel spreadsheet
-6. Send the spreadsheet to potential teaming partners
-7. When partners return their completed matrices, use the **Import** tab to load them
-8. Switch to the **Compare** tab to see all responses side-by-side
+### Install Dependencies
 
-## Privacy & Security
+```bash
+pnpm install
+```
 
-DefRM CMM is designed with your data security in mind:
+### Build All Packages
 
-- All data is stored locally in a SQLite database on your machine
-- No internet connection required after installation
-- No cloud synchronization or external data transmission
-- No telemetry or usage tracking
-- Your competitive intelligence and teaming strategies stay completely private
+```bash
+pnpm build
+```
 
-## System Requirements
+### Run macOS App
 
-- macOS 10.15 (Catalina) or later
-- Windows 10 or later
-- Approximately 100MB disk space
+```bash
+cd apps/macos
+pnpm macos
+```
 
-## Support
+## Package Details
 
-Found a bug or have a feature request? [Open an issue on GitHub](https://github.com/DefRM-US/CMM/issues).
+### @cmm/core
+
+Pure TypeScript package containing:
+- **Types**: `CapabilityMatrix`, `CapabilityMatrixRow`, `Score`, etc.
+- **Business Logic**: Requirement numbering, comparison, utilities
+- **Excel**: Import/export using xlsx and exceljs
+
+### @cmm/db
+
+Database abstraction layer:
+- **Interface**: `DatabaseInterface` for platform-agnostic DB operations
+- **Implementation**: `ExpoSQLiteDatabase` using expo-sqlite (works on iOS, Android, macOS)
+
+### @cmm/state
+
+React state management:
+- **Context**: `MatrixProvider` with reducer-based state
+- **Hooks**: `useMatrices`, `useActiveMatrix`, `useDebouncedSave`
+
+### @cmm/ui
+
+Placeholder for shared UI components across platforms.
+
+## Development
+
+### Adding a New Package
+
+1. Create directory under `packages/`
+2. Add `package.json` with `@cmm/` prefix
+3. Add to workspace dependencies as needed
+
+### Adding a New App
+
+1. Create directory under `apps/`
+2. Configure Metro for monorepo (see `apps/macos/metro.config.js`)
+3. Install workspace packages: `pnpm add @cmm/core @cmm/db @cmm/state`
+
+## Future Work
+
+- **apps/mobile**: Expo app for iOS and Android
+- **apps/windows**: React Native Windows app
+- **packages/ui**: Shared UI component library

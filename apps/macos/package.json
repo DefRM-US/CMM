@@ -1,0 +1,38 @@
+{
+  "name": "@cmm/macos",
+  "version": "0.0.1",
+  "private": true,
+  "description": "CMM macOS desktop application",
+  "scripts": {
+    "start": "react-native start",
+    "macos": "react-native run-macos",
+    "build": "react-native bundle --platform macos --dev false --entry-file index.js --bundle-output macos/main.jsbundle",
+    "clean": "rm -rf node_modules && rm -rf macos/build"
+  },
+  "dependencies": {
+    "@cmm/core": "workspace:*",
+    "@cmm/db": "workspace:*",
+    "@cmm/state": "workspace:*",
+    "@react-navigation/native": "^7.0.0",
+    "@react-navigation/native-stack": "^7.0.0",
+    "expo-sqlite": "^15.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.0",
+    "react-native-macos": "0.76.0",
+    "react-native-document-picker": "^9.3.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-safe-area-context": "^5.0.0",
+    "react-native-screens": "^4.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
+    "@babel/runtime": "^7.24.0",
+    "@react-native/babel-preset": "0.76.0",
+    "@react-native/metro-config": "0.76.0",
+    "@react-native/typescript-config": "0.76.0",
+    "@types/react": "^18.2.0",
+    "metro-react-native-babel-preset": "^0.77.0",
+    "typescript": "^5.3.0"
+  }
+}

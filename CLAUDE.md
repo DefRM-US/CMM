@@ -4,100 +4,113 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Capability Matrix Management (CMM) - A Tauri v2 desktop application for defense contractors to track and compare capability requirements across companies when responding to RFPs. Users can create matrices, rate capabilities (0-3 scale), import/export Excel files, and compare scores across companies.
+Capability Matrix Management (CMM) - A cross-platform React Native application for defense contractors to track and compare capability requirements across companies when responding to RFPs. Users can create matrices, rate capabilities (0-3 scale), import/export Excel files, and compare scores across companies.
+
+**Architecture:** Turborepo + pnpm monorepo with React Native for macOS, iOS, Android, and Windows.
 
 ## Development Commands
 
 ```bash
-# Development (frontend only)
-bun run dev
+# Install dependencies
+pnpm install
 
-# Full Tauri development with hot reload
-bun run tauri dev
+# Build all packages
+pnpm build
 
-# Build production release
-bun run build          # TypeScript + Vite build
-bun run tauri build    # Full native app build
+# Run macOS app
+cd apps/macos && pnpm macos
+
+# Run dev mode (all packages)
+pnpm dev
 ```
 
-**Note:** Uses Bun as package manager (not npm). Vite dev server runs on port 1420 (required by Tauri).
+**Note:** Uses pnpm as package manager. Requires `.npmrc` with `node-linker=hoisted` and `shamefully-hoist=true` for React Native compatibility.
 
-## Architecture
+## Monorepo Structure
 
-### Frontend (src/)
-React 19 + TypeScript + Vite + Tailwind CSS 4
+```
+├── apps/
+│   ├── macos/          # React Native macOS app (implemented)
+│   ├── mobile/         # Expo app for iOS + Android (placeholder)
+│   └── windows/        # React Native Windows app (placeholder)
+├── packages/
+│   ├── core/           # Pure TypeScript - types, business logic, excel
+│   ├── db/             # Database abstraction - expo-sqlite
+│   ├── state/          # React state management - contexts, hooks
+│   └── ui/             # Shared UI components (placeholder)
+├── appInfo/            # Feature documentation and design system
+├── turbo.json          # Turborepo task configuration
+├── pnpm-workspace.yaml # Workspace definition
+└── tsconfig.base.json  # Shared TypeScript config
+```
 
-**Entry:** `main.tsx` → `App.tsx` (wraps with ErrorBoundary, ThemeProvider, ToastProvider, MatrixProvider)
+## Package Details
 
-**Component Organization:**
-- `components/matrix/` - Matrix editor, table, toolbar, row components
-- `components/comparison/` - Side-by-side matrix comparison view
-- `components/import/` - Excel import UI and preview
-- `components/export/` - Export modal and preview
-- `components/ui/` - Reusable UI primitives (Button, Dialog, Tabs, etc.)
+### @cmm/core (packages/core/)
+Pure TypeScript, 100% portable across platforms.
 
-**State Management:**
-- `contexts/MatrixContext.tsx` - Global matrix state via useReducer pattern
-- `contexts/ThemeContext.tsx` - Light/dark theme toggle
-- `contexts/ToastContext.tsx` - Toast notifications
+- `types/matrix.ts` - Core types: `Score`, `CapabilityMatrix`, `CapabilityMatrixRow`, `SCORE_CONFIG`
+- `lib/comparison.ts` - Build comparison data across matrices
+- `lib/requirementNumber.ts` - Hierarchical requirement numbering (1, 1.1, 1.2.1)
+- `lib/utils.ts` - Utilities: `generateId`, `formatDate`, `debounce`
+- `excel/importer.ts` - Parse Excel files using xlsx (SheetJS)
+- `excel/exporter.ts` - Generate Excel files using exceljs
 
-**Custom Hooks:**
+### @cmm/db (packages/db/)
+Database abstraction layer using expo-sqlite.
+
+- `interface.ts` - `DatabaseInterface` type for platform-agnostic operations
+- `expo-sqlite.ts` - Implementation using expo-sqlite (works on macOS, iOS, Android)
+- `index.ts` - Factory: `getDatabase()`, `closeDatabase()`, `createDatabase()`
+
+**Database Schema:** SQLite with tables `matrices`, `matrix_rows`, `app_settings`
+
+### @cmm/state (packages/state/)
+React state management.
+
+- `MatrixContext.tsx` - Global state via useReducer pattern
 - `hooks/useMatrices.ts` - CRUD operations for matrices
 - `hooks/useActiveMatrix.ts` - Active matrix selection and row operations
 - `hooks/useDebouncedSave.ts` - Debounced persistence
 
-**Data Layer:**
-- `lib/database.ts` - SQLite operations via Tauri SQL plugin (singleton pattern)
-- `lib/excel/importer.ts` - Parse Excel files using xlsx (SheetJS)
-- `lib/excel/exporter.ts` - Generate Excel files using exceljs
-- `lib/comparison.ts` - Build comparison data across matrices
-- `lib/requirementNumber.ts` - Hierarchical requirement numbering logic
+### @cmm/macos (apps/macos/)
+React Native macOS desktop application.
 
-**Types:** `types/matrix.ts` - Core types (CapabilityMatrix, CapabilityMatrixRow, Score, etc.)
-
-### Backend (src-tauri/)
-Rust + Tauri v2
-
-**Entry:** `main.rs` → `lib.rs`
-
-**Plugins Used:**
-- `tauri-plugin-sql` - SQLite database with migrations
-- `tauri-plugin-dialog` - Native file dialogs
-- `tauri-plugin-fs` - Filesystem access
-- `tauri-plugin-opener` - Open URLs/files
-
-**Database:** SQLite stored as `cmm.db`. Migrations in `src-tauri/migrations/`. Tables: `matrices`, `matrix_rows`, `app_settings`.
-
-## Design System
-
-Uses DefRM design system (documented in `appInfo/DEFRM_DESIGN_SYSTEM.md`):
-- OKLCH color tokens for light/dark themes
-- Glassmorphic card effects with backdrop-blur
-- Geist font family (with Poppins fallback)
-- `cn()` utility from `lib/utils.ts` for class merging
+- `App.tsx` - Root with SafeAreaProvider, MatrixProvider, NavigationContainer
+- `src/navigation/AppNavigator.tsx` - Stack navigator with 5 screens
+- `src/screens/` - HomeScreen, MatrixEditorScreen, ImportScreen, ExportScreen, ComparisonScreen
+- `metro.config.js` - Configured for monorepo with workspace package resolution
 
 ## Capability Scores
 
-Scores are 0-3 integers (or null). Configuration in `types/matrix.ts` as `SCORE_CONFIG`:
+Scores are 0-3 integers (or null). Configuration in `@cmm/core` as `SCORE_CONFIG`:
 - 3 (Blue #4472C4) - Excellent capability
 - 2 (Green #70AD47) - Good capability
 - 1 (Yellow #FFC000) - Some capability
 - 0 (Gray #E5E5E5) - No capability
 
-## Build Outputs
-
-- macOS: `src-tauri/target/release/bundle/dmg/`
-- Windows: `src-tauri/target/release/bundle/msi/`
-- Linux: `src-tauri/target/release/bundle/deb/` or `appimage/`
-
 ## Key Configuration Files
 
-- `src-tauri/tauri.conf.json` - App identifier, window settings, build commands
-- `vite.config.ts` - Dev server port 1420, HMR for Tauri
-- `tsconfig.json` - ES2020 target, strict mode enabled
+- `turbo.json` - Build/dev/lint/test task definitions with caching
+- `pnpm-workspace.yaml` - Defines `apps/*` and `packages/*` workspaces
+- `tsconfig.base.json` - ES2022, strict mode, bundler module resolution
+- `apps/macos/metro.config.js` - Metro bundler config for monorepo
 
 ## Feature Documentation
 
 Detailed feature specs and data models are in `appInfo/`:
 - `capability-matrix-feature.md` - User workflows, data models, Excel format specs
 - `DEFRM_DESIGN_SYSTEM.md` - Design tokens, component patterns, accessibility
+
+## Adding New Packages
+
+1. Create directory under `packages/` with `package.json` using `@cmm/` prefix
+2. Add `tsconfig.json` extending `../../tsconfig.base.json`
+3. Export from `src/index.ts`
+4. Add as dependency in apps: `pnpm add @cmm/new-package`
+
+## Adding New Apps
+
+1. Create directory under `apps/`
+2. Configure Metro for monorepo (see `apps/macos/metro.config.js`)
+3. Install workspace packages: `pnpm add @cmm/core @cmm/db @cmm/state`

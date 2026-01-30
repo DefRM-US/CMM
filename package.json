@@ -1,41 +1,21 @@
 {
-  "name": "capability-matrix-management",
+  "name": "cmm-multiplatform",
+  "version": "0.0.1",
   "private": true,
-  "version": "0.1.0",
-  "type": "module",
+  "description": "Capability Matrix Management - Cross-platform React Native monorepo",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
-  },
-  "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@heroicons/react": "^2.2.0",
-    "@tanstack/react-table": "^8.21.3",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2.6.0",
-    "@tauri-apps/plugin-fs": "^2.4.5",
-    "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-sql": "^2.3.1",
-    "clsx": "^2.1.1",
-    "exceljs": "^4.4.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwind-merge": "^3.4.0",
-    "xlsx": "^0.18.5"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
-    "@tauri-apps/cli": "^2",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
-    "autoprefixer": "^10.4.23",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
-    "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "turbo": "^2.3.0",
+    "typescript": "^5.3.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

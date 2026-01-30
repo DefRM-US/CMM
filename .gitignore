@@ -1,24 +1,108 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log
+
+# Build outputs
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE (keep .vscode, ignore personal settings)
+.idea/
+*.swp
+*.swo
+*~
+.vscode/settings.json
+.vscode/launch.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+metro-*.log
 
-node_modules
-dist
-dist-ssr
-*.local
+# React Native
+*.jsbundle
+*.jsbundle.map
+*.hbc
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# React Native - macOS
+apps/macos/macos/
+!apps/macos/macos/.gitkeep
+apps/macos/vendor/
+apps/macos/Pods/
+apps/macos/Podfile.lock
+
+# React Native - iOS
+apps/mobile/ios/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/Podfile.lock
+apps/mobile/ios/*.xcworkspace/xcuserdata/
+apps/mobile/ios/*.xcodeproj/xcuserdata/
+
+# React Native - Android
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/local.properties
+apps/mobile/android/*.keystore
+!apps/mobile/android/app/debug.keystore
+
+# React Native - Windows
+apps/windows/windows/
+
+# Expo
+.expo/
+.expo-shared/
+web-build/
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+tmp/
+
+# Package manager locks (keep pnpm-lock.yaml only)
+package-lock.json
+yarn.lock
+bun.lock
+
+# Legacy Tauri/Rust (in case any remnants)
+target/
+Cargo.lock
+src-tauri/
+
+# Misc
+*.orig
+*.bak
+*.backup
+.claude/

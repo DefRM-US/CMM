@@ -9,6 +9,7 @@ Transform the Capability Matrix feature from an existing web app into a standalo
 ## Current State
 
 **Completed (Phase 1 + Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 + Phase 7):**
+
 - Tauri v2 + React 19 + Vite scaffold
 - All dependencies installed (frontend + backend)
 - SQLite integration with Tauri SQL plugin configured
@@ -89,6 +90,7 @@ CREATE TABLE app_settings (
 **Objective:** Set up database, types, and styling infrastructure.
 
 **Tasks:**
+
 1. ✅ Install dependencies:
    - Frontend: `@tauri-apps/plugin-sql`, `@tauri-apps/plugin-dialog`, `exceljs`, `@heroicons/react`, `@dnd-kit/core`, `@dnd-kit/sortable`, `tailwindcss`
    - Backend: `tauri-plugin-sql` (sqlite), `tauri-plugin-dialog`
@@ -111,6 +113,7 @@ CREATE TABLE app_settings (
 7. ✅ Create utility functions (`src/lib/utils.ts`)
 
 **Files created/modified:**
+
 - `src-tauri/Cargo.toml` - added tauri-plugin-sql, tauri-plugin-dialog
 - `src-tauri/src/lib.rs` - registered plugins with migrations
 - `src-tauri/capabilities/default.json` - added sql and dialog permissions
@@ -124,6 +127,7 @@ CREATE TABLE app_settings (
 - `src/main.tsx` - imports index.css
 
 **Implementation Notes:**
+
 - Tailwind v4 requires `@tailwindcss/postcss` plugin (not direct tailwindcss)
 - Score colors defined as CSS custom properties in `@theme` block
 - Database path is `sqlite:cmm.db` - stored in Tauri app data directory
@@ -136,6 +140,7 @@ CREATE TABLE app_settings (
 **Objective:** Build the primary matrix editing interface.
 
 **Tasks:**
+
 1. ✅ Create basic UI components:
    - Button, Input, Select, Dialog (Tabs deferred - not needed yet)
 
@@ -162,6 +167,7 @@ CREATE TABLE app_settings (
    - Empty state with "Create Your First Matrix" prompt
 
 **Files created:**
+
 - `src/components/ui/Button.tsx` - variants: primary, secondary, danger
 - `src/components/ui/Input.tsx` - forwardRef wrapper for input element
 - `src/components/ui/Select.tsx` - dropdown with options array
@@ -181,9 +187,11 @@ CREATE TABLE app_settings (
 - `src/hooks/useDebouncedSave.ts` - debounced database saves
 
 **Files modified:**
+
 - `src/App.tsx` - wrapped with MatrixProvider, renders MatrixEditor
 
 **Implementation Notes:**
+
 - New matrices start with 1 empty row (user preference)
 - Dark mode deferred to Phase 7 (polish)
 - TanStack Table used for data grid (not custom table)
@@ -199,6 +207,7 @@ CREATE TABLE app_settings (
 **Objective:** Parse and import Excel files.
 
 **Tasks:**
+
 1. ✅ Create import parser (`src/lib/excel/importer.ts`):
    - Use `xlsx` (SheetJS) for parsing
    - Detect header row (search for "requirement")
@@ -221,6 +230,7 @@ CREATE TABLE app_settings (
    - Created migration `002_add_parent_matrix.sql`
 
 **Files created:**
+
 - `src-tauri/migrations/002_add_parent_matrix.sql` - schema migration
 - `src/lib/excel/importer.ts` - Excel parsing with xlsx library
 - `src/components/import/ImportTab.tsx` - main import UI with file picker
@@ -228,11 +238,13 @@ CREATE TABLE app_settings (
 - `src/components/ui/Tabs.tsx` - reusable tab navigation component
 
 **Files modified:**
+
 - `src/types/matrix.ts` - added `parentMatrixId` to interfaces
 - `src/lib/database.ts` - added `parentMatrixId` support, `getChildMatrices()`, `getTemplateMatrices()`
 - `src/App.tsx` - added Tabs, ImportTab integration
 
 **Implementation Notes:**
+
 - Imported matrices are linked to their parent template via `parentMatrixId`
 - Each import creates a NEW matrix (not merging into existing)
 - File reading uses `convertFileSrc` + `fetch` for Tauri webview compatibility
@@ -249,6 +261,7 @@ CREATE TABLE app_settings (
 **Objective:** Generate formatted Excel files with conditional formatting.
 
 **Tasks:**
+
 1. ✅ Create export generator (`src/lib/excel/exporter.ts`):
    - Use `exceljs` for full styling support
    - Apply conditional formatting on score column
@@ -264,12 +277,14 @@ CREATE TABLE app_settings (
 4. ✅ Added Tauri fs plugin for file writing
 
 **Files created:**
+
 - `src/lib/excel/exporter.ts` - Excel generation with ExcelJS
 - `src/components/export/ExportTab.tsx` - main export UI with preview
 - `src/components/export/ExportModal.tsx` - metadata form dialog
 - `src/components/export/ExportPreview.tsx` - read-only preview table
 
 **Files modified:**
+
 - `src/App.tsx` - added Export tab (third tab)
 - `src-tauri/Cargo.toml` - added `tauri-plugin-fs`
 - `src-tauri/src/lib.rs` - registered fs plugin
@@ -277,6 +292,7 @@ CREATE TABLE app_settings (
 - `package.json` - added `@tauri-apps/plugin-fs`
 
 **Implementation Notes:**
+
 - Export uses `@tauri-apps/plugin-dialog` `save()` for native file picker
 - File writing uses `@tauri-apps/plugin-fs` `writeFile()` with Uint8Array buffer
 - ExcelJS workbook structure:
@@ -298,6 +314,7 @@ CREATE TABLE app_settings (
 **Objective:** Side-by-side matrix comparison.
 
 **Tasks:**
+
 1. ✅ Create comparison data aggregator (`src/lib/comparison.ts`):
    - Collect unique requirements across matrices
    - Build score lookup by requirement + company
@@ -317,6 +334,7 @@ CREATE TABLE app_settings (
    - Undo toast for requirement deletions
 
 **Files created:**
+
 - `src/lib/comparison.ts` - types and buildComparisonData function
 - `src/components/comparison/ComparisonTab.tsx` - main orchestrating component
 - `src/components/comparison/ComparisonTable.tsx` - comparison grid
@@ -325,10 +343,12 @@ CREATE TABLE app_settings (
 - `src/components/ui/Toast.tsx` - undo notification component
 
 **Files modified:**
+
 - `src/App.tsx` - added "Compare" tab
 - `src/lib/database.ts` - added `deleteRowsByRequirement()` and `restoreRows()` for undo
 
 **Implementation Notes:**
+
 - Requirements matched using exact text (case-insensitive, trimmed)
 - Hide state persists during app session (React state), resets on restart
 - Tooltip shows Past Performance and Comments on cell hover
@@ -342,6 +362,7 @@ CREATE TABLE app_settings (
 **Objective:** Combine all components into cohesive app.
 
 **Tasks:**
+
 1. ✅ (Done in Phase 2-5) Create main layout in `App.tsx`:
    - Header with app title
    - MatrixEditor as main content
@@ -357,11 +378,13 @@ CREATE TABLE app_settings (
 4. ✅ (Done in Phase 2) Add empty states and confirmation dialogs
 
 **Files modified:**
+
 - ✅ `src/App.tsx` - Tabs complete (Editor, Import, Export, Compare)
 - ✅ `src/components/ui/Tabs.tsx` - tab navigation component created in Phase 3
 - ✅ `src-tauri/tauri.conf.json` - window config updated (1200x800 default, 900x600 min)
 
 **Implementation Notes:**
+
 - MatrixContext created and working
 - App.tsx structure complete with 4 tabs
 - Window has minimum size constraints to prevent unusable layouts
@@ -375,6 +398,7 @@ CREATE TABLE app_settings (
 **Objective:** Error handling, UX refinements.
 
 **Tasks:**
+
 1. ✅ Error boundaries and toast notifications
 2. ✅ (Done in Phase 2) Empty state messages
 3. ✅ (Done in Phase 2) Confirmation dialogs (delete matrix, delete row)
@@ -384,11 +408,13 @@ CREATE TABLE app_settings (
 7. ✅ Dark mode toggle (with system preference detection)
 
 **Files created:**
+
 - `src/contexts/ToastContext.tsx` - Toast queue management with useReducer
 - `src/contexts/ThemeContext.tsx` - Theme state management with system preference detection
 - `src/components/ErrorBoundary.tsx` - Class component for React error handling
 
 **Files modified:**
+
 - `src/App.tsx` - Wrapped with ErrorBoundary, ThemeProvider, ToastProvider; added theme toggle button
 - `src/index.css` - Added dark mode CSS variables and component variants
 - `src/components/ui/Dialog.tsx` - Dark mode variants
@@ -404,6 +430,7 @@ CREATE TABLE app_settings (
 - `src/hooks/useDebouncedSave.ts` - Error callback for save failures
 
 **Implementation Notes:**
+
 - ToastContext provides centralized toast notifications (success, error, info)
 - ThemeContext auto-detects system preference on first load, persists to database
 - Tab/Shift+Tab navigation moves between editable cells in the table
@@ -415,12 +442,12 @@ CREATE TABLE app_settings (
 
 ## Score Color Mapping
 
-| Score | Color | Hex | Description |
-|-------|-------|-----|-------------|
-| 3 | Blue | #4472C4 | Excellent capability |
-| 2 | Green | #70AD47 | Good capability |
-| 1 | Yellow | #FFC000 | Some capability |
-| 0 | Gray | #E5E5E5 | No capability |
+| Score | Color  | Hex     | Description          |
+| ----- | ------ | ------- | -------------------- |
+| 3     | Blue   | #4472C4 | Excellent capability |
+| 2     | Green  | #70AD47 | Good capability      |
+| 1     | Yellow | #FFC000 | Some capability      |
+| 0     | Gray   | #E5E5E5 | No capability        |
 
 ---
 
@@ -503,6 +530,7 @@ src-tauri/
 ## Dependencies ✅ INSTALLED
 
 **Frontend (package.json):**
+
 - `@tauri-apps/plugin-sql` - SQLite database access
 - `@tauri-apps/plugin-dialog` - Native file dialogs
 - `@tauri-apps/plugin-fs` - File system access (Phase 4)
@@ -514,6 +542,7 @@ src-tauri/
 - `tailwindcss`, `@tailwindcss/postcss`, `postcss`, `autoprefixer` - Styling
 
 **Backend (Cargo.toml):**
+
 - `tauri-plugin-sql` with sqlite feature
 - `tauri-plugin-dialog`
 - `tauri-plugin-fs` (Phase 4)

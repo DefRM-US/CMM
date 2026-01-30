@@ -53,6 +53,7 @@ pnpm macos
 ### @cmm/core
 
 Pure TypeScript package containing:
+
 - **Types**: `CapabilityMatrix`, `CapabilityMatrixRow`, `Score`, etc.
 - **Business Logic**: Requirement numbering, comparison, utilities
 - **Excel**: Import/export using xlsx and exceljs
@@ -60,12 +61,14 @@ Pure TypeScript package containing:
 ### @cmm/db
 
 Database abstraction layer:
+
 - **Interface**: `DatabaseInterface` for platform-agnostic DB operations
 - **Implementation**: `ExpoSQLiteDatabase` using expo-sqlite (works on iOS, Android, macOS)
 
 ### @cmm/state
 
 React state management:
+
 - **Context**: `MatrixProvider` with reducer-based state
 - **Hooks**: `useMatrices`, `useActiveMatrix`, `useDebouncedSave`
 

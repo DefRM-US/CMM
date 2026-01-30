@@ -1,7 +1,7 @@
 /**
  * Generate a unique ID with optional prefix
  */
-export function generateId(prefix: string = "id"): string {
+export function generateId(prefix: string = 'id'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
@@ -10,9 +10,9 @@ export function generateId(prefix: string = "id"): string {
  */
 export function formatDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   });
 }
 
@@ -21,7 +21,7 @@ export function formatDate(isoString: string): string {
  */
 export function formatDateForFilename(isoString: string): string {
   const date = new Date(isoString);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -42,7 +42,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  * Get current date as ISO string
  */
 export function getCurrentDate(): string {
-  return new Date().toISOString().split("T")[0];
+  return new Date().toISOString().split('T')[0];
 }
 
 /**

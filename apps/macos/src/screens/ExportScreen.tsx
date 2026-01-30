@@ -10,7 +10,6 @@ import {
   ScrollView,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import DocumentPicker from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import { getDatabase } from '@cmm/db';
 import {
@@ -20,9 +19,14 @@ import {
   getCurrentDate,
   SCORE_CONFIG,
   scoreUsesLightText,
+  colors,
+  fontSize,
+  fontWeight,
+  spacing,
+  borderRadius,
 } from '@cmm/core';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import type { CapabilityMatrixWithRows, Score } from '@cmm/core';
+import type { CapabilityMatrixWithRows } from '@cmm/core';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Export'>;
 
@@ -43,7 +47,7 @@ export function ExportScreen({ route, navigation }: Props) {
         if (matrixWithRows) {
           setCompanyName(matrixWithRows.name);
         }
-      } catch (error) {
+      } catch {
         Alert.alert('Error', 'Failed to load matrix');
       } finally {
         setIsLoading(false);
@@ -88,10 +92,7 @@ export function ExportScreen({ route, navigation }: Props) {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      Alert.alert(
-        'Export Failed',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      Alert.alert('Export Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsExporting(false);
     }
@@ -100,7 +101,7 @@ export function ExportScreen({ route, navigation }: Props) {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#4472C4" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -141,12 +142,7 @@ export function ExportScreen({ route, navigation }: Props) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Version</Text>
-          <TextInput
-            style={styles.input}
-            value={version}
-            onChangeText={setVersion}
-            placeholder="1.0"
-          />
+          <TextInput style={styles.input} value={version} onChangeText={setVersion} placeholder="1.0" />
         </View>
       </View>
 
@@ -161,18 +157,8 @@ export function ExportScreen({ route, navigation }: Props) {
         <View style={styles.scoreSummary}>
           {([3, 2, 1, 0] as const).map((score) => (
             <View key={score} style={styles.scoreItem}>
-              <View
-                style={[
-                  styles.scoreBadge,
-                  { backgroundColor: SCORE_CONFIG[score].color },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.scoreBadgeText,
-                    scoreUsesLightText(score) && styles.scoreBadgeTextLight,
-                  ]}
-                >
+              <View style={[styles.scoreBadge, { backgroundColor: SCORE_CONFIG[score].color }]}>
+                <Text style={[styles.scoreBadgeText, scoreUsesLightText(score) && styles.scoreBadgeTextLight]}>
                   {score}
                 </Text>
               </View>
@@ -188,13 +174,9 @@ export function ExportScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.exportButton}
-        onPress={handleExport}
-        disabled={isExporting}
-      >
+      <TouchableOpacity style={styles.exportButton} onPress={handleExport} disabled={isExporting}>
         {isExporting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textOnPrimary} />
         ) : (
           <Text style={styles.exportButtonText}>Export to Excel</Text>
         )}
@@ -206,8 +188,8 @@ export function ExportScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    padding: 16,
+    backgroundColor: colors.backgroundPrimary,
+    padding: spacing.xl,
   },
   loading: {
     flex: 1,
@@ -215,92 +197,92 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    fontSize: 16,
-    color: '#D32F2F',
+    fontSize: fontSize.lg,
+    color: colors.error,
     textAlign: 'center',
-    marginTop: 32,
+    marginTop: spacing.xxl,
   },
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
   },
   field: {
-    marginBottom: 16,
+    marginBottom: spacing.xl,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 6,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    backgroundColor: '#fff',
+    borderColor: colors.borderPrimary,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.button,
+    fontSize: fontSize.base,
+    backgroundColor: colors.backgroundSecondary,
   },
   previewInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
   },
   scoreSummary: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.xl,
     flexWrap: 'wrap',
   },
   scoreItem: {
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   scoreBadge: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   unratedBadge: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.borderPrimary,
   },
   scoreBadgeText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#333',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.base,
+    color: colors.textPrimary,
   },
   scoreBadgeTextLight: {
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   scoreCount: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   exportButton: {
-    backgroundColor: '#4472C4',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    padding: spacing.xl,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   exportButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.lg,
   },
 });

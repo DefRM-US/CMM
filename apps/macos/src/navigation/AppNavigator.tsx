@@ -30,31 +30,11 @@ export function AppNavigator() {
         },
       }}
     >
-      <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ title: 'Capability Matrix Management' }}
-      />
-      <Stack.Screen
-        name="MatrixEditor"
-        component={MatrixEditorScreen}
-        options={{ title: 'Edit Matrix' }}
-      />
-      <Stack.Screen
-        name="Import"
-        component={ImportScreen}
-        options={{ title: 'Import Excel' }}
-      />
-      <Stack.Screen
-        name="Export"
-        component={ExportScreen}
-        options={{ title: 'Export Matrix' }}
-      />
-      <Stack.Screen
-        name="Comparison"
-        component={ComparisonScreen}
-        options={{ title: 'Compare Matrices' }}
-      />
+      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Capability Matrix Management' }} />
+      <Stack.Screen name="MatrixEditor" component={MatrixEditorScreen} options={{ title: 'Edit Matrix' }} />
+      <Stack.Screen name="Import" component={ImportScreen} options={{ title: 'Import Excel' }} />
+      <Stack.Screen name="Export" component={ExportScreen} options={{ title: 'Export Matrix' }} />
+      <Stack.Screen name="Comparison" component={ComparisonScreen} options={{ title: 'Compare Matrices' }} />
     </Stack.Navigator>
   );
 }

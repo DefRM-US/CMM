@@ -1,4 +1,4 @@
-import type { Score, CapabilityMatrixWithRows } from "../types/matrix";
+import type { Score, CapabilityMatrixWithRows } from '../types/matrix';
 
 /**
  * Cell data for a single company's response to a requirement
@@ -58,9 +58,7 @@ export function normalizeRequirement(text: string): string {
  * Build comparison data from multiple matrices
  * Requirements are matched case-insensitively after trimming
  */
-export function buildComparisonData(
-  matrices: CapabilityMatrixWithRows[]
-): ComparisonData {
+export function buildComparisonData(matrices: CapabilityMatrixWithRows[]): ComparisonData {
   // Map to track unique requirements and their row data
   // Key is normalized requirement text
   const requirementMap = new Map<string, ComparisonRow>();
@@ -115,34 +113,26 @@ export function buildComparisonData(
  * Get information about which companies have data for a requirement
  * Used for delete confirmation dialog
  */
-export function getRequirementDeleteInfo(
-  comparisonData: ComparisonData,
-  requirement: string
-): RequirementDeleteInfo {
+export function getRequirementDeleteInfo(comparisonData: ComparisonData, requirement: string): RequirementDeleteInfo {
   const normalizedReq = normalizeRequirement(requirement);
-  const row = comparisonData.rows.find(
-    (r) => r.normalizedRequirement === normalizedReq
-  );
+  const row = comparisonData.rows.find((r) => r.normalizedRequirement === normalizedReq);
 
-  const companiesWithData: RequirementDeleteInfo["companiesWithData"] = [];
+  const companiesWithData: RequirementDeleteInfo['companiesWithData'] = [];
 
   if (row) {
     for (const matrix of comparisonData.matrices) {
       const cell = row.cells.get(matrix.id);
       if (cell) {
         // Only include if there's actual data (not just empty cells)
-        const hasData =
-          cell.score !== null ||
-          cell.pastPerformance.trim() !== "" ||
-          cell.comments.trim() !== "";
+        const hasData = cell.score !== null || cell.pastPerformance.trim() !== '' || cell.comments.trim() !== '';
 
         if (hasData) {
           companiesWithData.push({
             matrixId: matrix.id,
             matrixName: matrix.name,
             score: cell.score,
-            hasComments: cell.comments.trim() !== "",
-            hasPastPerformance: cell.pastPerformance.trim() !== "",
+            hasComments: cell.comments.trim() !== '',
+            hasPastPerformance: cell.pastPerformance.trim() !== '',
           });
         }
       }
@@ -158,9 +148,7 @@ export function getRequirementDeleteInfo(
 /**
  * Check if a cell has any tooltip-worthy content
  */
-export function cellHasTooltipContent(
-  cell: ComparisonCellData | undefined
-): boolean {
+export function cellHasTooltipContent(cell: ComparisonCellData | undefined): boolean {
   if (!cell) return false;
-  return cell.pastPerformance.trim() !== "" || cell.comments.trim() !== "";
+  return cell.pastPerformance.trim() !== '' || cell.comments.trim() !== '';
 }

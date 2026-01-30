@@ -10,13 +10,22 @@
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": ["**/*.ts", "**/*.tsx", "**/*.js", "eslint.config.js"]
     },
     "test": {
       "dependsOn": ["^build"]
     },
     "clean": {
       "cache": false
+    },
+    "format": {
+      "cache": false,
+      "outputs": []
+    },
+    "format:check": {
+      "inputs": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.json", "**/*.md"],
+      "outputs": []
     }
   }
 }

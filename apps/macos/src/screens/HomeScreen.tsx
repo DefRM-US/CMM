@@ -1,29 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMatrices } from '@cmm/state';
-import { formatDate } from '@cmm/core';
+import { formatDate, colors, fontSize, fontWeight, spacing, borderRadius } from '@cmm/core';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { CapabilityMatrix } from '@cmm/core';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
-  const { matrices, isLoading, loadMatrices, createMatrix, deleteMatrix } =
-    useMatrices();
+  const { matrices, isLoading, loadMatrices, createMatrix, deleteMatrix } = useMatrices();
   const [showNewMatrixInput, setShowNewMatrixInput] = useState(false);
   const [newMatrixName, setNewMatrixName] = useState('');
-  const [selectedForComparison, setSelectedForComparison] = useState<string[]>(
-    []
-  );
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
   useEffect(() => {
     loadMatrices();
@@ -41,24 +30,18 @@ export function HomeScreen({ navigation }: Props) {
   };
 
   const handleDeleteMatrix = (id: string, name: string) => {
-    Alert.alert(
-      'Delete Matrix',
-      `Are you sure you want to delete "${name}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteMatrix(id),
-        },
-      ]
-    );
+    Alert.alert('Delete Matrix', `Are you sure you want to delete "${name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteMatrix(id),
+      },
+    ]);
   };
 
   const toggleComparison = (id: string) => {
-    setSelectedForComparison((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedForComparison((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleCompare = () => {
@@ -86,9 +69,7 @@ export function HomeScreen({ navigation }: Props) {
         <View style={styles.matrixActions}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() =>
-              navigation.navigate('Export', { matrixId: item.id })
-            }
+            onPress={() => navigation.navigate('Export', { matrixId: item.id })}
           >
             <Text style={styles.actionButtonText}>Export</Text>
           </TouchableOpacity>
@@ -107,26 +88,15 @@ export function HomeScreen({ navigation }: Props) {
     <View style={styles.container}>
       {/* Toolbar */}
       <View style={styles.toolbar}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => setShowNewMatrixInput(true)}
-        >
+        <TouchableOpacity style={styles.primaryButton} onPress={() => setShowNewMatrixInput(true)}>
           <Text style={styles.primaryButtonText}>+ New Matrix</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => navigation.navigate('Import')}
-        >
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Import')}>
           <Text style={styles.secondaryButtonText}>Import Excel</Text>
         </TouchableOpacity>
         {selectedForComparison.length >= 2 && (
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleCompare}
-          >
-            <Text style={styles.primaryButtonText}>
-              Compare ({selectedForComparison.length})
-            </Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleCompare}>
+            <Text style={styles.primaryButtonText}>Compare ({selectedForComparison.length})</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -142,10 +112,7 @@ export function HomeScreen({ navigation }: Props) {
             onSubmitEditing={handleCreateMatrix}
             autoFocus
           />
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleCreateMatrix}
-          >
+          <TouchableOpacity style={styles.primaryButton} onPress={handleCreateMatrix}>
             <Text style={styles.primaryButtonText}>Create</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -168,9 +135,7 @@ export function HomeScreen({ navigation }: Props) {
       ) : matrices.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No Matrices Yet</Text>
-          <Text style={styles.emptyStateText}>
-            Create a new matrix or import from Excel to get started.
-          </Text>
+          <Text style={styles.emptyStateText}>Create a new matrix or import from Excel to get started.</Text>
         </View>
       ) : (
         <FlatList
@@ -184,8 +149,7 @@ export function HomeScreen({ navigation }: Props) {
       {selectedForComparison.length > 0 && (
         <View style={styles.selectionHint}>
           <Text style={styles.selectionHintText}>
-            {selectedForComparison.length} selected for comparison (long-press
-            to toggle)
+            {selectedForComparison.length} selected for comparison (long-press to toggle)
           </Text>
           <TouchableOpacity onPress={() => setSelectedForComparison([])}>
             <Text style={styles.clearSelectionText}>Clear</Text>
@@ -199,142 +163,142 @@ export function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.backgroundPrimary,
   },
   toolbar: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#fff',
+    padding: spacing.xl,
+    gap: spacing.lg,
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.borderPrimary,
   },
   primaryButton: {
-    backgroundColor: '#4472C4',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.button,
+    borderRadius: borderRadius.md,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semibold,
   },
   secondaryButton: {
-    backgroundColor: '#E0E0E0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 6,
+    backgroundColor: colors.borderPrimary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.button,
+    borderRadius: borderRadius.md,
   },
   secondaryButtonText: {
-    color: '#333',
-    fontWeight: '500',
+    color: colors.textPrimary,
+    fontWeight: fontWeight.medium,
   },
   newMatrixContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#fff',
+    padding: spacing.xl,
+    gap: spacing.lg,
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.borderPrimary,
     alignItems: 'center',
   },
   input: {
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
+    borderColor: colors.borderPrimary,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.backgroundSecondary,
   },
   list: {
-    padding: 16,
-    gap: 12,
+    padding: spacing.xl,
+    gap: spacing.lg,
   },
   matrixCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    marginBottom: 12,
+    marginBottom: spacing.lg,
   },
   matrixCardSelected: {
     borderWidth: 2,
-    borderColor: '#4472C4',
+    borderColor: colors.primary,
   },
   matrixInfo: {
     flex: 1,
   },
   matrixName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
   },
   matrixDate: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   matrixActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.md,
   },
   actionButton: {
-    backgroundColor: '#E0E0E0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
+    backgroundColor: colors.borderPrimary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
   },
   actionButtonText: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
   },
   deleteButton: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: colors.errorBackground,
   },
   deleteButtonText: {
-    fontSize: 12,
-    color: '#D32F2F',
+    fontSize: fontSize.sm,
+    color: colors.error,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: spacing.xxl,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
   emptyStateText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   selectionHint: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#E3F2FD',
-    gap: 12,
+    padding: spacing.lg,
+    backgroundColor: colors.infoBackground,
+    gap: spacing.lg,
   },
   selectionHintText: {
-    fontSize: 12,
-    color: '#1976D2',
+    fontSize: fontSize.sm,
+    color: colors.info,
   },
   clearSelectionText: {
-    fontSize: 12,
-    color: '#1976D2',
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    color: colors.info,
+    fontWeight: fontWeight.semibold,
   },
 });

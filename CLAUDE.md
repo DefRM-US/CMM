@@ -47,6 +47,7 @@ pnpm dev
 ## Package Details
 
 ### @cmm/core (packages/core/)
+
 Pure TypeScript, 100% portable across platforms.
 
 - `types/matrix.ts` - Core types: `Score`, `CapabilityMatrix`, `CapabilityMatrixRow`, `SCORE_CONFIG`
@@ -57,6 +58,7 @@ Pure TypeScript, 100% portable across platforms.
 - `excel/exporter.ts` - Generate Excel files using exceljs
 
 ### @cmm/db (packages/db/)
+
 Database abstraction layer using expo-sqlite.
 
 - `interface.ts` - `DatabaseInterface` type for platform-agnostic operations
@@ -66,6 +68,7 @@ Database abstraction layer using expo-sqlite.
 **Database Schema:** SQLite with tables `matrices`, `matrix_rows`, `app_settings`
 
 ### @cmm/state (packages/state/)
+
 React state management.
 
 - `MatrixContext.tsx` - Global state via useReducer pattern
@@ -74,6 +77,7 @@ React state management.
 - `hooks/useDebouncedSave.ts` - Debounced persistence
 
 ### @cmm/macos (apps/macos/)
+
 React Native macOS desktop application.
 
 - `App.tsx` - Root with SafeAreaProvider, MatrixProvider, NavigationContainer
@@ -84,6 +88,7 @@ React Native macOS desktop application.
 ## Capability Scores
 
 Scores are 0-3 integers (or null). Configuration in `@cmm/core` as `SCORE_CONFIG`:
+
 - 3 (Blue #4472C4) - Excellent capability
 - 2 (Green #70AD47) - Good capability
 - 1 (Yellow #FFC000) - Some capability
@@ -99,6 +104,7 @@ Scores are 0-3 integers (or null). Configuration in `@cmm/core` as `SCORE_CONFIG
 ## Feature Documentation
 
 Detailed feature specs and data models are in `appInfo/`:
+
 - `capability-matrix-feature.md` - User workflows, data models, Excel format specs
 - `DEFRM_DESIGN_SYSTEM.md` - Design tokens, component patterns, accessibility
 

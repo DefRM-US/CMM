@@ -1,8 +1,8 @@
-export type { DatabaseInterface } from "./interface";
-export { ExpoSQLiteDatabase } from "./expo-sqlite";
+export type { DatabaseInterface } from './interface';
+export { ExpoSQLiteDatabase } from './expo-sqlite';
 
-import { ExpoSQLiteDatabase } from "./expo-sqlite";
-import type { DatabaseInterface } from "./interface";
+import { ExpoSQLiteDatabase } from './expo-sqlite';
+import type { DatabaseInterface } from './interface';
 
 // Singleton database instance
 let dbInstance: DatabaseInterface | null = null;

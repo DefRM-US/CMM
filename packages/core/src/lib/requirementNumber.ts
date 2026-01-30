@@ -35,8 +35,8 @@ export function compareRequirementNumbers(a: string, b: string): number {
   if (!a) return 1;
   if (!b) return -1;
 
-  const aParts = a.split(".").map(Number);
-  const bParts = b.split(".").map(Number);
+  const aParts = a.split('.').map(Number);
+  const bParts = b.split('.').map(Number);
 
   for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
     const aVal = aParts[i] ?? 0;
@@ -52,12 +52,12 @@ export function compareRequirementNumbers(a: string, b: string): number {
  * If previous is empty, returns "1"
  */
 export function suggestNextNumber(previousNumber: string): string {
-  if (!previousNumber) return "1";
+  if (!previousNumber) return '1';
 
-  const parts = previousNumber.split(".");
+  const parts = previousNumber.split('.');
   const lastPart = parseInt(parts[parts.length - 1], 10);
   parts[parts.length - 1] = String(lastPart + 1);
-  return parts.join(".");
+  return parts.join('.');
 }
 
 /**
@@ -67,7 +67,7 @@ export function suggestNextNumber(previousNumber: string): string {
  * "1.3" after "1.2" → "1.2.1"
  */
 export function indentNumber(previousNumber: string): string {
-  if (!previousNumber) return "1";
+  if (!previousNumber) return '1';
   return `${previousNumber}.1`;
 }
 
@@ -78,15 +78,15 @@ export function indentNumber(previousNumber: string): string {
  * "1" → "1" (can't outdent top level, return unchanged)
  */
 export function outdentNumber(current: string): string {
-  if (!current) return "1";
+  if (!current) return '1';
 
-  const parts = current.split(".");
+  const parts = current.split('.');
   if (parts.length <= 1) return current; // Can't outdent top level
 
   parts.pop(); // Remove last segment
   const lastPart = parseInt(parts[parts.length - 1], 10);
   parts[parts.length - 1] = String(lastPart + 1);
-  return parts.join(".");
+  return parts.join('.');
 }
 
 /**
@@ -96,10 +96,10 @@ export function outdentNumber(current: string): string {
  * "1" → "" (no parent)
  */
 export function getParentNumber(reqNum: string): string {
-  if (!reqNum) return "";
-  const parts = reqNum.split(".");
-  if (parts.length <= 1) return "";
-  return parts.slice(0, -1).join(".");
+  if (!reqNum) return '';
+  const parts = reqNum.split('.');
+  if (parts.length <= 1) return '';
+  return parts.slice(0, -1).join('.');
 }
 
 /**
@@ -109,7 +109,7 @@ export function getParentNumber(reqNum: string): string {
  */
 export function isChildOf(child: string, parent: string): boolean {
   if (!child || !parent) return false;
-  return child.startsWith(parent + ".");
+  return child.startsWith(parent + '.');
 }
 
 /**
@@ -119,5 +119,5 @@ export function isChildOf(child: string, parent: string): boolean {
  */
 export function parseSegments(reqNum: string): number[] {
   if (!reqNum || !isValidRequirementNumber(reqNum)) return [];
-  return reqNum.split(".").map(Number);
+  return reqNum.split('.').map(Number);
 }

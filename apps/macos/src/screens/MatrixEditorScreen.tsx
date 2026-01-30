@@ -1,16 +1,8 @@
 import React, { useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useActiveMatrix } from '@cmm/state';
-import { SCORE_CONFIG, scoreUsesLightText } from '@cmm/core';
+import { SCORE_CONFIG, scoreUsesLightText, colors, fontSize, fontWeight, spacing, borderRadius } from '@cmm/core';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { CapabilityMatrixRow, Score } from '@cmm/core';
 
@@ -18,8 +10,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MatrixEditor'>;
 
 export function MatrixEditorScreen({ route, navigation }: Props) {
   const { matrixId } = route.params;
-  const { activeMatrix, isLoading, selectMatrix, addRow, updateRow, deleteRow } =
-    useActiveMatrix();
+  const { activeMatrix, isLoading, selectMatrix, addRow, updateRow, deleteRow } = useActiveMatrix();
 
   useEffect(() => {
     selectMatrix(matrixId);
@@ -34,12 +25,7 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
   const handleScoreChange = useCallback(
     (rowId: string, currentScore: Score) => {
       // Cycle through scores: null -> 0 -> 1 -> 2 -> 3 -> null
-      const nextScore: Score =
-        currentScore === null
-          ? 0
-          : currentScore === 3
-            ? null
-            : ((currentScore + 1) as Score);
+      const nextScore: Score = currentScore === null ? 0 : currentScore === 3 ? null : ((currentScore + 1) as Score);
       updateRow(rowId, { experienceAndCapability: nextScore });
     },
     [updateRow]
@@ -56,9 +42,7 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
           <TextInput
             style={styles.reqNumberInput}
             value={item.requirementNumber}
-            onChangeText={(text) =>
-              updateRow(item.id, { requirementNumber: text })
-            }
+            onChangeText={(text) => updateRow(item.id, { requirementNumber: text })}
             placeholder={String(index + 1)}
           />
         </View>
@@ -72,28 +56,16 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
           />
         </View>
         <TouchableOpacity
-          style={[
-            styles.rowScore,
-            scoreConfig && { backgroundColor: scoreConfig.color },
-          ]}
+          style={[styles.rowScore, scoreConfig && { backgroundColor: scoreConfig.color }]}
           onPress={() => handleScoreChange(item.id, score)}
         >
-          <Text
-            style={[
-              styles.scoreText,
-              useLightText && styles.scoreTextLight,
-            ]}
-          >
-            {score !== null ? score : '-'}
-          </Text>
+          <Text style={[styles.scoreText, useLightText && styles.scoreTextLight]}>{score !== null ? score : '-'}</Text>
         </TouchableOpacity>
         <View style={styles.rowPastPerformance}>
           <TextInput
             style={styles.textInput}
             value={item.pastPerformance}
-            onChangeText={(text) =>
-              updateRow(item.id, { pastPerformance: text })
-            }
+            onChangeText={(text) => updateRow(item.id, { pastPerformance: text })}
             placeholder="Past performance..."
             multiline
           />
@@ -107,10 +79,7 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
             multiline
           />
         </View>
-        <TouchableOpacity
-          style={styles.deleteRowButton}
-          onPress={() => deleteRow(item.id)}
-        >
+        <TouchableOpacity style={styles.deleteRowButton} onPress={() => deleteRow(item.id)}>
           <Text style={styles.deleteRowText}>×</Text>
         </TouchableOpacity>
       </View>
@@ -120,13 +89,9 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
   const renderHeader = () => (
     <View style={styles.headerRow}>
       <Text style={[styles.headerCell, styles.headerReqNumber]}>Req #</Text>
-      <Text style={[styles.headerCell, styles.headerRequirement]}>
-        Requirements
-      </Text>
+      <Text style={[styles.headerCell, styles.headerRequirement]}>Requirements</Text>
       <Text style={[styles.headerCell, styles.headerScore]}>Score</Text>
-      <Text style={[styles.headerCell, styles.headerPastPerformance]}>
-        Past Performance
-      </Text>
+      <Text style={[styles.headerCell, styles.headerPastPerformance]}>Past Performance</Text>
       <Text style={[styles.headerCell, styles.headerComments]}>Comments</Text>
       <View style={styles.headerDelete} />
     </View>
@@ -135,7 +100,7 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
   if (isLoading || !activeMatrix) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#4472C4" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -147,10 +112,7 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
         <TouchableOpacity style={styles.toolbarButton} onPress={addRow}>
           <Text style={styles.toolbarButtonText}>+ Add Row</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.toolbarButton}
-          onPress={() => navigation.navigate('Export', { matrixId })}
-        >
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => navigation.navigate('Export', { matrixId })}>
           <Text style={styles.toolbarButtonText}>Export</Text>
         </TouchableOpacity>
       </View>
@@ -159,17 +121,8 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
       <View style={styles.legend}>
         {([3, 2, 1, 0] as const).map((s) => (
           <View key={s} style={styles.legendItem}>
-            <View
-              style={[styles.legendBadge, { backgroundColor: SCORE_CONFIG[s].color }]}
-            >
-              <Text
-                style={[
-                  styles.legendBadgeText,
-                  scoreUsesLightText(s) && styles.legendBadgeTextLight,
-                ]}
-              >
-                {s}
-              </Text>
+            <View style={[styles.legendBadge, { backgroundColor: SCORE_CONFIG[s].color }]}>
+              <Text style={[styles.legendBadgeText, scoreUsesLightText(s) && styles.legendBadgeTextLight]}>{s}</Text>
             </View>
             <Text style={styles.legendLabel}>{SCORE_CONFIG[s].label}</Text>
           </View>
@@ -192,7 +145,7 @@ export function MatrixEditorScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.backgroundPrimary,
   },
   loading: {
     flex: 1,
@@ -201,77 +154,77 @@ const styles = StyleSheet.create({
   },
   toolbar: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 12,
-    backgroundColor: '#fff',
+    padding: spacing.lg,
+    gap: spacing.lg,
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.borderPrimary,
   },
   toolbarButton: {
-    backgroundColor: '#4472C4',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
   },
   toolbarButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.base,
   },
   legend: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 16,
-    backgroundColor: '#fff',
+    padding: spacing.lg,
+    gap: spacing.xl,
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.borderPrimary,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   legendBadge: {
     width: 24,
     height: 24,
-    borderRadius: 4,
+    borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   legendBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.textInverse,
   },
   legendBadgeTextLight: {
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   legendLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   tableContent: {
-    paddingBottom: 32,
+    paddingBottom: spacing.xxl,
   },
   headerRow: {
     flexDirection: 'row',
-    backgroundColor: '#D9D9D9',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    backgroundColor: colors.backgroundHeader,
+    paddingVertical: spacing.button,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#CCC',
+    borderBottomColor: colors.borderSecondary,
   },
   headerCell: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    color: '#333',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
   },
   headerReqNumber: {
     width: 60,
   },
   headerRequirement: {
     flex: 2,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.md,
   },
   headerScore: {
     width: 60,
@@ -279,39 +232,39 @@ const styles = StyleSheet.create({
   },
   headerPastPerformance: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.md,
   },
   headerComments: {
     flex: 2,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.md,
   },
   headerDelete: {
     width: 32,
   },
   row: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    borderBottomColor: colors.borderPrimary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     alignItems: 'flex-start',
   },
   rowNumber: {
     width: 60,
   },
   reqNumberInput: {
-    fontSize: 12,
-    color: '#333',
-    paddingVertical: 4,
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
+    paddingVertical: spacing.xs,
   },
   rowRequirement: {
     flex: 2,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.md,
   },
   requirementInput: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
     minHeight: 40,
   },
   rowScore: {
@@ -319,28 +272,28 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 4,
-    backgroundColor: '#E5E5E5',
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.scoreNull,
   },
   scoreText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#333',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.base,
+    color: colors.textPrimary,
   },
   scoreTextLight: {
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   rowPastPerformance: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.md,
   },
   rowComments: {
     flex: 2,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.md,
   },
   textInput: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
     minHeight: 40,
   },
   deleteRowButton: {
@@ -350,8 +303,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteRowText: {
-    fontSize: 20,
-    color: '#D32F2F',
-    fontWeight: 'bold',
+    fontSize: fontSize.xl,
+    color: colors.error,
+    fontWeight: fontWeight.bold,
   },
 });

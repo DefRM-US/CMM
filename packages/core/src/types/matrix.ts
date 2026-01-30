@@ -99,7 +99,7 @@ export interface AppSettings {
   /** Currently active matrix ID for editing */
   activeMatrixId: string | null;
   /** Theme preference */
-  theme: "light" | "dark" | null;
+  theme: 'light' | 'dark' | null;
 }
 
 /**
@@ -118,29 +118,28 @@ export interface ScoreInfo {
 export const SCORE_CONFIG: Record<Exclude<Score, null>, ScoreInfo> = {
   3: {
     value: 3,
-    color: "#4472C4",
-    label: "Excellent",
-    description:
-      "Excellent capability - significant experience and past performance inputs; applicable to NITE SOW",
+    color: '#4472C4',
+    label: 'Excellent',
+    description: 'Excellent capability - significant experience and past performance inputs; applicable to NITE SOW',
   },
   2: {
     value: 2,
-    color: "#70AD47",
-    label: "Good",
+    color: '#70AD47',
+    label: 'Good',
     description:
-      "Good capability - significant experience and past performance inputs; applicable to NITE SOW and executed on other than Training programs but on related platforms",
+      'Good capability - significant experience and past performance inputs; applicable to NITE SOW and executed on other than Training programs but on related platforms',
   },
   1: {
     value: 1,
-    color: "#FFC000",
-    label: "Some",
-    description: "Some capability - minor or scattered experience",
+    color: '#FFC000',
+    label: 'Some',
+    description: 'Some capability - minor or scattered experience',
   },
   0: {
     value: 0,
-    color: "#E5E5E5",
-    label: "None",
-    description: "No capability",
+    color: '#E5E5E5',
+    label: 'None',
+    description: 'No capability',
   },
 };
 

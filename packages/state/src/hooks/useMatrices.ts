@@ -1,29 +1,29 @@
-import { useContext, useCallback } from "react";
-import { MatrixContext } from "../MatrixContext";
-import { getDatabase } from "@cmm/db";
-import type { CapabilityMatrix } from "@cmm/core";
+import { useContext, useCallback } from 'react';
+import { MatrixContext } from '../MatrixContext';
+import { getDatabase } from '@cmm/db';
+import type { CapabilityMatrix } from '@cmm/core';
 
 export function useMatrices() {
   const context = useContext(MatrixContext);
   if (!context) {
-    throw new Error("useMatrices must be used within MatrixProvider");
+    throw new Error('useMatrices must be used within MatrixProvider');
   }
 
   const { state, dispatch } = context;
 
   // Load all matrices
   const loadMatrices = useCallback(async () => {
-    dispatch({ type: "SET_LOADING", payload: true });
-    dispatch({ type: "SET_ERROR", payload: null });
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
     try {
       const db = await getDatabase();
       const matrices = await db.getAllMatrices();
-      dispatch({ type: "SET_MATRICES", payload: matrices });
+      dispatch({ type: 'SET_MATRICES', payload: matrices });
     } catch (error) {
-      console.error("Failed to load matrices:", error);
-      dispatch({ type: "SET_ERROR", payload: "Failed to load matrices" });
+      console.error('Failed to load matrices:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load matrices' });
     } finally {
-      dispatch({ type: "SET_LOADING", payload: false });
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [dispatch]);
 
@@ -37,11 +37,11 @@ export function useMatrices() {
         // Create 1 empty row
         await db.createMatrixRow({ matrixId: matrix.id });
 
-        dispatch({ type: "ADD_MATRIX", payload: matrix });
+        dispatch({ type: 'ADD_MATRIX', payload: matrix });
         return matrix;
       } catch (error) {
-        console.error("Failed to create matrix:", error);
-        dispatch({ type: "SET_ERROR", payload: "Failed to create matrix" });
+        console.error('Failed to create matrix:', error);
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to create matrix' });
         return null;
       }
     },
@@ -54,7 +54,7 @@ export function useMatrices() {
       try {
         const db = await getDatabase();
         await db.deleteMatrix(id);
-        dispatch({ type: "REMOVE_MATRIX", payload: id });
+        dispatch({ type: 'REMOVE_MATRIX', payload: id });
 
         // Clear active matrix ID if it was the deleted one
         const activeId = await db.getActiveMatrixId();
@@ -64,8 +64,8 @@ export function useMatrices() {
 
         return true;
       } catch (error) {
-        console.error("Failed to delete matrix:", error);
-        dispatch({ type: "SET_ERROR", payload: "Failed to delete matrix" });
+        console.error('Failed to delete matrix:', error);
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to delete matrix' });
         return false;
       }
     },
@@ -78,11 +78,11 @@ export function useMatrices() {
       try {
         const db = await getDatabase();
         await db.updateMatrixName(id, name);
-        dispatch({ type: "UPDATE_MATRIX_NAME", payload: { id, name } });
+        dispatch({ type: 'UPDATE_MATRIX_NAME', payload: { id, name } });
         return true;
       } catch (error) {
-        console.error("Failed to rename matrix:", error);
-        dispatch({ type: "SET_ERROR", payload: "Failed to rename matrix" });
+        console.error('Failed to rename matrix:', error);
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to rename matrix' });
         return false;
       }
     },

@@ -11,10 +11,7 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 const config = {
   watchFolders: [monorepoRoot],
   resolver: {
-    nodeModulesPaths: [
-      path.resolve(projectRoot, 'node_modules'),
-      path.resolve(monorepoRoot, 'node_modules'),
-    ],
+    nodeModulesPaths: [path.resolve(projectRoot, 'node_modules'), path.resolve(monorepoRoot, 'node_modules')],
     // Resolve workspace packages
     extraNodeModules: {
       '@cmm/core': path.resolve(monorepoRoot, 'packages/core'),

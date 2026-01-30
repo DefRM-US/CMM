@@ -1,32 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getDatabase } from '@cmm/db';
 import {
   buildComparisonData,
   SCORE_CONFIG,
   scoreUsesLightText,
+  colors,
+  fontSize,
+  fontWeight,
+  spacing,
+  borderRadius,
 } from '@cmm/core';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import type {
-  ComparisonData,
-  CapabilityMatrixWithRows,
-  Score,
-} from '@cmm/core';
+import type { ComparisonData, CapabilityMatrixWithRows, Score } from '@cmm/core';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Comparison'>;
 
 export function ComparisonScreen({ route }: Props) {
   const { matrixIds } = route.params;
-  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(
-    null
-  );
+  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -68,11 +61,7 @@ export function ComparisonScreen({ route }: Props) {
 
     return (
       <View style={[styles.scoreBadge, { backgroundColor: config.color }]}>
-        <Text
-          style={[styles.scoreBadgeText, useLightText && styles.scoreBadgeTextLight]}
-        >
-          {score}
-        </Text>
+        <Text style={[styles.scoreBadgeText, useLightText && styles.scoreBadgeTextLight]}>{score}</Text>
       </View>
     );
   };
@@ -80,7 +69,7 @@ export function ComparisonScreen({ route }: Props) {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#4472C4" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -113,13 +102,7 @@ export function ComparisonScreen({ route }: Props) {
 
           {/* Data Rows */}
           {comparisonData.rows.map((row, rowIndex) => (
-            <View
-              key={row.normalizedRequirement}
-              style={[
-                styles.dataRow,
-                rowIndex % 2 === 1 && styles.dataRowAlt,
-              ]}
-            >
+            <View key={row.normalizedRequirement} style={[styles.dataRow, rowIndex % 2 === 1 && styles.dataRowAlt]}>
               <View style={styles.requirementCell}>
                 <Text style={styles.requirementText} numberOfLines={3}>
                   {row.requirement}
@@ -130,12 +113,8 @@ export function ComparisonScreen({ route }: Props) {
                 return (
                   <View key={matrix.id} style={styles.scoreCell}>
                     {renderScoreBadge(cell?.score ?? null)}
-                    {cell?.pastPerformance ? (
-                      <Text style={styles.tooltipIndicator}>PP</Text>
-                    ) : null}
-                    {cell?.comments ? (
-                      <Text style={styles.tooltipIndicator}>C</Text>
-                    ) : null}
+                    {cell?.pastPerformance ? <Text style={styles.tooltipIndicator}>PP</Text> : null}
+                    {cell?.comments ? <Text style={styles.tooltipIndicator}>C</Text> : null}
                   </View>
                 );
               })}
@@ -150,18 +129,8 @@ export function ComparisonScreen({ route }: Props) {
         <View style={styles.legendItems}>
           {([3, 2, 1, 0] as const).map((score) => (
             <View key={score} style={styles.legendItem}>
-              <View
-                style={[
-                  styles.legendBadge,
-                  { backgroundColor: SCORE_CONFIG[score].color },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.legendBadgeText,
-                    scoreUsesLightText(score) && styles.legendBadgeTextLight,
-                  ]}
-                >
+              <View style={[styles.legendBadge, { backgroundColor: SCORE_CONFIG[score].color }]}>
+                <Text style={[styles.legendBadgeText, scoreUsesLightText(score) && styles.legendBadgeTextLight]}>
                   {score}
                 </Text>
               </View>
@@ -170,9 +139,7 @@ export function ComparisonScreen({ route }: Props) {
           ))}
         </View>
         <View style={styles.legendIndicators}>
-          <Text style={styles.legendIndicatorText}>
-            PP = Has Past Performance
-          </Text>
+          <Text style={styles.legendIndicatorText}>PP = Has Past Performance</Text>
           <Text style={styles.legendIndicatorText}>C = Has Comments</Text>
         </View>
       </View>
@@ -183,7 +150,7 @@ export function ComparisonScreen({ route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.backgroundPrimary,
   },
   loading: {
     flex: 1,
@@ -191,148 +158,148 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    fontSize: 16,
-    color: '#D32F2F',
+    fontSize: fontSize.lg,
+    color: colors.error,
     textAlign: 'center',
-    marginTop: 32,
+    marginTop: spacing.xxl,
   },
   headerRow: {
     flexDirection: 'row',
-    backgroundColor: '#D9D9D9',
+    backgroundColor: colors.backgroundHeader,
     borderBottomWidth: 2,
-    borderBottomColor: '#999',
+    borderBottomColor: colors.borderStrong,
   },
   requirementHeader: {
     width: 250,
-    padding: 12,
+    padding: spacing.lg,
     borderRightWidth: 1,
-    borderRightColor: '#999',
+    borderRightColor: colors.borderStrong,
   },
   matrixHeader: {
     width: 120,
-    padding: 12,
+    padding: spacing.lg,
     alignItems: 'center',
     borderRightWidth: 1,
-    borderRightColor: '#CCC',
+    borderRightColor: colors.borderSecondary,
   },
   headerText: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    color: '#333',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   dataRow: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.backgroundSecondary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.borderPrimary,
   },
   dataRowAlt: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.backgroundTertiary,
   },
   requirementCell: {
     width: 250,
-    padding: 12,
+    padding: spacing.lg,
     borderRightWidth: 1,
-    borderRightColor: '#E0E0E0',
+    borderRightColor: colors.borderPrimary,
   },
   requirementText: {
-    fontSize: 12,
-    color: '#333',
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
   },
   scoreCell: {
     width: 120,
-    padding: 12,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderRightWidth: 1,
-    borderRightColor: '#E0E0E0',
+    borderRightColor: colors.borderPrimary,
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.xs,
   },
   scoreBadge: {
     width: 28,
     height: 28,
-    borderRadius: 4,
+    borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyBadge: {
     width: 28,
     height: 28,
-    borderRadius: 4,
+    borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.borderPrimary,
   },
   scoreBadgeText: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    color: '#333',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.sm,
+    color: colors.textPrimary,
   },
   scoreBadgeTextLight: {
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   emptyBadgeText: {
-    fontWeight: 'bold',
-    fontSize: 12,
-    color: '#999',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.sm,
+    color: colors.textTertiary,
   },
   tooltipIndicator: {
-    fontSize: 8,
-    color: '#666',
-    backgroundColor: '#E0E0E0',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 2,
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    backgroundColor: colors.borderPrimary,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.xs,
   },
   legend: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: colors.backgroundSecondary,
+    margin: spacing.xl,
+    padding: spacing.xl,
+    borderRadius: borderRadius.lg,
   },
   legendTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
   },
   legendItems: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
+    gap: spacing.xl,
+    marginBottom: spacing.lg,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   legendBadge: {
     width: 24,
     height: 24,
-    borderRadius: 4,
+    borderRadius: borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
   legendBadgeText: {
-    fontWeight: 'bold',
-    fontSize: 10,
-    color: '#333',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.caption,
+    color: colors.textPrimary,
   },
   legendBadgeTextLight: {
-    color: '#fff',
+    color: colors.textOnPrimary,
   },
   legendLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   legendIndicators: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.xl,
   },
   legendIndicatorText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
 });

@@ -1,5 +1,5 @@
-import * as SQLite from "expo-sqlite";
-import { generateId, getCurrentTimestamp } from "@cmm/core";
+import * as SQLite from 'expo-sqlite';
+import { generateId, getCurrentTimestamp } from '@cmm/core';
 import type {
   CapabilityMatrix,
   CapabilityMatrixRow,
@@ -8,15 +8,15 @@ import type {
   CreateMatrixRowInput,
   UpdateMatrixRowInput,
   Score,
-} from "@cmm/core";
-import type { DatabaseInterface } from "./interface";
+} from '@cmm/core';
+import type { DatabaseInterface } from './interface';
 
 /**
  * Parse score string to Score type
  */
 function parseScore(value: string | number | null): Score {
   if (value === null || value === undefined) return null;
-  const num = typeof value === "string" ? parseInt(value, 10) : value;
+  const num = typeof value === 'string' ? parseInt(value, 10) : value;
   if (num >= 0 && num <= 3) return num as Score;
   return null;
 }
@@ -86,7 +86,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   private db: SQLite.SQLiteDatabase | null = null;
   private dbName: string;
 
-  constructor(dbName: string = "cmm.db") {
+  constructor(dbName: string = 'cmm.db') {
     this.dbName = dbName;
   }
 
@@ -137,7 +137,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   private getDb(): SQLite.SQLiteDatabase {
     if (!this.db) {
-      throw new Error("Database not initialized. Call initialize() first.");
+      throw new Error('Database not initialized. Call initialize() first.');
     }
     return this.db;
   }
@@ -146,16 +146,14 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   async getAllMatrices(): Promise<CapabilityMatrix[]> {
     const db = this.getDb();
-    const results = await db.getAllAsync<MatrixDbRow>(
-      "SELECT * FROM matrices ORDER BY created_at DESC"
-    );
+    const results = await db.getAllAsync<MatrixDbRow>('SELECT * FROM matrices ORDER BY created_at DESC');
     return results.map(mapMatrixRow);
   }
 
   async getUserMatrices(): Promise<CapabilityMatrix[]> {
     const db = this.getDb();
     const results = await db.getAllAsync<MatrixDbRow>(
-      "SELECT * FROM matrices WHERE is_imported = 0 ORDER BY created_at DESC"
+      'SELECT * FROM matrices WHERE is_imported = 0 ORDER BY created_at DESC'
     );
     return results.map(mapMatrixRow);
   }
@@ -163,7 +161,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   async getImportedMatrices(): Promise<CapabilityMatrix[]> {
     const db = this.getDb();
     const results = await db.getAllAsync<MatrixDbRow>(
-      "SELECT * FROM matrices WHERE is_imported = 1 ORDER BY created_at DESC"
+      'SELECT * FROM matrices WHERE is_imported = 1 ORDER BY created_at DESC'
     );
     return results.map(mapMatrixRow);
   }
@@ -171,7 +169,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   async getTemplateMatrices(): Promise<CapabilityMatrix[]> {
     const db = this.getDb();
     const results = await db.getAllAsync<MatrixDbRow>(
-      "SELECT * FROM matrices WHERE parent_matrix_id IS NULL ORDER BY created_at DESC"
+      'SELECT * FROM matrices WHERE parent_matrix_id IS NULL ORDER BY created_at DESC'
     );
     return results.map(mapMatrixRow);
   }
@@ -179,7 +177,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   async getChildMatrices(parentId: string): Promise<CapabilityMatrix[]> {
     const db = this.getDb();
     const results = await db.getAllAsync<MatrixDbRow>(
-      "SELECT * FROM matrices WHERE parent_matrix_id = ? ORDER BY created_at DESC",
+      'SELECT * FROM matrices WHERE parent_matrix_id = ? ORDER BY created_at DESC',
       [parentId]
     );
     return results.map(mapMatrixRow);
@@ -187,10 +185,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   async getMatrixById(id: string): Promise<CapabilityMatrix | null> {
     const db = this.getDb();
-    const result = await db.getFirstAsync<MatrixDbRow>(
-      "SELECT * FROM matrices WHERE id = ?",
-      [id]
-    );
+    const result = await db.getFirstAsync<MatrixDbRow>('SELECT * FROM matrices WHERE id = ?', [id]);
     return result ? mapMatrixRow(result) : null;
   }
 
@@ -204,21 +199,13 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   async createMatrix(input: CreateMatrixInput): Promise<CapabilityMatrix> {
     const db = this.getDb();
-    const id = generateId("matrix");
+    const id = generateId('matrix');
     const now = getCurrentTimestamp();
 
     await db.runAsync(
       `INSERT INTO matrices (id, name, is_imported, source_file, parent_matrix_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        input.name,
-        input.isImported ? 1 : 0,
-        input.sourceFile ?? null,
-        input.parentMatrixId ?? null,
-        now,
-        now,
-      ]
+      [id, input.name, input.isImported ? 1 : 0, input.sourceFile ?? null, input.parentMatrixId ?? null, now, now]
     );
 
     return {
@@ -236,18 +223,15 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     const db = this.getDb();
     const now = getCurrentTimestamp();
 
-    await db.runAsync(
-      "UPDATE matrices SET name = ?, updated_at = ? WHERE id = ?",
-      [name, now, id]
-    );
+    await db.runAsync('UPDATE matrices SET name = ?, updated_at = ? WHERE id = ?', [name, now, id]);
   }
 
   async deleteMatrix(id: string): Promise<void> {
     const db = this.getDb();
 
     // Delete rows first
-    await db.runAsync("DELETE FROM matrix_rows WHERE matrix_id = ?", [id]);
-    await db.runAsync("DELETE FROM matrices WHERE id = ?", [id]);
+    await db.runAsync('DELETE FROM matrix_rows WHERE matrix_id = ?', [id]);
+    await db.runAsync('DELETE FROM matrices WHERE id = ?', [id]);
   }
 
   // Row CRUD
@@ -255,7 +239,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   async getMatrixRows(matrixId: string): Promise<CapabilityMatrixRow[]> {
     const db = this.getDb();
     const results = await db.getAllAsync<MatrixRowDbRow>(
-      "SELECT * FROM matrix_rows WHERE matrix_id = ? ORDER BY row_order ASC",
+      'SELECT * FROM matrix_rows WHERE matrix_id = ? ORDER BY row_order ASC',
       [matrixId]
     );
     return results.map(mapMatrixRowRow);
@@ -263,13 +247,13 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   async createMatrixRow(input: CreateMatrixRowInput): Promise<CapabilityMatrixRow> {
     const db = this.getDb();
-    const id = generateId("row");
+    const id = generateId('row');
 
     // Get the next row_order if not provided
     let rowOrder = input.rowOrder;
     if (rowOrder === undefined) {
       const result = await db.getFirstAsync<{ max_order: number | null }>(
-        "SELECT MAX(row_order) as max_order FROM matrix_rows WHERE matrix_id = ?",
+        'SELECT MAX(row_order) as max_order FROM matrix_rows WHERE matrix_id = ?',
         [input.matrixId]
       );
       rowOrder = (result?.max_order ?? -1) + 1;
@@ -281,11 +265,11 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
       [
         id,
         input.matrixId,
-        input.requirementNumber ?? "",
-        input.requirements ?? "",
+        input.requirementNumber ?? '',
+        input.requirements ?? '',
         input.experienceAndCapability?.toString() ?? null,
-        input.pastPerformance ?? "",
-        input.comments ?? "",
+        input.pastPerformance ?? '',
+        input.comments ?? '',
         rowOrder,
       ]
     );
@@ -296,11 +280,11 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     return {
       id,
       matrixId: input.matrixId,
-      requirementNumber: input.requirementNumber ?? "",
-      requirements: input.requirements ?? "",
+      requirementNumber: input.requirementNumber ?? '',
+      requirements: input.requirements ?? '',
       experienceAndCapability: input.experienceAndCapability ?? null,
-      pastPerformance: input.pastPerformance ?? "",
-      comments: input.comments ?? "",
+      pastPerformance: input.pastPerformance ?? '',
+      comments: input.comments ?? '',
       rowOrder,
     };
   }
@@ -313,43 +297,37 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     const values: (string | number | null)[] = [];
 
     if (input.requirementNumber !== undefined) {
-      updates.push("requirement_number = ?");
+      updates.push('requirement_number = ?');
       values.push(input.requirementNumber);
     }
     if (input.requirements !== undefined) {
-      updates.push("requirements = ?");
+      updates.push('requirements = ?');
       values.push(input.requirements);
     }
     if (input.experienceAndCapability !== undefined) {
-      updates.push("experience_and_capability = ?");
+      updates.push('experience_and_capability = ?');
       values.push(input.experienceAndCapability?.toString() ?? null);
     }
     if (input.pastPerformance !== undefined) {
-      updates.push("past_performance = ?");
+      updates.push('past_performance = ?');
       values.push(input.pastPerformance);
     }
     if (input.comments !== undefined) {
-      updates.push("comments = ?");
+      updates.push('comments = ?');
       values.push(input.comments);
     }
     if (input.rowOrder !== undefined) {
-      updates.push("row_order = ?");
+      updates.push('row_order = ?');
       values.push(input.rowOrder);
     }
 
     if (updates.length === 0) return;
 
     values.push(id);
-    await db.runAsync(
-      `UPDATE matrix_rows SET ${updates.join(", ")} WHERE id = ?`,
-      values
-    );
+    await db.runAsync(`UPDATE matrix_rows SET ${updates.join(', ')} WHERE id = ?`, values);
 
     // Get matrix_id to update timestamp
-    const row = await db.getFirstAsync<{ matrix_id: string }>(
-      "SELECT matrix_id FROM matrix_rows WHERE id = ?",
-      [id]
-    );
+    const row = await db.getFirstAsync<{ matrix_id: string }>('SELECT matrix_id FROM matrix_rows WHERE id = ?', [id]);
     if (row) {
       await this.updateMatrixTimestamp(row.matrix_id);
     }
@@ -359,36 +337,27 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     const db = this.getDb();
 
     // Get matrix_id before deletion
-    const row = await db.getFirstAsync<{ matrix_id: string }>(
-      "SELECT matrix_id FROM matrix_rows WHERE id = ?",
-      [id]
-    );
+    const row = await db.getFirstAsync<{ matrix_id: string }>('SELECT matrix_id FROM matrix_rows WHERE id = ?', [id]);
 
-    await db.runAsync("DELETE FROM matrix_rows WHERE id = ?", [id]);
+    await db.runAsync('DELETE FROM matrix_rows WHERE id = ?', [id]);
 
     if (row) {
       await this.updateMatrixTimestamp(row.matrix_id);
     }
   }
 
-  async updateRowOrders(
-    updates: Array<{ id: string; rowOrder: number }>
-  ): Promise<void> {
+  async updateRowOrders(updates: Array<{ id: string; rowOrder: number }>): Promise<void> {
     const db = this.getDb();
 
     for (const update of updates) {
-      await db.runAsync(
-        "UPDATE matrix_rows SET row_order = ? WHERE id = ?",
-        [update.rowOrder, update.id]
-      );
+      await db.runAsync('UPDATE matrix_rows SET row_order = ? WHERE id = ?', [update.rowOrder, update.id]);
     }
 
     // Update matrix timestamp if there are any updates
     if (updates.length > 0) {
-      const row = await db.getFirstAsync<{ matrix_id: string }>(
-        "SELECT matrix_id FROM matrix_rows WHERE id = ?",
-        [updates[0].id]
-      );
+      const row = await db.getFirstAsync<{ matrix_id: string }>('SELECT matrix_id FROM matrix_rows WHERE id = ?', [
+        updates[0].id,
+      ]);
       if (row) {
         await this.updateMatrixTimestamp(row.matrix_id);
       }
@@ -397,10 +366,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   // Bulk operations
 
-  async createEmptyRows(
-    matrixId: string,
-    count: number = 10
-  ): Promise<CapabilityMatrixRow[]> {
+  async createEmptyRows(matrixId: string, count: number = 10): Promise<CapabilityMatrixRow[]> {
     const rows: CapabilityMatrixRow[] = [];
     for (let i = 0; i < count; i++) {
       const row = await this.createMatrixRow({
@@ -412,10 +378,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     return rows;
   }
 
-  async createMatrixWithRows(
-    input: CreateMatrixInput,
-    rowCount: number = 10
-  ): Promise<CapabilityMatrixWithRows> {
+  async createMatrixWithRows(input: CreateMatrixInput, rowCount: number = 10): Promise<CapabilityMatrixWithRows> {
     const matrix = await this.createMatrix(input);
     const rows = await this.createEmptyRows(matrix.id, rowCount);
     return { ...matrix, rows };
@@ -430,10 +393,9 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     const normalizedReq = requirement.trim().toLowerCase();
 
     // Find all matching rows with their data (for undo support)
-    const rows = await db.getAllAsync<MatrixRowDbRow>(
-      "SELECT * FROM matrix_rows WHERE LOWER(TRIM(requirements)) = ?",
-      [normalizedReq]
-    );
+    const rows = await db.getAllAsync<MatrixRowDbRow>('SELECT * FROM matrix_rows WHERE LOWER(TRIM(requirements)) = ?', [
+      normalizedReq,
+    ]);
 
     if (rows.length === 0) {
       return { deletedCount: 0, affectedMatrixIds: [], deletedRows: [] };
@@ -443,10 +405,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     const deletedRows = rows.map(mapMatrixRowRow);
 
     // Delete all matching rows
-    await db.runAsync(
-      "DELETE FROM matrix_rows WHERE LOWER(TRIM(requirements)) = ?",
-      [normalizedReq]
-    );
+    await db.runAsync('DELETE FROM matrix_rows WHERE LOWER(TRIM(requirements)) = ?', [normalizedReq]);
 
     // Get unique affected matrix IDs
     const affectedMatrixIds = [...new Set(rows.map((r) => r.matrix_id))];
@@ -454,10 +413,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
     // Update timestamps for affected matrices
     const now = getCurrentTimestamp();
     for (const matrixId of affectedMatrixIds) {
-      await db.runAsync(
-        "UPDATE matrices SET updated_at = ? WHERE id = ?",
-        [now, matrixId]
-      );
+      await db.runAsync('UPDATE matrices SET updated_at = ? WHERE id = ?', [now, matrixId]);
     }
 
     return {
@@ -492,10 +448,7 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
     // Update timestamps for affected matrices
     for (const matrixId of affectedMatrixIds) {
-      await db.runAsync(
-        "UPDATE matrices SET updated_at = ? WHERE id = ?",
-        [now, matrixId]
-      );
+      await db.runAsync('UPDATE matrices SET updated_at = ? WHERE id = ?', [now, matrixId]);
     }
   }
 
@@ -503,10 +456,9 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
 
   async getSetting(key: string): Promise<string | null> {
     const db = this.getDb();
-    const result = await db.getFirstAsync<{ value: string | null }>(
-      "SELECT value FROM app_settings WHERE key = ?",
-      [key]
-    );
+    const result = await db.getFirstAsync<{ value: string | null }>('SELECT value FROM app_settings WHERE key = ?', [
+      key,
+    ]);
     return result?.value ?? null;
   }
 
@@ -520,21 +472,21 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   }
 
   async getActiveMatrixId(): Promise<string | null> {
-    return this.getSetting("activeMatrixId");
+    return this.getSetting('activeMatrixId');
   }
 
   async setActiveMatrixId(id: string | null): Promise<void> {
-    await this.setSetting("activeMatrixId", id);
+    await this.setSetting('activeMatrixId', id);
   }
 
-  async getTheme(): Promise<"light" | "dark" | null> {
-    const value = await this.getSetting("theme");
-    if (value === "light" || value === "dark") return value;
+  async getTheme(): Promise<'light' | 'dark' | null> {
+    const value = await this.getSetting('theme');
+    if (value === 'light' || value === 'dark') return value;
     return null;
   }
 
-  async setTheme(theme: "light" | "dark" | null): Promise<void> {
-    await this.setSetting("theme", theme);
+  async setTheme(theme: 'light' | 'dark' | null): Promise<void> {
+    await this.setSetting('theme', theme);
   }
 
   // Stats
@@ -542,14 +494,12 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   async countMatrices(): Promise<{ total: number; user: number; imported: number }> {
     const db = this.getDb();
 
-    const totalResult = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM matrices"
-    );
+    const totalResult = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM matrices');
     const userResult = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM matrices WHERE is_imported = 0"
+      'SELECT COUNT(*) as count FROM matrices WHERE is_imported = 0'
     );
     const importedResult = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM matrices WHERE is_imported = 1"
+      'SELECT COUNT(*) as count FROM matrices WHERE is_imported = 1'
     );
 
     return {
@@ -564,9 +514,6 @@ export class ExpoSQLiteDatabase implements DatabaseInterface {
   private async updateMatrixTimestamp(matrixId: string): Promise<void> {
     const db = this.getDb();
     const now = getCurrentTimestamp();
-    await db.runAsync("UPDATE matrices SET updated_at = ? WHERE id = ?", [
-      now,
-      matrixId,
-    ]);
+    await db.runAsync('UPDATE matrices SET updated_at = ? WHERE id = ?', [now, matrixId]);
   }
 }

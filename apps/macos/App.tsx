@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { MatrixProvider } from '@cmm/state';
 import { getDatabase } from '@cmm/db';
+import { colors, fontSize, fontWeight, spacing } from '@cmm/core';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
@@ -17,9 +18,7 @@ export default function App() {
         setIsDbReady(true);
       } catch (error) {
         console.error('Failed to initialize database:', error);
-        setDbError(
-          error instanceof Error ? error.message : 'Unknown database error'
-        );
+        setDbError(error instanceof Error ? error.message : 'Unknown database error');
       }
     };
 
@@ -38,7 +37,7 @@ export default function App() {
   if (!isDbReady) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#4472C4" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Initializing...</Text>
       </View>
     );
@@ -60,23 +59,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.backgroundPrimary,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.xl,
+    fontSize: fontSize.lg,
+    color: colors.textSecondary,
   },
   errorText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#D32F2F',
-    marginBottom: 8,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.error,
+    marginBottom: spacing.md,
   },
   errorMessage: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xxl,
   },
 });

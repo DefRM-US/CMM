@@ -2,17 +2,33 @@
   "name": "cmm-multiplatform",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "description": "Capability Matrix Management - Cross-platform React Native monorepo",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-native": "^5.0.0",
+    "globals": "^15.14.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.3.0",
+    "prettier": "^3.4.0",
     "turbo": "^2.3.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.20.0"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

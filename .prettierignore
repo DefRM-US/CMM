@@ -1,0 +1,17 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+*.jsbundle
+*.jsbundle.map
+apps/macos/macos/
+apps/macos/vendor/
+apps/macos/Pods/
+apps/mobile/ios/
+apps/mobile/android/
+apps/windows/windows/
+.expo/
+coverage/
+pnpm-lock.yaml

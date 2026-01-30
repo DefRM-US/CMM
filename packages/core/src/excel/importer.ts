@@ -1,5 +1,5 @@
-import * as XLSX from "xlsx";
-import type { Score } from "../types/matrix";
+import * as XLSX from 'xlsx';
+import type { Score } from '../types/matrix';
 
 /**
  * Parsed row from an Excel file
@@ -38,14 +38,14 @@ export interface ParseResult {
  * Validate and convert a value to a Score (0-3 or null)
  */
 function validateScore(value: unknown): Score {
-  if (value === null || value === undefined || value === "") {
+  if (value === null || value === undefined || value === '') {
     return null;
   }
 
   // Handle string values
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (trimmed === "") return null;
+    if (trimmed === '') return null;
     const num = parseInt(trimmed, 10);
     if (!isNaN(num) && num >= 0 && num <= 3) {
       return num as Score;
@@ -54,7 +54,7 @@ function validateScore(value: unknown): Score {
   }
 
   // Handle number values
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     const rounded = Math.round(value);
     if (rounded >= 0 && rounded <= 3) {
       return rounded as Score;
@@ -69,10 +69,10 @@ function validateScore(value: unknown): Score {
  * Get cell value as string, handling various Excel data types
  */
 function getCellString(cell: XLSX.CellObject | undefined): string {
-  if (!cell) return "";
+  if (!cell) return '';
 
   // Handle different cell value types
-  if (cell.v === null || cell.v === undefined) return "";
+  if (cell.v === null || cell.v === undefined) return '';
 
   // Use formatted value if available, otherwise raw value
   if (cell.w !== undefined) return cell.w.toString().trim();
@@ -98,7 +98,7 @@ interface HeaderInfo {
  * Also detects if there's a "Req #" column
  */
 function findHeaderInfo(sheet: XLSX.WorkSheet): HeaderInfo {
-  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
   const maxRow = Math.min(range.e.r, 29); // Check first 30 rows (0-indexed)
 
   for (let row = 0; row <= maxRow; row++) {
@@ -113,15 +113,15 @@ function findHeaderInfo(sheet: XLSX.WorkSheet): HeaderInfo {
 
       // Check for "Req #" or similar
       if (
-        value.includes("req #") ||
-        value.includes("req#") ||
-        value === "requirement number" ||
-        value === "req number"
+        value.includes('req #') ||
+        value.includes('req#') ||
+        value === 'requirement number' ||
+        value === 'req number'
       ) {
         foundReqNumber = col;
       }
       // Check for "Requirements" (but not "Req #")
-      else if (value.includes("requirement") && !value.includes("#")) {
+      else if (value.includes('requirement') && !value.includes('#')) {
         foundRequirements = col;
       }
     }
@@ -173,12 +173,8 @@ function findHeaderInfo(sheet: XLSX.WorkSheet): HeaderInfo {
  * Extract company name from sheet metadata
  * Looks for "Company Name" label in first 20 rows
  */
-function extractCompanyName(
-  sheet: XLSX.WorkSheet,
-  filename: string,
-  sheetName?: string
-): string {
-  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+function extractCompanyName(sheet: XLSX.WorkSheet, filename: string, sheetName?: string): string {
+  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
   const maxRow = Math.min(range.e.r, 19); // Check first 20 rows
 
   for (let row = 0; row <= maxRow; row++) {
@@ -187,7 +183,7 @@ function extractCompanyName(
       const cell = sheet[cellAddress];
       const value = getCellString(cell).toLowerCase();
 
-      if (value.includes("company name") || value === "company") {
+      if (value.includes('company name') || value === 'company') {
         // Look for value in the next column
         const valueAddress = XLSX.utils.encode_cell({ r: row, c: col + 1 });
         const valueCell = sheet[valueAddress];
@@ -200,8 +196,8 @@ function extractCompanyName(
   }
 
   // Fallback to filename (without extension)
-  const baseName = filename.replace(/\.(xlsx?|xls)$/i, "");
-  if (sheetName && sheetName !== "Sheet1") {
+  const baseName = filename.replace(/\.(xlsx?|xls)$/i, '');
+  if (sheetName && sheetName !== 'Sheet1') {
     return `${baseName} - ${sheetName}`;
   }
   return baseName;
@@ -210,12 +206,8 @@ function extractCompanyName(
 /**
  * Parse a single worksheet into a ParsedMatrix
  */
-function parseWorksheet(
-  sheet: XLSX.WorkSheet,
-  filename: string,
-  sheetName?: string
-): ParsedMatrix | null {
-  const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+function parseWorksheet(sheet: XLSX.WorkSheet, filename: string, sheetName?: string): ParsedMatrix | null {
+  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
 
   // Find header row and column layout
   const headerInfo = findHeaderInfo(sheet);
@@ -229,18 +221,16 @@ function parseWorksheet(
 
   for (let row = headerInfo.row + 1; row <= range.e.r; row++) {
     // Requirements column
-    const reqCell =
-      sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.requirementsCol })];
+    const reqCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.requirementsCol })];
     const requirements = getCellString(reqCell);
 
     // Skip empty requirement rows
     if (!requirements) continue;
 
     // Req # column (if present)
-    let requirementNumber = "";
+    let requirementNumber = '';
     if (headerInfo.hasReqNumberColumn && headerInfo.reqNumberCol >= 0) {
-      const reqNumCell =
-        sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.reqNumberCol })];
+      const reqNumCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.reqNumberCol })];
       requirementNumber = getCellString(reqNumCell);
     }
 
@@ -250,18 +240,15 @@ function parseWorksheet(
     }
 
     // Score column
-    const scoreCell =
-      sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.scoreCol })];
+    const scoreCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.scoreCol })];
     const experienceAndCapability = validateScore(scoreCell?.v);
 
     // Past Performance column
-    const ppCell =
-      sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.pastPerfCol })];
+    const ppCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.pastPerfCol })];
     const pastPerformance = getCellString(ppCell);
 
     // Comments column
-    const commentsCell =
-      sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.commentsCol })];
+    const commentsCell = sheet[XLSX.utils.encode_cell({ r: row, c: headerInfo.commentsCol })];
     const comments = getCellString(commentsCell);
 
     rows.push({
@@ -290,31 +277,24 @@ function parseWorksheet(
  * Parse an Excel file (ArrayBuffer) into ParsedMatrix objects
  * Handles multiple sheets per workbook
  */
-export function parseExcelFile(
-  data: ArrayBuffer,
-  filename: string
-): ParseResult {
+export function parseExcelFile(data: ArrayBuffer, filename: string): ParseResult {
   const matrices: ParsedMatrix[] = [];
   const errors: string[] = [];
 
   try {
-    const workbook = XLSX.read(data, { type: "array" });
+    const workbook = XLSX.read(data, { type: 'array' });
 
     for (const sheetName of workbook.SheetNames) {
       try {
         const sheet = workbook.Sheets[sheetName];
-        const parsed = parseWorksheet(
-          sheet,
-          filename,
-          workbook.SheetNames.length > 1 ? sheetName : undefined
-        );
+        const parsed = parseWorksheet(sheet, filename, workbook.SheetNames.length > 1 ? sheetName : undefined);
 
         if (parsed) {
           matrices.push(parsed);
         }
       } catch (sheetError) {
         errors.push(
-          `Error parsing sheet "${sheetName}" in ${filename}: ${sheetError instanceof Error ? sheetError.message : "Unknown error"}`
+          `Error parsing sheet "${sheetName}" in ${filename}: ${sheetError instanceof Error ? sheetError.message : 'Unknown error'}`
         );
       }
     }
@@ -323,9 +303,7 @@ export function parseExcelFile(
       errors.push(`No valid data found in ${filename}`);
     }
   } catch (error) {
-    errors.push(
-      `Failed to parse ${filename}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
+    errors.push(`Failed to parse ${filename}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
   return { matrices, errors };
@@ -334,9 +312,7 @@ export function parseExcelFile(
 /**
  * Parse multiple Excel files
  */
-export function parseExcelFiles(
-  files: Array<{ data: ArrayBuffer; filename: string }>
-): ParseResult {
+export function parseExcelFiles(files: Array<{ data: ArrayBuffer; filename: string }>): ParseResult {
   const allMatrices: ParsedMatrix[] = [];
   const allErrors: string[] = [];
 

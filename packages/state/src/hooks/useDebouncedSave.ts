@@ -1,6 +1,6 @@
-import { useRef, useCallback, useEffect } from "react";
-import { getDatabase } from "@cmm/db";
-import type { UpdateMatrixRowInput } from "@cmm/core";
+import { useRef, useCallback, useEffect } from 'react';
+import { getDatabase } from '@cmm/db';
+import type { UpdateMatrixRowInput } from '@cmm/core';
 
 // Track pending saves per row
 const pendingSaves = new Map<string, UpdateMatrixRowInput>();

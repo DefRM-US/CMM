@@ -42,16 +42,25 @@ Add to `<head>`:
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
 <!-- Monospace: IBM Plex Mono -->
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
 
 <!-- Serif: Playfair Display -->
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link
+  href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
 ```
 
 ### Mobile Viewport Meta
 
 ```html
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"
+/>
 ```
 
 ---
@@ -61,12 +70,14 @@ Add to `<head>`:
 ### Why OKLCH?
 
 OKLCH is a perceptually uniform color space that ensures:
+
 - Consistent contrast across themes
 - Predictable color relationships
 - Better accessibility compliance
 - Smoother gradients and transitions
 
 Format: `oklch(Lightness Chroma Hue)`
+
 - **L (Lightness)**: 0 (black) to 1 (white)
 - **C (Chroma)**: Color intensity (0 = grayscale)
 - **H (Hue)**: Color angle in degrees (0-360)
@@ -75,53 +86,53 @@ Format: `oklch(Lightness Chroma Hue)`
 
 Applied to `:root` - active when no `.light` class on `<html>`.
 
-| Token | Value | Description |
-|-------|-------|-------------|
-| `--background` | `oklch(0 0 0)` | Pure black |
-| `--foreground` | `oklch(0.9850 0 0)` | Near white |
-| `--card` | `oklch(0.2050 0 0)` | Dark gray |
-| `--card-foreground` | `oklch(0.9850 0 0)` | Near white |
-| `--popover` | `oklch(0.4748 0 0)` | Medium gray |
-| `--popover-foreground` | `oklch(0.9850 0 0)` | Near white |
-| `--primary` | `oklch(0.9123 0.0319 78.1524)` | Emerald green |
-| `--primary-foreground` | `oklch(0 0 0)` | Black |
-| `--secondary` | `oklch(0.2966 0.0730 17.6562)` | Dark orange |
-| `--secondary-foreground` | `oklch(0.9477 0.0107 100.8264)` | Light yellow |
-| `--muted` | `oklch(0.3094 0.0208 13.5358)` | Muted brown |
-| `--muted-foreground` | `oklch(0.7000 0 0)` | Medium gray |
-| `--accent` | `oklch(0.2914 0.0135 10.3760)` | Dark accent |
-| `--accent-foreground` | `oklch(0.9850 0 0)` | Near white |
-| `--destructive` | `oklch(0.7469 0.0034 17.2344)` | Red/orange |
-| `--destructive-foreground` | `oklch(1.0000 0 0)` | White |
-| `--border` | `oklch(0.1149 0 0)` | Very dark gray |
-| `--input` | `oklch(0.2500 0 0)` | Dark gray |
-| `--ring` | `oklch(0.2673 0.0680 137.1690)` | Teal (focus) |
+| Token                      | Value                           | Description    |
+| -------------------------- | ------------------------------- | -------------- |
+| `--background`             | `oklch(0 0 0)`                  | Pure black     |
+| `--foreground`             | `oklch(0.9850 0 0)`             | Near white     |
+| `--card`                   | `oklch(0.2050 0 0)`             | Dark gray      |
+| `--card-foreground`        | `oklch(0.9850 0 0)`             | Near white     |
+| `--popover`                | `oklch(0.4748 0 0)`             | Medium gray    |
+| `--popover-foreground`     | `oklch(0.9850 0 0)`             | Near white     |
+| `--primary`                | `oklch(0.9123 0.0319 78.1524)`  | Emerald green  |
+| `--primary-foreground`     | `oklch(0 0 0)`                  | Black          |
+| `--secondary`              | `oklch(0.2966 0.0730 17.6562)`  | Dark orange    |
+| `--secondary-foreground`   | `oklch(0.9477 0.0107 100.8264)` | Light yellow   |
+| `--muted`                  | `oklch(0.3094 0.0208 13.5358)`  | Muted brown    |
+| `--muted-foreground`       | `oklch(0.7000 0 0)`             | Medium gray    |
+| `--accent`                 | `oklch(0.2914 0.0135 10.3760)`  | Dark accent    |
+| `--accent-foreground`      | `oklch(0.9850 0 0)`             | Near white     |
+| `--destructive`            | `oklch(0.7469 0.0034 17.2344)`  | Red/orange     |
+| `--destructive-foreground` | `oklch(1.0000 0 0)`             | White          |
+| `--border`                 | `oklch(0.1149 0 0)`             | Very dark gray |
+| `--input`                  | `oklch(0.2500 0 0)`             | Dark gray      |
+| `--ring`                   | `oklch(0.2673 0.0680 137.1690)` | Teal (focus)   |
 
 ### Light Theme
 
 Applied when `.light` class is on `<html>`.
 
-| Token | Value | Description |
-|-------|-------|-------------|
-| `--background` | `oklch(1 0 0)` | Pure white |
-| `--foreground` | `oklch(0.1450 0 0)` | Very dark gray |
-| `--card` | `oklch(1 0 0)` | Pure white |
-| `--card-foreground` | `oklch(0.1450 0 0)` | Very dark gray |
-| `--popover` | `oklch(0.3581 0.0407 19.2601)` | Medium brown |
-| `--popover-foreground` | `oklch(0.1450 0 0)` | Very dark gray |
-| `--primary` | `oklch(0.3495 0.0966 136.2978)` | Dark teal |
-| `--primary-foreground` | `oklch(0.9314 0.0539 100.4648)` | Light yellow |
-| `--secondary` | `oklch(0.9112 0.0320 73.5148)` | Light green |
-| `--secondary-foreground` | `oklch(0 0 0)` | Black |
-| `--muted` | `oklch(0.9677 0.0158 73.6821)` | Very light green |
-| `--muted-foreground` | `oklch(0.0969 0 0)` | Near black |
-| `--accent` | `oklch(0.9158 0 0)` | Light gray |
-| `--accent-foreground` | `oklch(0.2050 0 0)` | Dark gray |
-| `--destructive` | `oklch(0.5528 0.1118 21.3448)` | Orange-red |
-| `--destructive-foreground` | `oklch(1.0000 0 0)` | White |
-| `--border` | `oklch(0.9220 0 0)` | Light gray |
-| `--input` | `oklch(0.9220 0 0)` | Light gray |
-| `--ring` | `oklch(0.8962 0.0310 72.1513)` | Light green |
+| Token                      | Value                           | Description      |
+| -------------------------- | ------------------------------- | ---------------- |
+| `--background`             | `oklch(1 0 0)`                  | Pure white       |
+| `--foreground`             | `oklch(0.1450 0 0)`             | Very dark gray   |
+| `--card`                   | `oklch(1 0 0)`                  | Pure white       |
+| `--card-foreground`        | `oklch(0.1450 0 0)`             | Very dark gray   |
+| `--popover`                | `oklch(0.3581 0.0407 19.2601)`  | Medium brown     |
+| `--popover-foreground`     | `oklch(0.1450 0 0)`             | Very dark gray   |
+| `--primary`                | `oklch(0.3495 0.0966 136.2978)` | Dark teal        |
+| `--primary-foreground`     | `oklch(0.9314 0.0539 100.4648)` | Light yellow     |
+| `--secondary`              | `oklch(0.9112 0.0320 73.5148)`  | Light green      |
+| `--secondary-foreground`   | `oklch(0 0 0)`                  | Black            |
+| `--muted`                  | `oklch(0.9677 0.0158 73.6821)`  | Very light green |
+| `--muted-foreground`       | `oklch(0.0969 0 0)`             | Near black       |
+| `--accent`                 | `oklch(0.9158 0 0)`             | Light gray       |
+| `--accent-foreground`      | `oklch(0.2050 0 0)`             | Dark gray        |
+| `--destructive`            | `oklch(0.5528 0.1118 21.3448)`  | Orange-red       |
+| `--destructive-foreground` | `oklch(1.0000 0 0)`             | White            |
+| `--border`                 | `oklch(0.9220 0 0)`             | Light gray       |
+| `--input`                  | `oklch(0.9220 0 0)`             | Light gray       |
+| `--ring`                   | `oklch(0.8962 0.0310 72.1513)`  | Light green      |
 
 ### Chart Colors (Data Visualization)
 
@@ -183,21 +194,21 @@ Applied when `.light` class is on `<html>`.
 
 ### Usage
 
-| Font | Class | Use Case |
-|------|-------|----------|
-| Geist | `font-sans` | Body text, UI elements (default) |
-| Poppins | (fallback) | Automatic fallback for Geist |
-| IBM Plex Mono | `font-mono` | Code, technical data, metrics |
-| Playfair Display | `font-serif` | Editorial content, headings |
+| Font             | Class        | Use Case                         |
+| ---------------- | ------------ | -------------------------------- |
+| Geist            | `font-sans`  | Body text, UI elements (default) |
+| Poppins          | (fallback)   | Automatic fallback for Geist     |
+| IBM Plex Mono    | `font-mono`  | Code, technical data, metrics    |
+| Playfair Display | `font-serif` | Editorial content, headings      |
 
 ### Weight Guidelines
 
-| Weight | Class | Use Case |
-|--------|-------|----------|
-| 400 | `font-normal` | Body text, descriptions |
-| 500 | `font-medium` | Subheadings, emphasized text |
-| 600 | `font-semibold` | Badges, labels, buttons |
-| 700 | `font-bold` | Headings, titles |
+| Weight | Class           | Use Case                     |
+| ------ | --------------- | ---------------------------- |
+| 400    | `font-normal`   | Body text, descriptions      |
+| 500    | `font-medium`   | Subheadings, emphasized text |
+| 600    | `font-semibold` | Badges, labels, buttons      |
+| 700    | `font-bold`     | Headings, titles             |
 
 ### Examples
 
@@ -224,63 +235,60 @@ Applied when `.light` class is on `<html>`.
 ```javascript
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ["class"],
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  darkMode: ['class'],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
         sans: ['var(--font-sans)'],
         serif: ['var(--font-serif)'],
-        mono: ['var(--font-mono)']
+        mono: ['var(--font-mono)'],
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) + 2px)',
-        sm: 'calc(var(--radius) + 4px)'
+        sm: 'calc(var(--radius) + 4px)',
       },
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
         card: {
           DEFAULT: 'var(--card)',
-          foreground: 'var(--card-foreground)'
+          foreground: 'var(--card-foreground)',
         },
         popover: {
           DEFAULT: 'var(--popover)',
-          foreground: 'var(--popover-foreground)'
+          foreground: 'var(--popover-foreground)',
         },
         primary: {
           DEFAULT: 'var(--primary)',
-          foreground: 'var(--primary-foreground)'
+          foreground: 'var(--primary-foreground)',
         },
         secondary: {
           DEFAULT: 'var(--secondary)',
-          foreground: 'var(--secondary-foreground)'
+          foreground: 'var(--secondary-foreground)',
         },
         muted: {
           DEFAULT: 'var(--muted)',
-          foreground: 'var(--muted-foreground)'
+          foreground: 'var(--muted-foreground)',
         },
         accent: {
           DEFAULT: 'var(--accent)',
-          foreground: 'var(--accent-foreground)'
+          foreground: 'var(--accent-foreground)',
         },
         destructive: {
           DEFAULT: 'var(--destructive)',
-          foreground: 'var(--destructive-foreground)'
+          foreground: 'var(--destructive-foreground)',
         },
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',
         chart: {
-          '1': 'var(--chart-1)',
-          '2': 'var(--chart-2)',
-          '3': 'var(--chart-3)',
-          '4': 'var(--chart-4)',
-          '5': 'var(--chart-5)'
+          1: 'var(--chart-1)',
+          2: 'var(--chart-2)',
+          3: 'var(--chart-3)',
+          4: 'var(--chart-4)',
+          5: 'var(--chart-5)',
         },
         sidebar: {
           DEFAULT: 'var(--sidebar-background)',
@@ -290,13 +298,13 @@ export default {
           accent: 'var(--sidebar-accent)',
           'accent-foreground': 'var(--sidebar-accent-foreground)',
           border: 'var(--sidebar-border)',
-          ring: 'var(--sidebar-ring)'
-        }
-      }
-    }
+          ring: 'var(--sidebar-ring)',
+        },
+      },
+    },
   },
-  plugins: [require("tailwindcss-animate")],
-}
+  plugins: [require('tailwindcss-animate')],
+};
 ```
 
 ### postcss.config.js
@@ -307,7 +315,7 @@ export default {
     tailwindcss: {},
     autoprefixer: {},
   },
-}
+};
 ```
 
 ---
@@ -326,7 +334,7 @@ export default {
   :root {
     /* Color Tokens - see Color System section */
     --background: oklch(0 0 0);
-    --foreground: oklch(0.9850 0 0);
+    --foreground: oklch(0.985 0 0);
     /* ... all tokens ... */
 
     /* Typography Tokens */
@@ -342,7 +350,7 @@ export default {
   /* Light Theme */
   .light {
     --background: oklch(1 0 0);
-    --foreground: oklch(0.1450 0 0);
+    --foreground: oklch(0.145 0 0);
     /* ... all light tokens ... */
   }
 }
@@ -392,6 +400,7 @@ The signature DefRM card style uses backdrop blur with semi-transparent backgrou
 ```
 
 **Key Classes:**
+
 - `backdrop-blur-md` - Medium blur (12px)
 - `backdrop-blur-lg` - Large blur (16px) for enhanced effect
 - `bg-card/80` - 80% opacity card background
@@ -434,10 +443,10 @@ All interactive elements should use visible focus rings:
 
 ```tsx
 // Standard focus state
-className="focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+className = 'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
 // Enhanced focus with shadow
-className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+className = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 ```
 
 ### Opacity Modifiers
@@ -446,33 +455,33 @@ Use Tailwind opacity modifiers for layered depth:
 
 ```tsx
 // Backgrounds
-bg-card/80     // 80% opacity
-bg-card/60     // 60% opacity (more glass-like)
-bg-primary/10  // 10% opacity (subtle tint)
-bg-primary/5   // 5% opacity (very subtle)
+bg - card / 80; // 80% opacity
+bg - card / 60; // 60% opacity (more glass-like)
+bg - primary / 10; // 10% opacity (subtle tint)
+bg - primary / 5; // 5% opacity (very subtle)
 
 // Borders
-border-border/60   // 60% opacity
-border-primary/40  // 40% opacity
+border - border / 60; // 60% opacity
+border - primary / 40; // 40% opacity
 
 // Text
-text-muted-foreground  // Muted text color
+text - muted - foreground; // Muted text color
 ```
 
 ### Transition Patterns
 
 ```tsx
 // Standard transition
-className="transition-all duration-200"
+className = 'transition-all duration-200';
 
 // Card hover transition
-className="transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+className = 'transition-all duration-300 hover:scale-[1.02] hover:shadow-md';
 
 // Color-only transition
-className="transition-colors duration-200"
+className = 'transition-colors duration-200';
 
 // Transform transition
-className="transition-transform duration-200 hover:translate-x-0.5"
+className = 'transition-transform duration-200 hover:translate-x-0.5';
 ```
 
 ### Badge Styling
@@ -495,14 +504,19 @@ A pulsating grid overlay effect for backgrounds:
 
 ```css
 @keyframes grid-pulse {
-  0%, 100% { opacity: 0.03; }
-  50% { opacity: 0.08; }
+  0%,
+  100% {
+    opacity: 0.03;
+  }
+  50% {
+    opacity: 0.08;
+  }
 }
 
 .grid-overlay {
   animation: grid-pulse 4s ease-in-out infinite;
-  background-image: linear-gradient(var(--border) 1px, transparent 1px),
-                    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 ```
@@ -513,18 +527,17 @@ A vertical sweep overlay:
 
 ```css
 @keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
 }
 
 .scanline {
   animation: scanline 8s linear infinite;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    var(--primary) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(180deg, transparent 0%, var(--primary) 50%, transparent 100%);
   height: 100px;
   opacity: 0.1;
 }
@@ -536,7 +549,8 @@ Radial gradient highlight with movement:
 
 ```css
 @keyframes aurora {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
     opacity: 0.4;
   }
@@ -561,8 +575,12 @@ Radial gradient highlight with movement:
 
 ```css
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
 }
 ```
 
@@ -571,26 +589,48 @@ Radial gradient highlight with movement:
 ```css
 /* Count up - for metrics */
 @keyframes count-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Fade in up - for cards */
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Slide in left - for sidebars */
 @keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* General fade */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 ```
 
@@ -604,11 +644,7 @@ Radial gradient highlight with movement:
 
 ```tsx
 // Example effect container
-<div
-  className="fixed inset-0 pointer-events-none"
-  style={{ zIndex: -10 }}
-  aria-hidden="true"
->
+<div className="fixed inset-0 pointer-events-none" style={{ zIndex: -10 }} aria-hidden="true">
   {/* Effect content */}
 </div>
 ```
@@ -715,10 +751,18 @@ All animations automatically respect user preferences:
 ### Responsive Text Sizing
 
 ```css
-.responsive-text-sm { @apply text-sm sm:text-base; }
-.responsive-text-base { @apply text-base sm:text-lg; }
-.responsive-text-lg { @apply text-lg sm:text-xl; }
-.responsive-text-xl { @apply text-xl sm:text-2xl; }
+.responsive-text-sm {
+  @apply text-sm sm:text-base;
+}
+.responsive-text-base {
+  @apply text-base sm:text-lg;
+}
+.responsive-text-lg {
+  @apply text-lg sm:text-xl;
+}
+.responsive-text-xl {
+  @apply text-xl sm:text-2xl;
+}
 ```
 
 ### Mobile-Safe Areas
@@ -738,13 +782,13 @@ Prevent zoom on input focus:
 
 ```css
 @media screen and (max-width: 768px) {
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="number"],
-  input[type="tel"],
-  input[type="url"],
-  input[type="search"],
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='tel'],
+  input[type='url'],
+  input[type='search'],
   textarea,
   select {
     font-size: 16px !important;
@@ -756,17 +800,27 @@ Prevent zoom on input focus:
 
 ```css
 /* Card spacing */
-.mobile-card-spacing { @apply p-3 sm:p-4 md:p-6; }
+.mobile-card-spacing {
+  @apply p-3 sm:p-4 md:p-6;
+}
 
 /* Form spacing */
-.mobile-form-spacing { @apply space-y-4 sm:space-y-6; }
+.mobile-form-spacing {
+  @apply space-y-4 sm:space-y-6;
+}
 
 /* Button sizing */
-.mobile-button { @apply min-h-[44px] px-4 py-2 text-base; }
+.mobile-button {
+  @apply min-h-[44px] px-4 py-2 text-base;
+}
 
 /* Grid layouts */
-.mobile-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
-.mobile-grid-2 { @apply grid grid-cols-1 sm:grid-cols-2 gap-4; }
+.mobile-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+.mobile-grid-2 {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
 ```
 
 ### Touch Feedback
@@ -807,24 +861,20 @@ For merging Tailwind classes safely:
 
 ```typescript
 // lib/utils.ts
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 ```
 
 Usage:
 
 ```tsx
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 
-<div className={cn(
-  "base-classes",
-  condition && "conditional-classes",
-  className
-)} />
+<div className={cn('base-classes', condition && 'conditional-classes', className)} />;
 ```
 
 ---
@@ -833,38 +883,38 @@ import { cn } from "@/lib/utils"
 
 ### Essential Classes
 
-| Purpose | Classes |
-|---------|---------|
-| Glassmorphic card | `bg-card/80 backdrop-blur-md border-border/60 rounded-xl` |
-| Primary button | `bg-primary text-primary-foreground hover:bg-primary/90` |
-| Focus ring | `focus-visible:ring-[3px] focus-visible:ring-ring/50` |
-| Muted text | `text-muted-foreground` |
-| Subtle border | `border border-border/60` |
-| Hover lift | `hover:scale-[1.02] hover:shadow-md transition-all duration-300` |
-| Touch target | `min-h-[44px] min-w-[44px]` |
+| Purpose           | Classes                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| Glassmorphic card | `bg-card/80 backdrop-blur-md border-border/60 rounded-xl`        |
+| Primary button    | `bg-primary text-primary-foreground hover:bg-primary/90`         |
+| Focus ring        | `focus-visible:ring-[3px] focus-visible:ring-ring/50`            |
+| Muted text        | `text-muted-foreground`                                          |
+| Subtle border     | `border border-border/60`                                        |
+| Hover lift        | `hover:scale-[1.02] hover:shadow-md transition-all duration-300` |
+| Touch target      | `min-h-[44px] min-w-[44px]`                                      |
 
 ### Color Token Usage
 
 ```tsx
 // Backgrounds
-bg-background    // Main background
-bg-card          // Card surfaces
-bg-primary       // Primary actions
-bg-muted         // Subtle backgrounds
+bg - background; // Main background
+bg - card; // Card surfaces
+bg - primary; // Primary actions
+bg - muted; // Subtle backgrounds
 
 // Text
-text-foreground        // Primary text
-text-muted-foreground  // Secondary text
-text-primary           // Accent text
+text - foreground; // Primary text
+text - muted - foreground; // Secondary text
+text - primary; // Accent text
 
 // Borders
-border-border    // Default borders
-border-input     // Form inputs
+border - border; // Default borders
+border - input; // Form inputs
 
 // Focus
-ring-ring        // Focus rings
+ring - ring; // Focus rings
 ```
 
 ---
 
-*DefRM Design System v1.0*
+_DefRM Design System v1.0_

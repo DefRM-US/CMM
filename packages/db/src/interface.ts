@@ -5,7 +5,7 @@ import type {
   CreateMatrixInput,
   CreateMatrixRowInput,
   UpdateMatrixRowInput,
-} from "@cmm/core";
+} from '@cmm/core';
 
 /**
  * Database interface for CMM operations
@@ -37,10 +37,7 @@ export interface DatabaseInterface {
 
   // Bulk operations
   createEmptyRows(matrixId: string, count: number): Promise<CapabilityMatrixRow[]>;
-  createMatrixWithRows(
-    input: CreateMatrixInput,
-    rowCount: number
-  ): Promise<CapabilityMatrixWithRows>;
+  createMatrixWithRows(input: CreateMatrixInput, rowCount: number): Promise<CapabilityMatrixWithRows>;
   deleteRowsByRequirement(requirement: string): Promise<{
     deletedCount: number;
     affectedMatrixIds: string[];
@@ -53,8 +50,8 @@ export interface DatabaseInterface {
   setSetting(key: string, value: string | null): Promise<void>;
   getActiveMatrixId(): Promise<string | null>;
   setActiveMatrixId(id: string | null): Promise<void>;
-  getTheme(): Promise<"light" | "dark" | null>;
-  setTheme(theme: "light" | "dark" | null): Promise<void>;
+  getTheme(): Promise<'light' | 'dark' | null>;
+  setTheme(theme: 'light' | 'dark' | null): Promise<void>;
 
   // Stats
   countMatrices(): Promise<{ total: number; user: number; imported: number }>;

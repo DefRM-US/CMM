@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import DocumentPicker from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
-import { parseExcelFile, getFilenameFromPath } from '@cmm/core';
+import { parseExcelFile, getFilenameFromPath, colors, fontSize, fontWeight, spacing, borderRadius } from '@cmm/core';
 import { getDatabase } from '@cmm/db';
 import { useMatrices } from '@cmm/state';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -20,9 +12,7 @@ import type { ParsedMatrix } from '@cmm/core';
 type Props = NativeStackScreenProps<RootStackParamList, 'Import'>;
 
 export function ImportScreen({ navigation }: Props) {
-  const [selectedFiles, setSelectedFiles] = useState<
-    Array<{ uri: string; name: string }>
-  >([]);
+  const [selectedFiles, setSelectedFiles] = useState<Array<{ uri: string; name: string }>>([]);
   const [parsedMatrices, setParsedMatrices] = useState<ParsedMatrix[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,9 +26,7 @@ export function ImportScreen({ navigation }: Props) {
         allowMultiSelection: true,
       });
 
-      setSelectedFiles(
-        results.map((r) => ({ uri: r.uri, name: r.name || 'Unknown' }))
-      );
+      setSelectedFiles(results.map((r) => ({ uri: r.uri, name: r.name || 'Unknown' })));
       setParsedMatrices([]);
       setParseErrors([]);
     } catch (err) {
@@ -67,16 +55,11 @@ export function ImportScreen({ navigation }: Props) {
           }
           const arrayBuffer = bytes.buffer;
 
-          const result = parseExcelFile(
-            arrayBuffer,
-            getFilenameFromPath(file.name)
-          );
+          const result = parseExcelFile(arrayBuffer, getFilenameFromPath(file.name));
           allMatrices.push(...result.matrices);
           allErrors.push(...result.errors);
         } catch (error) {
-          allErrors.push(
-            `Failed to read ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
+          allErrors.push(`Failed to read ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
@@ -118,16 +101,11 @@ export function ImportScreen({ navigation }: Props) {
       }
 
       await loadMatrices();
-      Alert.alert(
-        'Import Complete',
-        `Successfully imported ${parsedMatrices.length} matrix(es).`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      Alert.alert('Import Complete', `Successfully imported ${parsedMatrices.length} matrix(es).`, [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
     } catch (error) {
-      Alert.alert(
-        'Import Failed',
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      Alert.alert('Import Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsImporting(false);
     }
@@ -148,10 +126,7 @@ export function ImportScreen({ navigation }: Props) {
       {/* Step 1: Select Files */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>1. Select Excel Files</Text>
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={handleSelectFiles}
-        >
+        <TouchableOpacity style={styles.selectButton} onPress={handleSelectFiles}>
           <Text style={styles.selectButtonText}>Select Files</Text>
         </TouchableOpacity>
         {selectedFiles.length > 0 && (
@@ -169,13 +144,9 @@ export function ImportScreen({ navigation }: Props) {
       {selectedFiles.length > 0 && parsedMatrices.length === 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>2. Parse Files</Text>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleParseFiles}
-            disabled={isLoading}
-          >
+          <TouchableOpacity style={styles.primaryButton} onPress={handleParseFiles} disabled={isLoading}>
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textOnPrimary} />
             ) : (
               <Text style={styles.primaryButtonText}>Parse Files</Text>
             )}
@@ -198,26 +169,18 @@ export function ImportScreen({ navigation }: Props) {
       {/* Step 3: Preview & Import */}
       {parsedMatrices.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            3. Preview ({parsedMatrices.length} matrices found)
-          </Text>
+          <Text style={styles.sectionTitle}>3. Preview ({parsedMatrices.length} matrices found)</Text>
           <FlatList
             data={parsedMatrices}
             keyExtractor={(item, index) => `${item.name}-${index}`}
             renderItem={renderParsedMatrix}
             style={styles.previewList}
           />
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleImport}
-            disabled={isImporting}
-          >
+          <TouchableOpacity style={styles.primaryButton} onPress={handleImport} disabled={isImporting}>
             {isImporting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textOnPrimary} />
             ) : (
-              <Text style={styles.primaryButtonText}>
-                Import {parsedMatrices.length} Matrix(es)
-              </Text>
+              <Text style={styles.primaryButtonText}>Import {parsedMatrices.length} Matrix(es)</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -229,86 +192,86 @@ export function ImportScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    padding: 16,
+    backgroundColor: colors.backgroundPrimary,
+    padding: spacing.xl,
   },
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
   },
   selectButton: {
-    backgroundColor: '#E0E0E0',
-    padding: 12,
-    borderRadius: 6,
+    backgroundColor: colors.borderPrimary,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
     alignItems: 'center',
   },
   selectButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.textPrimary,
   },
   fileList: {
-    marginTop: 12,
-    gap: 4,
+    marginTop: spacing.lg,
+    gap: spacing.xs,
   },
   fileName: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   primaryButton: {
-    backgroundColor: '#4472C4',
-    padding: 12,
-    borderRadius: 6,
+    backgroundColor: colors.primary,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: spacing.lg,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    color: colors.textOnPrimary,
+    fontWeight: fontWeight.semibold,
+    fontSize: fontSize.base,
   },
   errorSection: {
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: colors.errorBackground,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
   },
   errorTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#D32F2F',
-    marginBottom: 8,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.error,
+    marginBottom: spacing.md,
   },
   errorText: {
-    fontSize: 12,
-    color: '#D32F2F',
-    marginBottom: 4,
+    fontSize: fontSize.sm,
+    color: colors.error,
+    marginBottom: spacing.xs,
   },
   previewList: {
     maxHeight: 200,
-    marginBottom: 12,
+    marginBottom: spacing.lg,
   },
   matrixPreview: {
-    paddingVertical: 8,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.borderPrimary,
   },
   matrixName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.textPrimary,
   },
   matrixMeta: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xxs,
   },
 });

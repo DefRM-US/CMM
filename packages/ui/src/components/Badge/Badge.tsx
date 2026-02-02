@@ -1,8 +1,7 @@
 import type React from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-
-import { useTheme } from '../../theme/useTheme';
 import { ThemedText } from '../../Typography';
+import { useTheme } from '../../theme/useTheme';
 
 export type BadgeVariant = 'default' | 'primary' | 'secondary' | 'destructive' | 'outline';
 

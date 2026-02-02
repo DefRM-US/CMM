@@ -7,9 +7,8 @@ import {
 } from '@tanstack/react-table';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-
-import { useTheme } from '../../theme/useTheme';
 import { ThemedText } from '../../Typography';
+import { useTheme } from '../../theme/useTheme';
 
 export interface DataTableColumn<T> {
   key: keyof T & string;
@@ -156,7 +155,9 @@ export function DataTable<T>({ data, columns, keyExtractor }: DataTableProps<T>)
         >
           {columns.map((col) => (
             <View key={col.key} style={themedStyles.cell}>
-              <ThemedText style={themedStyles.cellText}>{getCellValue(row.original, col.key)}</ThemedText>
+              <ThemedText style={themedStyles.cellText}>
+                {getCellValue(row.original, col.key)}
+              </ThemedText>
             </View>
           ))}
         </View>

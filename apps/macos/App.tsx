@@ -20,9 +20,7 @@ class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <View style={{ flex: 1, backgroundColor: '#000', padding: 20 }}>
-          <RNText style={{ color: '#ff0000', fontSize: 18, fontWeight: 'bold' }}>
-            Error:
-          </RNText>
+          <RNText style={{ color: '#ff0000', fontSize: 18, fontWeight: 'bold' }}>Error:</RNText>
           <RNText style={{ color: '#ff6666', fontSize: 14, marginTop: 10 }}>
             {this.state.error?.message}
           </RNText>

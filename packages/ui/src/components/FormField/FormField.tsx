@@ -1,8 +1,7 @@
 import type React from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-
-import { useTheme } from '../../theme/useTheme';
 import { ThemedText } from '../../Typography';
+import { useTheme } from '../../theme/useTheme';
 
 export interface FormFieldProps {
   /** Field label */
@@ -62,7 +61,10 @@ export function FormField({
           {label}
         </ThemedText>
         {required ? (
-          <ThemedText variant="label" style={[styles.required, { color: theme.colors.destructive }]}>
+          <ThemedText
+            variant="label"
+            style={[styles.required, { color: theme.colors.destructive }]}
+          >
             *
           </ThemedText>
         ) : null}

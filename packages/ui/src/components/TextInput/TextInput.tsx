@@ -42,7 +42,9 @@ export function TextInput({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label != null && <Text style={[styles.label, { color: theme.colors.foreground }]}>{label}</Text>}
+      {label != null && (
+        <Text style={[styles.label, { color: theme.colors.foreground }]}>{label}</Text>
+      )}
       <View
         style={[
           styles.inputWrapper,

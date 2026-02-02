@@ -1,10 +1,9 @@
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
-
+import { ThemedText } from '../../Typography';
 import { minTouchTarget } from '../../theme/spacing';
 import { useTheme } from '../../theme/useTheme';
-import { ThemedText } from '../../Typography';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'lg';

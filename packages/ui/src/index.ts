@@ -25,9 +25,6 @@ export { IconButton } from './components/IconButton';
 export type { SkeletonProps, SkeletonVariant } from './components/Skeleton';
 // Components - Loading
 export { Skeleton } from './components/Skeleton';
-export type { ThemedTextProps, ThemedTextVariant } from './Typography';
-// Components - Primitives
-export { ThemedText } from './Typography';
 export type { TextInputProps } from './components/TextInput';
 // Components - Form
 export { TextInput } from './components/TextInput';
@@ -37,6 +34,9 @@ export { UserForm } from './components/UserForm';
 export type { PressableState } from './hooks';
 // Hooks
 export { usePressableState, useReducedMotion } from './hooks';
+export type { ThemedTextProps, ThemedTextVariant } from './Typography';
+// Components - Primitives
+export { ThemedText } from './Typography';
 export type {
   ColorScheme,
   ColorTokens,

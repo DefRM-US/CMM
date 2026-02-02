@@ -43,10 +43,11 @@ packages/
 
 ## Architecture Notes
 
-- **Database**: SQLite via react-native-sqlite-2 (initialized in @repo/core)
-- **UI Framework**: FluentUI React Native
-- **Forms**: React Hook Form + Zod validation
-- **Data Tables**: TanStack React Table
+- **Database**: SQLite via react-native-sqlite-2 (in @repo/core)
+- **File System**: @dr.pogodin/react-native-fs for file operations
+- **Excel Export**: ExcelJS with Buffer/stream polyfills (requires globals setup)
+- **Forms**: React Hook Form + Zod validation (in @repo/ui)
+- **Data Tables**: TanStack React Table (in @repo/ui)
 - **Path Aliases**: `@/*` (local), `@core/*`, `@ui/*`, `@types/*`
 
 ## Code Style (Enforced by Biome)
@@ -66,6 +67,7 @@ Strict mode with additional flags: `noUncheckedIndexedAccess`, `exactOptionalPro
 
 - **pnpm hoisting required**: Metro bundler needs `node-linker=hoisted` in .npmrc
 - **Workspace protocol**: Dependencies between packages use `workspace:*`
+- **React 19 override**: Root package.json pins React to 19.0.0 via pnpm overrides
 - **Coverage threshold**: 70% for branches/functions/lines/statements
 - **Pre-commit hook**: Runs `biome check --staged --write`
 

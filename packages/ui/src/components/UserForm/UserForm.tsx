@@ -1,8 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type React from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { z } from 'zod';
+
+import { useTheme } from '../../theme/useTheme';
+import { Button } from '../Button/Button';
+import { TextInput } from '../TextInput/TextInput';
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -17,6 +21,7 @@ interface UserFormProps {
 }
 
 export const UserForm: React.FC<UserFormProps> = ({ onSubmit }) => {
+  const { theme } = useTheme();
   const {
     control,
     handleSubmit,
@@ -27,70 +32,65 @@ export const UserForm: React.FC<UserFormProps> = ({ onSubmit }) => {
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Name</Text>
+    <View style={[styles.container, { padding: theme.spacing[5] }]}>
       <Controller
         control={control}
         name="name"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
-            style={styles.input}
+            label="Name"
+            placeholder="Enter name"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
-            placeholder="Enter name"
+            error={errors.name?.message}
+            containerStyle={{ marginBottom: theme.spacing[4] }}
           />
         )}
       />
-      {errors.name ? <Text style={styles.error}>{errors.name.message}</Text> : null}
 
-      <Text style={styles.label}>Email</Text>
       <Controller
         control={control}
         name="email"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
-            style={styles.input}
+            label="Email"
+            placeholder="Enter email"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
-            placeholder="Enter email"
+            error={errors.email?.message}
             keyboardType="email-address"
             autoCapitalize="none"
+            containerStyle={{ marginBottom: theme.spacing[4] }}
           />
         )}
       />
-      {errors.email ? <Text style={styles.error}>{errors.email.message}</Text> : null}
 
-      <Text style={styles.label}>Age</Text>
       <Controller
         control={control}
         name="age"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
-            style={styles.input}
+            label="Age"
+            placeholder="Enter age"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value?.toString() ?? ''}
-            placeholder="Enter age"
+            error={errors.age?.message}
             keyboardType="numeric"
+            containerStyle={{ marginBottom: theme.spacing[5] }}
           />
         )}
       />
-      {errors.age ? <Text style={styles.error}>{errors.age.message}</Text> : null}
 
-      <Pressable style={styles.button} onPress={handleSubmit(onSubmit)}>
-        <Text style={styles.buttonText}>Submit</Text>
-      </Pressable>
+      <Button onPress={handleSubmit(onSubmit)} fullWidth>
+        Submit
+      </Button>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  label: { fontSize: 16, marginTop: 12, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: '#ccc', padding: 12, borderRadius: 6 },
-  error: { color: 'red', marginTop: 4 },
-  button: { backgroundColor: '#0078d4', padding: 14, borderRadius: 6, marginTop: 20 },
-  buttonText: { color: 'white', textAlign: 'center', fontWeight: '600' },
+  container: {},
 });

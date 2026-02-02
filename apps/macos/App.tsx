@@ -1,62 +1,45 @@
-import { DataTable, type DataTableColumn, ThemedButton } from '@repo/ui';
-import type React from 'react';
-import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { ThemeProvider } from '@repo/ui';
+import React from 'react';
+import { Text as RNText, View } from 'react-native';
+import { ComponentShowcase } from './src/screens/ComponentShowcase';
 
-interface Person {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  override render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#000', padding: 20 }}>
+          <RNText style={{ color: '#ff0000', fontSize: 18, fontWeight: 'bold' }}>
+            Error:
+          </RNText>
+          <RNText style={{ color: '#ff6666', fontSize: 14, marginTop: 10 }}>
+            {this.state.error?.message}
+          </RNText>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
 }
 
-const sampleData: Person[] = [
-  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Engineer' },
-  { id: 2, name: 'Bob Smith', email: 'bob@example.com', role: 'Designer' },
-  { id: 3, name: 'Carol Williams', email: 'carol@example.com', role: 'Manager' },
-  { id: 4, name: 'David Brown', email: 'david@example.com', role: 'Engineer' },
-];
-
-const columns: DataTableColumn<Person>[] = [
-  { key: 'id', header: 'ID' },
-  { key: 'name', header: 'Name' },
-  { key: 'email', header: 'Email' },
-  { key: 'role', header: 'Role' },
-];
-
 function App(): React.JSX.Element {
-  const [clickCount, setClickCount] = useState(0);
-
   return (
-    <View style={{ flex: 1, backgroundColor: '#ffffff', padding: 24 }}>
-      <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 24, color: '#333333' }}>
-        React Native Desktop App
-      </Text>
-
-      <View style={{ marginBottom: 24 }}>
-        <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 12, color: '#555555' }}>
-          ThemedButton Component
-        </Text>
-        <ThemedButton
-          title={`Clicked ${String(clickCount)} times`}
-          onPress={() => setClickCount((c) => c + 1)}
-        />
-      </View>
-
-      <View>
-        <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8, color: '#555555' }}>
-          DataTable Component
-        </Text>
-        <Text style={{ fontSize: 12, marginBottom: 12, color: '#888888' }}>
-          Click column headers to sort
-        </Text>
-        <DataTable
-          data={sampleData}
-          columns={columns}
-          keyExtractor={(person) => String(person.id)}
-        />
-      </View>
-    </View>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ComponentShowcase />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

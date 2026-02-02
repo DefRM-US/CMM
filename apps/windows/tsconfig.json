@@ -1,0 +1,15 @@
+{
+  "extends": "@repo/typescript-config/react-native.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@core/*": ["../../packages/core/src/*"],
+      "@ui/*": ["../../packages/ui/src/*"],
+      "@types/*": ["../../packages/types/src/*"]
+    }
+  },
+  "include": ["src/**/*", "*.ts", "*.tsx", "index.js", "App.tsx"],
+  "exclude": ["node_modules", "windows"]
+}

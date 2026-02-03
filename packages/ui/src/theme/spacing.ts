@@ -27,11 +27,11 @@ export const spacing: SpacingTokens = {
  */
 export const radius: RadiusTokens = {
   none: 0,
-  sm: 2,
-  md: 4,
-  lg: 8,
-  xl: 12,
-  full: 9999,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  xl: 0,
+  full: 0,
 };
 
 /**

@@ -23,15 +23,18 @@ export function ThemedText({
 
   let fontSize = 16;
   let fontWeight: 'normal' | 'bold' | '500' = 'normal';
+  let fontFamily = theme.typography.fontFamily.sans;
 
   if (variant === 'h1') {
     fontSize = 32;
     fontWeight = 'bold';
   } else if (variant === 'caption') {
     fontSize = 12;
+    fontFamily = theme.typography.fontFamily.mono;
   } else if (variant === 'label') {
     fontSize = 14;
     fontWeight = '500';
+    fontFamily = theme.typography.fontFamily.mono;
   }
 
   return (
@@ -41,6 +44,7 @@ export function ThemedText({
           color: textColor,
           fontSize,
           fontWeight,
+          fontFamily,
         },
         style,
       ]}

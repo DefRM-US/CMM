@@ -53,10 +53,10 @@ export function Card({
   const handleHoverOut = useCallback(() => setIsHovered(false), []);
 
   const cardStyles: ViewStyle = {
-    backgroundColor: `${theme.colors.card}CC`, // 80% opacity for glass effect
+    backgroundColor: `${theme.colors.card}E6`,
     borderWidth: 1,
-    borderColor: `${theme.colors.border}99`, // 60% opacity
-    borderRadius: theme.radius.xl,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.none,
   };
 
   if (onPress) {
@@ -170,11 +170,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   hovered: {
-    transform: [{ scale: 1.02 }],
+    opacity: 0.98,
   },
   pressed: {
-    opacity: 0.95,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.94,
   },
   header: {},
   content: {},

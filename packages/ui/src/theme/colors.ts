@@ -8,48 +8,48 @@ export const darkColors: ColorTokens = {
   // Core
   background: '#000000',
   foreground: '#FAFAFA',
-  card: '#343434',
+  card: '#171717',
   cardForeground: '#FAFAFA',
-  popover: '#787878',
+  popover: '#1F1F1F',
   popoverForeground: '#FAFAFA',
 
   // Brand
-  primary: '#E8E4C9', // Emerald-tinted cream
+  primary: '#EEE0CB', // Warm sand
   primaryForeground: '#000000',
-  secondary: '#5C3D2E', // Dark brown/orange
-  secondaryForeground: '#F2EED4', // Light yellow
+  secondary: '#4B1B1F', // Deep maroon
+  secondaryForeground: '#FAFAFA',
 
   // Neutral
-  muted: '#4D4240', // Muted brown
-  mutedForeground: '#A3A3A3', // Medium gray
-  accent: '#463D3B', // Dark accent
+  muted: '#3A2C2D',
+  mutedForeground: '#B6ACA6',
+  accent: '#32292A',
   accentForeground: '#FAFAFA',
 
   // Semantic
-  destructive: '#B8A8A5', // Red/orange tinted
+  destructive: '#E45C5C',
   destructiveForeground: '#FFFFFF',
 
   // UI
-  border: '#1F1F1F', // Very dark gray
-  input: '#404040', // Dark gray
-  ring: '#2D4A3A', // Teal focus ring
+  border: '#050505',
+  input: '#2B2223',
+  ring: '#142D08',
 
   // Charts
-  chart1: '#4A2F24',
-  chart2: '#6E6E6E',
-  chart3: '#3D6654',
-  chart4: '#E8E4C9',
-  chart5: '#7A5D52',
+  chart1: '#EEE0CB',
+  chart2: '#4B1B1F',
+  chart3: '#34D399', // Tactical emerald
+  chart4: '#9CA3AF',
+  chart5: '#F59E0B',
 
   // Sidebar
-  sidebar: '#343434',
+  sidebar: '#0B0B0B',
   sidebarForeground: '#FAFAFA',
-  sidebarPrimary: '#3A6B5C',
-  sidebarPrimaryForeground: '#FAFAFA',
-  sidebarAccent: '#454545',
+  sidebarPrimary: '#EEE0CB',
+  sidebarPrimaryForeground: '#000000',
+  sidebarAccent: '#151010',
   sidebarAccentForeground: '#FAFAFA',
-  sidebarBorder: '#484848',
-  sidebarRing: '#6E6E6E',
+  sidebarBorder: '#050505',
+  sidebarRing: '#32292A',
 };
 
 /**
@@ -59,47 +59,47 @@ export const darkColors: ColorTokens = {
 export const lightColors: ColorTokens = {
   // Core
   background: '#FFFFFF',
-  foreground: '#1F1F1F',
+  foreground: '#0A0A0A',
   card: '#FFFFFF',
-  cardForeground: '#1F1F1F',
-  popover: '#5A4438',
-  popoverForeground: '#1F1F1F',
+  cardForeground: '#0A0A0A',
+  popover: '#FFFFFF',
+  popoverForeground: '#0A0A0A',
 
   // Brand
-  primary: '#3A6B5C', // Dark teal
-  primaryForeground: '#F2EED4', // Light yellow
-  secondary: '#E5E0C5', // Light green/cream
-  secondaryForeground: '#000000',
+  primary: '#204508',
+  primaryForeground: '#FFFFFF',
+  secondary: '#EFDFCB',
+  secondaryForeground: '#0A0A0A',
 
   // Neutral
-  muted: '#F5F2E6', // Very light green
-  mutedForeground: '#171717', // Near black
-  accent: '#EBEBEB', // Light gray
-  accentForeground: '#343434',
+  muted: '#FBF3E9',
+  mutedForeground: '#6B5D57',
+  accent: '#EFE7DE',
+  accentForeground: '#0A0A0A',
 
   // Semantic
-  destructive: '#C04B32', // Orange-red
+  destructive: '#EF4444',
   destructiveForeground: '#FFFFFF',
 
   // UI
-  border: '#E5E5E5', // Light gray
-  input: '#E5E5E5', // Light gray
-  ring: '#D9D4B8', // Light green
+  border: '#E5E5E5',
+  input: '#D7CEC4',
+  ring: '#204508',
 
   // Charts
-  chart1: '#5E3A2A',
-  chart2: '#C9BFBA',
-  chart3: '#3A6B5C',
-  chart4: '#8FB49E',
-  chart5: '#FAF7E8',
+  chart1: '#204508',
+  chart2: '#6B5D57',
+  chart3: '#34D399',
+  chart4: '#F59E0B',
+  chart5: '#EF4444',
 
   // Sidebar
-  sidebar: '#FAFAFA',
-  sidebarForeground: '#1F1F1F',
-  sidebarPrimary: '#343434',
-  sidebarPrimaryForeground: '#FAFAFA',
-  sidebarAccent: '#D4CECE',
-  sidebarAccentForeground: '#343434',
+  sidebar: '#FFFFFF',
+  sidebarForeground: '#0A0A0A',
+  sidebarPrimary: '#204508',
+  sidebarPrimaryForeground: '#FFFFFF',
+  sidebarAccent: '#FBF3E9',
+  sidebarAccentForeground: '#0A0A0A',
   sidebarBorder: '#E5E5E5',
-  sidebarRing: '#B3B3B3',
+  sidebarRing: '#D7CEC4',
 };

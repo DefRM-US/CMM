@@ -151,6 +151,10 @@ export function Button({
     opacity: 0.5,
   };
 
+  const radiusStyle: ViewStyle = {
+    borderRadius: theme.radius.none,
+  };
+
   return (
     <Pressable
       onPress={onPress}
@@ -165,6 +169,7 @@ export function Button({
         return [
           styles.base,
           sizeStyles[size],
+          radiusStyle,
           variantStyles,
           fullWidth && styles.fullWidth,
           disabled && disabledStyles,
@@ -181,6 +186,8 @@ export function Button({
               {
                 fontSize: textSizes[size],
                 color: disabled ? theme.colors.mutedForeground : variantStyles.textColor,
+                fontFamily: theme.typography.fontFamily.sans,
+                letterSpacing: 0.2,
               },
             ]}
           >
@@ -197,7 +204,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 4,
   },
   fullWidth: {
     width: '100%',

@@ -112,14 +112,26 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
   return (
     <View style={[styles.container, containerStyle]}>
       {label != null && (
-        <Text style={[styles.label, { color: theme.colors.foreground }]}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            {
+              color: theme.colors.foreground,
+              fontFamily: theme.typography.fontFamily.sans,
+              letterSpacing: 0.4,
+            },
+          ]}
+        >
+          {label}
+        </Text>
       )}
       <View
         style={[
           styles.inputWrapper,
           {
-            backgroundColor: theme.colors.muted,
-            borderColor: theme.colors.input,
+            backgroundColor: `${theme.colors.card}E6`,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.none,
           },
           error != null && { borderColor: theme.colors.destructive },
         ]}
@@ -127,7 +139,14 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
         <RNTextInput
           ref={ref}
           {...platformKeyProps}
-          style={[styles.input, { color: theme.colors.foreground }, inputStyle]}
+          style={[
+            styles.input,
+            {
+              color: theme.colors.foreground,
+              fontFamily: theme.typography.fontFamily.sans,
+            },
+            inputStyle,
+          ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}

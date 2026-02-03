@@ -237,15 +237,15 @@ export function RequirementsEditor({
   const themedStyles = StyleSheet.create({
     container: {
       borderWidth: 1,
-      borderColor: `${theme.colors.border}CC`,
-      borderRadius: theme.radius.lg,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.none,
       overflow: 'hidden',
-      backgroundColor: theme.colors.card,
+      backgroundColor: `${theme.colors.card}E6`,
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: `${theme.colors.muted}E6`,
+      backgroundColor: `${theme.colors.card}E6`,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
       paddingVertical: theme.spacing[1],
@@ -259,16 +259,16 @@ export function RequirementsEditor({
     },
     row: {
       borderBottomWidth: 1,
-      borderBottomColor: `${theme.colors.border}CC`,
+      borderBottomColor: theme.colors.border,
     },
     rowEven: {
       backgroundColor: 'transparent',
     },
     rowOdd: {
-      backgroundColor: `${theme.colors.muted}2E`,
+      backgroundColor: 'transparent',
     },
     rowActive: {
-      backgroundColor: `${theme.colors.accent}33`,
+      backgroundColor: `${theme.colors.primary}14`,
     },
     rowContent: {
       flexDirection: 'row',
@@ -293,15 +293,15 @@ export function RequirementsEditor({
     inputWrapper: {
       minHeight: minTouchTarget,
       borderWidth: 1,
-      borderColor: theme.colors.input,
-      borderRadius: theme.radius.md,
-      backgroundColor: `${theme.colors.muted}B3`,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.none,
+      backgroundColor: `${theme.colors.background}80`,
       paddingHorizontal: theme.spacing[3],
       justifyContent: 'center',
     },
     inputWrapperActive: {
-      borderColor: theme.colors.ring,
-      backgroundColor: `${theme.colors.accent}66`,
+      borderColor: theme.colors.primary,
+      backgroundColor: `${theme.colors.primary}12`,
     },
     inputText: {
       color: theme.colors.foreground,
@@ -322,7 +322,8 @@ export function RequirementsEditor({
     },
     headerLabel: {
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      letterSpacing: 1.2,
+      fontFamily: theme.typography.fontFamily.mono,
     },
   });
 
@@ -377,7 +378,8 @@ export function RequirementsEditor({
                       onSubmitEditing={() => handleSubmitEditing(index)}
                       returnKeyType="next"
                       blurOnSubmit={false}
-                      multiline
+                      multiline={false}
+                      numberOfLines={1}
                       scrollEnabled={false}
                       showsVerticalScrollIndicator={false}
                       showsHorizontalScrollIndicator={false}

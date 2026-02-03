@@ -14,9 +14,9 @@ import type { TypographyTokens } from './types';
 export const typography: TypographyTokens = {
   fontFamily: {
     // System font fallbacks - custom fonts need to be linked in native projects
-    sans: 'System', // Will use Geist when linked
-    serif: 'Georgia', // Will use Playfair Display when linked
-    mono: 'Menlo', // Will use IBM Plex Mono when linked
+    sans: 'Poppins', // Body
+    serif: 'PlayfairDisplay-Regular', // Editorial accent
+    mono: 'IBMPlexMono-Regular', // Technical
   },
   fontSize: {
     xs: 12,
@@ -46,11 +46,17 @@ export const typography: TypographyTokens = {
  * Use these values in react-native.config.js or Xcode project
  */
 export const fontFamilyNames = {
-  geist: {
-    regular: 'Geist-Regular',
-    medium: 'Geist-Medium',
-    semibold: 'Geist-SemiBold',
-    bold: 'Geist-Bold',
+  montserrat: {
+    regular: 'Montserrat-Regular',
+    medium: 'Montserrat-Medium',
+    semibold: 'Montserrat-SemiBold',
+    bold: 'Montserrat-Bold',
+  },
+  poppins: {
+    regular: 'Poppins-Regular',
+    medium: 'Poppins-Medium',
+    semibold: 'Poppins-SemiBold',
+    bold: 'Poppins-Bold',
   },
   playfairDisplay: {
     regular: 'PlayfairDisplay-Regular',

@@ -63,7 +63,7 @@ export const listProjects = (): Promise<ProjectRecord[]> =>
       txn.executeSql(
         `SELECT id, name, created_at, updated_at, last_opened_at
            FROM projects
-           ORDER BY last_opened_at DESC, created_at DESC`,
+           ORDER BY updated_at DESC, created_at DESC`,
         [],
         (_tx, result) => {
           const rows = mapRows<ProjectRow>(result as SqlResultSet);
@@ -123,8 +123,7 @@ export const touchProject = (projectId: string): Promise<void> =>
       (txn) => {
         txn.executeSql(
           `UPDATE projects
-           SET last_opened_at = CURRENT_TIMESTAMP,
-               updated_at = CURRENT_TIMESTAMP
+           SET last_opened_at = CURRENT_TIMESTAMP
            WHERE id = ?`,
           [projectId],
         );

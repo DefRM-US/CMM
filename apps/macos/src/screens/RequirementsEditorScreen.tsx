@@ -91,6 +91,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveRequestIdRef = useRef(0);
   const pendingSaveRef = useRef<{ projectId: string; rows: RequirementRow[] } | null>(null);
+  const lastSavedSnapshotRef = useRef<{ projectId: string; signature: string } | null>(null);
   const isScrollingRef = useRef(false);
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -128,6 +129,40 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     [],
   );
 
+  const buildRowsSignature = useCallback(
+    (rowsToSave: RequirementRow[]): string =>
+      JSON.stringify(
+        rowsToSave.map((row, index) => ({
+          id: row.id,
+          text: row.text,
+          level: row.level,
+          position: index,
+        })),
+      ),
+    [],
+  );
+
+  const hasUnsavedChanges = useCallback(
+    (projectId: string, rowsToSave: RequirementRow[]) => {
+      const lastSnapshot = lastSavedSnapshotRef.current;
+      if (!lastSnapshot || lastSnapshot.projectId !== projectId) {
+        return true;
+      }
+      return lastSnapshot.signature !== buildRowsSignature(rowsToSave);
+    },
+    [buildRowsSignature],
+  );
+
+  const markRowsSaved = useCallback(
+    (projectId: string, rowsToSave: RequirementRow[]) => {
+      lastSavedSnapshotRef.current = {
+        projectId,
+        signature: buildRowsSignature(rowsToSave),
+      };
+    },
+    [buildRowsSignature],
+  );
+
   const resetExportState = useCallback(() => {
     setExportError(null);
     setExportPath(null);
@@ -138,9 +173,17 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const persistRows = useCallback(
     async (projectId: string, rowsToSave: RequirementRow[]) => {
       try {
+        if (!hasUnsavedChanges(projectId, rowsToSave)) {
+          setSaveStatus('saved');
+          setSaveError(null);
+          return;
+        }
         setSaveStatus('saving');
         setSaveError(null);
         await saveProjectRequirements(projectId, mapRowsForSave(rowsToSave));
+        markRowsSaved(projectId, rowsToSave);
+        const updatedProjects = await listProjects();
+        setProjects(updatedProjects);
         setSaveStatus('saved');
         setSaveError(null);
       } catch (error) {
@@ -149,7 +192,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         setSaveError(message);
       }
     },
-    [mapRowsForSave],
+    [hasUnsavedChanges, mapRowsForSave, markRowsSaved],
   );
 
   const flushPendingSave = useCallback(() => {
@@ -216,17 +259,16 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       try {
         const loadedRows = await loadProjectRequirements(selectedProjectId);
         if (!isActive) return;
-        if (loadedRows.length > 0) {
-          setRows(
-            loadedRows.map((row) => ({
-              id: row.id,
-              text: row.text,
-              level: row.level,
-            })),
-          );
-        } else {
-          setRows([createInitialRow()]);
-        }
+        const hydratedRows =
+          loadedRows.length > 0
+            ? loadedRows.map((row) => ({
+                id: row.id,
+                text: row.text,
+                level: row.level,
+              }))
+            : [createInitialRow()];
+        setRows(hydratedRows);
+        markRowsSaved(selectedProjectId, hydratedRows);
 
         await touchProject(selectedProjectId);
         const updatedProjects = await listProjects();
@@ -250,7 +292,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     return () => {
       isActive = false;
     };
-  }, [resetExportState, selectedProjectId]);
+  }, [markRowsSaved, resetExportState, selectedProjectId]);
 
   useEffect(() => {
     if (!selectedProjectId || isHydrating) return;
@@ -263,6 +305,10 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     const rowsSnapshot = rows;
     saveRequestIdRef.current += 1;
     const requestId = saveRequestIdRef.current;
+
+    if (!hasUnsavedChanges(projectId, rowsSnapshot)) {
+      return;
+    }
 
     saveTimeoutRef.current = setTimeout(() => {
       InteractionManager.runAfterInteractions(() => {
@@ -281,7 +327,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         saveTimeoutRef.current = null;
       }
     };
-  }, [isHydrating, persistRows, rows, selectedProjectId]);
+  }, [hasUnsavedChanges, isHydrating, persistRows, rows, selectedProjectId]);
 
   useEffect(() => {
     return () => {
@@ -774,7 +820,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                       {project.name}
                     </ThemedText>
                     <ThemedText style={themedStyles.projectMeta}>
-                      Last opened {project.lastOpenedAt ?? 'just now'}
+                      Last edited {project.updatedAt ?? project.lastOpenedAt ?? 'just now'}
                     </ThemedText>
                   </View>
                 </Pressable>

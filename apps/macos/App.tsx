@@ -1,7 +1,7 @@
 import { ThemeProvider } from '@repo/ui';
 import React from 'react';
 import { Text as RNText, View } from 'react-native';
-import { ComponentShowcase } from './src/screens/ComponentShowcase';
+import { RequirementsEditorScreen } from './src/screens/RequirementsEditorScreen';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -35,7 +35,7 @@ function App(): React.JSX.Element {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <ComponentShowcase />
+        <RequirementsEditorScreen />
       </ThemeProvider>
     </ErrorBoundary>
   );

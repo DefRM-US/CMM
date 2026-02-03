@@ -1,4 +1,4 @@
-import type React from 'react';
+import React, { forwardRef } from 'react';
 import {
   TextInput as RNTextInput,
   type TextInputProps as RNTextInputProps,
@@ -10,35 +10,103 @@ import {
 
 import { useTheme } from '../../theme/useTheme';
 
+export type HandledKeyEvent = {
+  key: string;
+  altKey?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+};
+
+export type KeyEvent = {
+  nativeEvent: {
+    key: string;
+    altKey?: boolean;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+  };
+  preventDefault?: () => void;
+  stopPropagation?: () => void;
+};
+
 export interface TextInputProps
   extends Pick<
     RNTextInputProps,
-    'onBlur' | 'onFocus' | 'keyboardType' | 'autoCapitalize' | 'autoCorrect' | 'secureTextEntry'
+    | 'onBlur'
+    | 'onFocus'
+    | 'keyboardType'
+    | 'autoCapitalize'
+    | 'autoCorrect'
+    | 'secureTextEntry'
+    | 'onKeyPress'
+    | 'onSubmitEditing'
+    | 'returnKeyType'
+    | 'blurOnSubmit'
+    | 'autoFocus'
+    | 'multiline'
+    | 'numberOfLines'
+    | 'scrollEnabled'
+    | 'textAlignVertical'
+    | 'onContentSizeChange'
+    | 'showsVerticalScrollIndicator'
+    | 'showsHorizontalScrollIndicator'
   > {
   label?: string;
   value?: string;
   onChangeText?: (text: string) => void;
   placeholder?: string;
   containerStyle?: ViewStyle;
+  inputStyle?: RNTextInputProps['style'];
   error?: string | undefined;
+  onKeyDown?: (event: KeyEvent) => void;
+  onKeyUp?: (event: KeyEvent) => void;
+  keyDownEvents?: HandledKeyEvent[];
+  keyUpEvents?: HandledKeyEvent[];
 }
 
-export function TextInput({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  containerStyle,
-  error,
-  onBlur,
-  onFocus,
-  keyboardType,
-  autoCapitalize,
-  autoCorrect,
-  secureTextEntry,
-}: TextInputProps): React.JSX.Element {
+export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput(
+  {
+    label,
+    value,
+    onChangeText,
+    placeholder,
+    containerStyle,
+    inputStyle,
+    error,
+    onBlur,
+    onFocus,
+    keyboardType,
+    autoCapitalize,
+    autoCorrect,
+    secureTextEntry,
+    onKeyPress,
+    onKeyDown,
+    onKeyUp,
+    onSubmitEditing,
+    returnKeyType,
+    blurOnSubmit,
+    autoFocus,
+    multiline,
+    numberOfLines,
+    scrollEnabled,
+    textAlignVertical,
+    onContentSizeChange,
+    showsVerticalScrollIndicator,
+    showsHorizontalScrollIndicator,
+    keyDownEvents,
+    keyUpEvents,
+  },
+  ref,
+): React.JSX.Element {
   const { theme } = useTheme();
   const placeholderColor = `${theme.colors.mutedForeground}99`;
+  const platformKeyProps = {
+    onKeyDown,
+    onKeyUp,
+    keyDownEvents,
+    keyUpEvents,
+  } as unknown as RNTextInputProps;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -56,7 +124,9 @@ export function TextInput({
         ]}
       >
         <RNTextInput
-          style={[styles.input, { color: theme.colors.foreground }]}
+          ref={ref}
+          {...platformKeyProps}
+          style={[styles.input, { color: theme.colors.foreground }, inputStyle]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -67,6 +137,18 @@ export function TextInput({
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
           secureTextEntry={secureTextEntry}
+          onKeyPress={onKeyPress}
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType={returnKeyType}
+          blurOnSubmit={blurOnSubmit}
+          autoFocus={autoFocus}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          scrollEnabled={scrollEnabled}
+          textAlignVertical={textAlignVertical}
+          onContentSizeChange={onContentSizeChange}
+          showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+          showsHorizontalScrollIndicator={showsHorizontalScrollIndicator}
         />
       </View>
       {error != null && (
@@ -74,7 +156,9 @@ export function TextInput({
       )}
     </View>
   );
-}
+});
+
+TextInput.displayName = 'TextInput';
 
 const styles = StyleSheet.create({
   container: {

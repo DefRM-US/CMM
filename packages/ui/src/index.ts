@@ -23,13 +23,13 @@ export { FormField } from './components/FormField';
 export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './components/IconButton';
 export { IconButton } from './components/IconButton';
 export type { RequirementRow, RequirementsEditorProps } from './components/RequirementsEditor';
+export { RequirementsEditor } from './components/RequirementsEditor';
 export type { SkeletonProps, SkeletonVariant } from './components/Skeleton';
 // Components - Loading
 export { Skeleton } from './components/Skeleton';
 export type { HandledKeyEvent, KeyEvent, TextInputProps } from './components/TextInput';
 // Components - Form
 export { TextInput } from './components/TextInput';
-export { RequirementsEditor } from './components/RequirementsEditor';
 export type { UserFormData } from './components/UserForm';
 // Components - Composite
 export { UserForm } from './components/UserForm';

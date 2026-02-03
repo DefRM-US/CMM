@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TextInput as RNTextInput, ViewStyle } from 'react-native';
-import { StyleSheet, TextInput as RNTextInputComponent, View } from 'react-native';
+import { TextInput as RNTextInputComponent, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '../../Typography';
 import { minTouchTarget } from '../../theme/spacing';
@@ -89,7 +89,6 @@ export function RequirementsEditor({
       target.focus();
     }
   }, []);
-
 
   const updateRowText = useCallback(
     (index: number, text: string) => {
@@ -179,45 +178,41 @@ export function RequirementsEditor({
   }, [rows, activeRowId, createRow, insertRowAfter, onRowsChange]);
 
   const handledKeyEvents = useMemo<HandledKeyEvent[]>(
-    () => [
-      { key: 'Tab' },
-      { key: 'Tab', shiftKey: true },
-      { key: 'Enter' },
-      { key: 'Return' },
-    ],
+    () => [{ key: 'Tab' }, { key: 'Tab', shiftKey: true }, { key: 'Enter' }, { key: 'Return' }],
     [],
   );
 
   const handleKeyDown = useCallback(
-    (index: number) => (event: KeyEvent | NativeSyntheticEvent<{ key: string; shiftKey?: boolean }>) => {
-      const key = event.nativeEvent.key;
-      if (key !== 'Tab' && key !== 'Enter' && key !== 'Return') return;
+    (index: number) =>
+      (event: KeyEvent | NativeSyntheticEvent<{ key: string; shiftKey?: boolean }>) => {
+        const key = event.nativeEvent.key;
+        if (key !== 'Tab' && key !== 'Enter' && key !== 'Return') return;
 
-      if (typeof event.preventDefault === 'function') {
-        event.preventDefault();
-      }
-      if (typeof event.stopPropagation === 'function') {
-        event.stopPropagation();
-      }
-
-      if (key === 'Tab') {
-        const shiftKey = (event.nativeEvent as { shiftKey?: boolean }).shiftKey ?? false;
-        if (shiftKey) {
-          outdentRow(index);
-        } else {
-          indentRow(index);
+        if (typeof event.preventDefault === 'function') {
+          event.preventDefault();
+        }
+        if (typeof event.stopPropagation === 'function') {
+          event.stopPropagation();
         }
 
-        const currentId = rows[index]?.id;
-        if (currentId) {
-          setPendingFocusId(currentId);
-          setActiveRowId(currentId);
-        }
-        return;
-      }
+        if (key === 'Tab') {
+          const shiftKey = (event.nativeEvent as { shiftKey?: boolean }).shiftKey ?? false;
+          if (shiftKey) {
+            outdentRow(index);
+          } else {
+            indentRow(index);
+          }
 
-      insertRowAfter(index);
-    },
+          const currentId = rows[index]?.id;
+          if (currentId) {
+            setPendingFocusId(currentId);
+            setActiveRowId(currentId);
+          }
+          return;
+        }
+
+        insertRowAfter(index);
+      },
     [indentRow, insertRowAfter, outdentRow, rows],
   );
 
@@ -311,16 +306,12 @@ export function RequirementsEditor({
     inputText: {
       color: theme.colors.foreground,
       fontSize: theme.typography.fontSize.base,
-      lineHeight: Math.round(
-        theme.typography.fontSize.base * theme.typography.lineHeight.normal,
-      ),
+      lineHeight: Math.round(theme.typography.fontSize.base * theme.typography.lineHeight.normal),
       paddingVertical: Math.max(
         0,
         Math.floor(
           (minTouchTarget -
-            Math.round(
-              theme.typography.fontSize.base * theme.typography.lineHeight.normal,
-            )) /
+            Math.round(theme.typography.fontSize.base * theme.typography.lineHeight.normal)) /
             2,
         ),
       ),
@@ -371,10 +362,7 @@ export function RequirementsEditor({
                 </View>
                 <View style={themedStyles.inputCell}>
                   <View
-                    style={[
-                      themedStyles.inputWrapper,
-                      isActive && themedStyles.inputWrapperActive,
-                    ]}
+                    style={[themedStyles.inputWrapper, isActive && themedStyles.inputWrapperActive]}
                   >
                     <RNTextInputComponent
                       ref={setInputRef(row.id)}

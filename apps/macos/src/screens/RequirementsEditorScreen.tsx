@@ -1,11 +1,5 @@
 import { generateSpreadsheet, type SpreadsheetColumn } from '@repo/core';
-import {
-  Button,
-  type RequirementRow,
-  RequirementsEditor,
-  ThemedText,
-  useTheme,
-} from '@repo/ui';
+import { Button, type RequirementRow, RequirementsEditor, ThemedText, useTheme } from '@repo/ui';
 import type React from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { NativeModules, ScrollView, StyleSheet, View } from 'react-native';
@@ -40,9 +34,10 @@ const formatTimestamp = (date: Date): string => {
 };
 
 type SavePanelModule = {
-  showSavePanel: (options: { defaultFileName: string; allowedExtensions?: string[] }) => Promise<
-    string | null
-  >;
+  showSavePanel: (options: {
+    defaultFileName: string;
+    allowedExtensions?: string[];
+  }) => Promise<string | null>;
 };
 
 export function RequirementsEditorScreen(): React.JSX.Element {
@@ -67,14 +62,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   );
 
   const buildExportRows = useCallback(
-    () =>
-      rows.map((row, index) => [
-        numbers[index] ?? `${index + 1}`,
-        row.text,
-        '',
-        '',
-        '',
-      ]),
+    () => rows.map((row, index) => [numbers[index] ?? `${index + 1}`, row.text, '', '', '']),
     [numbers, rows],
   );
 
@@ -99,9 +87,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         return;
       }
 
-      const normalizedPath = selectedPath.endsWith('.xlsx')
-        ? selectedPath
-        : `${selectedPath}.xlsx`;
+      const normalizedPath = selectedPath.endsWith('.xlsx') ? selectedPath : `${selectedPath}.xlsx`;
 
       const filePath = await generateSpreadsheet(buildExportRows(), {
         columns: exportColumns,
@@ -110,9 +96,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       setExportPath(filePath);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to export spreadsheet.';
-      setExportError(
-        message,
-      );
+      setExportError(message);
     } finally {
       setIsExporting(false);
     }
@@ -238,7 +222,6 @@ export function RequirementsEditorScreen(): React.JSX.Element {
             Export failed: {exportError}
           </ThemedText>
         ) : null}
-
       </View>
 
       <RequirementsEditor rows={rows} onRowsChange={setRows} />

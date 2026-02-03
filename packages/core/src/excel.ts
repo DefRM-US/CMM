@@ -48,9 +48,7 @@ export const generateSpreadsheet = async (
       return row;
     }
     if (derivedColumns) {
-      return derivedColumns.map((column) =>
-        column.key ? row[column.key] : '',
-      );
+      return derivedColumns.map((column) => (column.key ? row[column.key] : ''));
     }
     return Object.values(row);
   });
@@ -101,10 +99,7 @@ const columnLetter = (index: number): string => {
   return result;
 };
 
-const buildWorksheetXml = (
-  rows: Array<unknown[]>,
-  columns: SpreadsheetColumn[] | null,
-): string => {
+const buildWorksheetXml = (rows: Array<unknown[]>, columns: SpreadsheetColumn[] | null): string => {
   const colsXml =
     columns && columns.some((column) => column.width !== undefined)
       ? `<cols>${columns
@@ -123,26 +118,28 @@ const buildWorksheetXml = (
         .map((cell, colIndex) => {
           const value = cell === null || cell === undefined ? '' : String(cell);
           const cellRef = `${columnLetter(colIndex + 1)}${rowNumber}`;
-          return `<c r="${cellRef}" t="inlineStr"><is><t>${xmlEscape(
-            value,
-          )}</t></is></c>`;
+          return `<c r="${cellRef}" t="inlineStr"><is><t>${xmlEscape(value)}</t></is></c>`;
         })
         .join('');
       return `<row r="${rowNumber}">${cellsXml}</row>`;
     })
     .join('');
 
-  return `<?xml version="1.0" encoding="UTF-8"?>` +
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `${colsXml}<sheetData>${rowsXml}</sheetData></worksheet>`;
+    `${colsXml}<sheetData>${rowsXml}</sheetData></worksheet>`
+  );
 };
 
 const buildWorkbookXml = (sheetName: string): string => {
   const safeName = xmlEscape(sheetName);
-  return `<?xml version="1.0" encoding="UTF-8"?>` +
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ` +
     `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-    `<sheets><sheet name="${safeName}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+    `<sheets><sheet name="${safeName}" sheetId="1" r:id="rId1"/></sheets></workbook>`
+  );
 };
 
 const buildRelsXml = (): string =>

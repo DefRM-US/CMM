@@ -1,14 +1,33 @@
 # Dependencies
 node_modules/
 vendor/
+.pnpm-store/
+.npm/
 
 # Build outputs
 dist/
 build/
 *.tsbuildinfo
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.gatsby-cache/
+.storybook-static/
+.out/
 
 # Turbo
 .turbo/
+
+# Tooling caches
+.cache/
+.parcel-cache/
+.rpt2_cache/
+.rts2_cache_*
+.eslintcache
+.stylelintcache
+.swc/
+.nyc_output/
 
 # IDE / Editor
 .idea/
@@ -127,6 +146,8 @@ Gemfile.lock
 
 # Testing / Coverage
 coverage/
+playwright-report/
+test-results/
 
 # Logs
 *.log

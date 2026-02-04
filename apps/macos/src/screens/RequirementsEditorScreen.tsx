@@ -980,7 +980,6 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           ) : null}
         </ScrollView>
       </View>
-
     </View>
   );
 }

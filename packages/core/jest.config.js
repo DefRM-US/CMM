@@ -5,4 +5,10 @@ module.exports = {
   ...baseConfig,
   displayName: 'core',
   testEnvironment: 'node',
+  transform: {
+    '^.+\\.[tj]sx?$': 'babel-jest',
+  },
+  moduleNameMapper: {
+    '^@dr\\.pogodin/react-native-fs$': '<rootDir>/test/mocks/react-native-fs.js',
+  },
 };

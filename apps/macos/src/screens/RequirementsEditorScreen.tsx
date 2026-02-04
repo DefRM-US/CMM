@@ -1,6 +1,6 @@
 import {
   createProject,
-  generateSpreadsheet,
+  generateCapabilityMatrixSpreadsheet,
   initDatabase,
   listProjects,
   loadProjectRequirements,
@@ -252,6 +252,12 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const [exportError, setExportError] = useState<string | null>(null);
   const [emptyRowNumbers, setEmptyRowNumbers] = useState<string[]>([]);
   const [showEmptyWarning, setShowEmptyWarning] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportTitle, setExportTitle] = useState('');
+  const [legend3, setLegend3] = useState('');
+  const [legend2, setLegend2] = useState('');
+  const [legend1, setLegend1] = useState('');
+  const [legend0, setLegend0] = useState('');
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -273,21 +279,41 @@ export function RequirementsEditorScreen(): React.JSX.Element {
 
   const numbers = useMemo(() => computeNumbers(rows), [rows]);
 
-  const exportColumns = useMemo(
-    () => [
-      { header: 'Number', width: 12 },
-      { header: 'Requirement', width: 80 },
-      { header: 'Status', width: 16 },
-      { header: 'Contractor Response', width: 40 },
-      { header: 'Contractor Notes', width: 40 },
-    ],
-    [],
-  );
-
   const buildExportRows = useCallback(
-    () => rows.map((row, index) => [numbers[index] ?? `${index + 1}`, row.text, '', '', '']),
+    () =>
+      rows.map((row, index) => ({
+        number: numbers[index] ?? `${index + 1}`,
+        text: row.text,
+        score: 0 as const,
+        pastPerformance: '',
+        comments: '',
+      })),
     [numbers, rows],
   );
+
+  const buildDefaultLegend = useCallback((projectName?: string | null) => {
+    const trimmed = projectName?.trim();
+    const label = trimmed && trimmed.length > 0 ? trimmed : 'this SOW';
+    return {
+      title: trimmed ? `${trimmed} - Capability Matrix` : 'Capability Matrix',
+      score3: `Excellent capability - significant experience and past performance inputs; applicable to ${label}`,
+      score2:
+        `Good capability - significant experience and past performance inputs; ` +
+        `applicable to ${label} and executed on other than ${label} programs but on related platforms`,
+      score1: 'Some capability - minor or scattered experience',
+      score0: 'No capability',
+    };
+  }, []);
+
+  const openExportModal = useCallback(() => {
+    const defaults = buildDefaultLegend(selectedProject?.name);
+    setExportTitle(defaults.title);
+    setLegend3(defaults.score3);
+    setLegend2(defaults.score2);
+    setLegend1(defaults.score1);
+    setLegend0(defaults.score0);
+    setShowExportModal(true);
+  }, [buildDefaultLegend, selectedProject?.name]);
 
   const mapRowsForSave = useCallback(
     (rowsToSave: RequirementRow[]): StoredRequirementRow[] =>
@@ -580,8 +606,19 @@ export function RequirementsEditorScreen(): React.JSX.Element {
 
       const normalizedPath = selectedPath.endsWith('.xlsx') ? selectedPath : `${selectedPath}.xlsx`;
 
-      const filePath = await generateSpreadsheet(buildExportRows(), {
-        columns: exportColumns,
+      const filePath = await generateCapabilityMatrixSpreadsheet({
+        title: exportTitle.trim() || selectedProject?.name || 'Capability Matrix',
+        legend: {
+          3:
+            legend3.trim() ||
+            'Excellent capability - significant experience and past performance inputs.',
+          2:
+            legend2.trim() ||
+            'Good capability - significant experience and past performance inputs.',
+          1: legend1.trim() || 'Some capability - minor or scattered experience',
+          0: legend0.trim() || 'No capability',
+        },
+        rows: buildExportRows(),
         filePath: normalizedPath,
       });
       setExportPath(filePath);
@@ -590,8 +627,9 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       setExportError(message);
     } finally {
       setIsExporting(false);
+      setShowExportModal(false);
     }
-  }, [buildExportRows, exportColumns, selectedProject?.name]);
+  }, [buildExportRows, exportTitle, legend0, legend1, legend2, legend3, selectedProject?.name]);
 
   const handleExportPress = useCallback(() => {
     setExportError(null);
@@ -617,19 +655,49 @@ export function RequirementsEditorScreen(): React.JSX.Element {
 
     setEmptyRowNumbers([]);
     setShowEmptyWarning(false);
-    void runExport();
-  }, [numbers, rows, runExport, selectedProjectId]);
+    openExportModal();
+  }, [numbers, openExportModal, rows, selectedProjectId]);
 
   const handleExportAnyway = useCallback(() => {
     setShowEmptyWarning(false);
     setEmptyRowNumbers([]);
-    void runExport();
-  }, [runExport]);
+    openExportModal();
+  }, [openExportModal]);
 
   const handleCancelWarning = useCallback(() => {
     setShowEmptyWarning(false);
     setEmptyRowNumbers([]);
   }, []);
+
+  const handleCloseExportModal = useCallback(() => {
+    setShowExportModal(false);
+  }, []);
+
+  const handleConfirmExport = useCallback(() => {
+    if (isExporting) return;
+    void runExport();
+  }, [isExporting, runExport]);
+
+  const modalKeyEvents = useMemo(
+    () => [{ key: 'Escape' }, { key: 'Enter' }, { key: 'Return' }],
+    [],
+  );
+
+  const handleModalKeyDown = useCallback(
+    (event: { nativeEvent: { key: string }; preventDefault?: () => void }) => {
+      const key = event.nativeEvent.key;
+      if (key === 'Escape') {
+        event.preventDefault?.();
+        handleCloseExportModal();
+        return;
+      }
+      if (key === 'Enter' || key === 'Return') {
+        event.preventDefault?.();
+        handleConfirmExport();
+      }
+    },
+    [handleCloseExportModal, handleConfirmExport],
+  );
 
   const handleStartProjectCreate = useCallback(() => {
     setIsCreatingProject(true);
@@ -999,6 +1067,54 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           borderWidth: 1,
           borderColor: theme.colors.border,
         },
+        modalBackdrop: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: theme.spacing[6],
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+        },
+        modalScrim: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.45)',
+          zIndex: 0,
+        },
+        modalCard: {
+          width: '100%',
+          maxWidth: 640,
+          borderWidth: 1,
+          borderRadius: theme.radius.none,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.card,
+          padding: theme.spacing[5],
+          zIndex: 1,
+        },
+        modalTitle: {
+          fontFamily: 'Montserrat-Bold',
+        },
+        modalSubtitle: {
+          marginTop: theme.spacing[1],
+        },
+        modalFields: {
+          marginTop: theme.spacing[4],
+        },
+        modalField: {
+          marginBottom: theme.spacing[3],
+        },
+        modalActions: {
+          marginTop: theme.spacing[4],
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+        },
+        modalActionSpacer: {
+          width: theme.spacing[2],
+        },
       }),
     [isMac, theme],
   );
@@ -1037,7 +1153,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       <View pointerEvents="none" style={themedStyles.glassTint} />
       {backgroundOverlay}
 
-      <View style={themedStyles.layout}>
+      <View style={themedStyles.layout} pointerEvents={showExportModal ? 'none' : 'auto'}>
         <View style={themedStyles.sidebar}>
           <View style={themedStyles.sidebarHeader}>
             <ThemedText style={themedStyles.sidebarEyebrow}>Projects</ThemedText>
@@ -1245,6 +1361,80 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           ) : null}
         </ScrollView>
       </View>
+      {showExportModal ? (
+        <View style={themedStyles.modalBackdrop} pointerEvents="auto">
+          <Pressable style={themedStyles.modalScrim} onPress={handleCloseExportModal} />
+          <View style={themedStyles.modalCard}>
+            <ThemedText variant="h1" style={themedStyles.modalTitle}>
+              Export settings
+            </ThemedText>
+            <ThemedText variant="body" color="muted" style={themedStyles.modalSubtitle}>
+              Confirm the title and legend text that will appear in the spreadsheet.
+            </ThemedText>
+            <View style={themedStyles.modalFields}>
+              <TextInput
+                label="Title"
+                value={exportTitle}
+                onChangeText={setExportTitle}
+                containerStyle={themedStyles.modalField}
+                onKeyDown={handleModalKeyDown}
+                keyDownEvents={modalKeyEvents}
+                autoFocus
+              />
+              <TextInput
+                label="Legend (3)"
+                value={legend3}
+                onChangeText={setLegend3}
+                containerStyle={themedStyles.modalField}
+                onKeyDown={handleModalKeyDown}
+                keyDownEvents={modalKeyEvents}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              <TextInput
+                label="Legend (2)"
+                value={legend2}
+                onChangeText={setLegend2}
+                containerStyle={themedStyles.modalField}
+                onKeyDown={handleModalKeyDown}
+                keyDownEvents={modalKeyEvents}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              <TextInput
+                label="Legend (1)"
+                value={legend1}
+                onChangeText={setLegend1}
+                containerStyle={themedStyles.modalField}
+                onKeyDown={handleModalKeyDown}
+                keyDownEvents={modalKeyEvents}
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+              <TextInput
+                label="Legend (0)"
+                value={legend0}
+                onChangeText={setLegend0}
+                containerStyle={themedStyles.modalField}
+                onKeyDown={handleModalKeyDown}
+                keyDownEvents={modalKeyEvents}
+              />
+            </View>
+            <View style={themedStyles.modalActions}>
+              <Button variant="outline" onPress={handleCloseExportModal} size="sm">
+                Cancel
+              </Button>
+              <View style={themedStyles.modalActionSpacer} />
+              <Button onPress={handleConfirmExport} size="sm" disabled={isExporting}>
+                {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }

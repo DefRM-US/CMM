@@ -50,8 +50,6 @@ export interface TextInputProps
     | 'scrollEnabled'
     | 'textAlignVertical'
     | 'onContentSizeChange'
-    | 'showsVerticalScrollIndicator'
-    | 'showsHorizontalScrollIndicator'
   > {
   label?: string;
   value?: string;
@@ -93,8 +91,6 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
     scrollEnabled,
     textAlignVertical,
     onContentSizeChange,
-    showsVerticalScrollIndicator,
-    showsHorizontalScrollIndicator,
     keyDownEvents,
     keyUpEvents,
   },
@@ -167,8 +163,6 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
           scrollEnabled={scrollEnabled}
           textAlignVertical={textAlignVertical}
           onContentSizeChange={onContentSizeChange}
-          showsVerticalScrollIndicator={showsVerticalScrollIndicator}
-          showsHorizontalScrollIndicator={showsHorizontalScrollIndicator}
         />
       </View>
       {error != null && (

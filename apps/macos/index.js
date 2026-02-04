@@ -15,12 +15,6 @@ if (LogBox.uninstall) {
   LogBox.uninstall();
 }
 
-// Log errors to console instead
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  originalConsoleError('JS ERROR:', ...args);
-};
-
 import App from './App';
 import { name as appName } from './app.json';
 

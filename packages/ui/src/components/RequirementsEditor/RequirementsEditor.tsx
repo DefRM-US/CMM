@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { TextInput as RNTextInput, ViewStyle } from 'react-native';
+import type { NativeSyntheticEvent, TextInput as RNTextInput, ViewStyle } from 'react-native';
 import { TextInput as RNTextInputComponent, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '../../Typography';
@@ -40,7 +40,7 @@ const getSubtreeEndIndex = (rows: RequirementRow[], index: number): number => {
   let end = index;
 
   for (let i = index + 1; i < rows.length; i += 1) {
-    if (rows[i].level <= baseLevel) {
+    if ((rows[i]?.level ?? baseLevel) <= baseLevel) {
       break;
     }
     end = i;
@@ -348,6 +348,13 @@ export function RequirementsEditor({
         {rows.map((row, index) => {
           const indentPadding = theme.spacing[3] + row.level * indentUnit;
           const isActive = activeRowId === row.id;
+          const focusRingProps = {
+            enableFocusRing: false,
+          } as unknown as React.ComponentProps<typeof RNTextInputComponent>;
+          const keyEventProps = {
+            keyDownEvents: handledKeyEvents,
+            onKeyDown: handleKeyDown(index),
+          } as unknown as React.ComponentProps<typeof RNTextInputComponent>;
           return (
             <View
               key={row.id}
@@ -372,17 +379,14 @@ export function RequirementsEditor({
                       placeholder={placeholder}
                       placeholderTextColor={`${theme.colors.mutedForeground}99`}
                       onFocus={() => setActiveRowId(row.id)}
-                      enableFocusRing={false}
-                      keyDownEvents={handledKeyEvents}
-                      onKeyDown={handleKeyDown(index)}
+                      {...focusRingProps}
+                      {...keyEventProps}
                       onSubmitEditing={() => handleSubmitEditing(index)}
                       returnKeyType="next"
                       blurOnSubmit={false}
                       multiline={false}
                       numberOfLines={1}
                       scrollEnabled={false}
-                      showsVerticalScrollIndicator={false}
-                      showsHorizontalScrollIndicator={false}
                       style={themedStyles.inputText}
                     />
                   </View>

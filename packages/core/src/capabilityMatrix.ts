@@ -56,6 +56,141 @@ const mapProjectRow = (row: ProjectRow): ProjectRecord => ({
 const generateProjectId = (): string =>
   `proj-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const SAMPLE_PROJECT_PREFIX = 'Sample - ';
+
+type SampleSeedSize = 'compact' | 'medium' | 'large';
+
+type SampleRequirement = {
+  text: string;
+  level: number;
+};
+
+type SampleProject = {
+  name: string;
+  updatedAt: Date;
+  requirements: SampleRequirement[];
+};
+
+const formatSqliteTimestampUTC = (date: Date): string => {
+  const pad = (value: number) => value.toString().padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = pad(date.getUTCMonth() + 1);
+  const day = pad(date.getUTCDate());
+  const hours = pad(date.getUTCHours());
+  const minutes = pad(date.getUTCMinutes());
+  const seconds = pad(date.getUTCSeconds());
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+let requirementSeed = 0;
+const generateRequirementId = (): string => {
+  requirementSeed += 1;
+  return `req-${Date.now().toString(36)}-${requirementSeed.toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 6)}`;
+};
+
+const cloneRequirements = (requirements: SampleRequirement[]): SampleRequirement[] =>
+  requirements.map((req) => ({ ...req }));
+
+const buildSampleProjects = (now: Date, size: SampleSeedSize): SampleProject[] => {
+  const baseRequirements: SampleRequirement[] = [
+    { text: 'Project overview', level: 0 },
+    { text: 'Target users', level: 1 },
+    { text: 'Success metrics', level: 1 },
+    { text: 'Core workflows', level: 0 },
+    { text: 'Onboarding', level: 1 },
+    { text: 'Account verification', level: 2 },
+    { text: 'Reporting', level: 1 },
+    { text: 'Risks & constraints', level: 0 },
+  ];
+
+  const justNow = new Date(now);
+  const minutesAgo = new Date(now);
+  minutesAgo.setMinutes(minutesAgo.getMinutes() - 15);
+  const hoursAgo = new Date(now);
+  hoursAgo.setHours(hoursAgo.getHours() - 3);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const earlierThisMonth = new Date(now);
+  if (earlierThisMonth.getDate() >= 8) {
+    earlierThisMonth.setDate(earlierThisMonth.getDate() - 7);
+  } else {
+    earlierThisMonth.setDate(1);
+  }
+
+  const lastMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    10,
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds(),
+  );
+
+  const olderDate = new Date(now);
+  olderDate.setDate(olderDate.getDate() - 90);
+
+  const baseProjects: SampleProject[] = [
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}Just now`,
+      updatedAt: justNow,
+      requirements: cloneRequirements(baseRequirements),
+    },
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}15 minutes ago`,
+      updatedAt: minutesAgo,
+      requirements: cloneRequirements(baseRequirements),
+    },
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}3 hours ago`,
+      updatedAt: hoursAgo,
+      requirements: cloneRequirements(baseRequirements),
+    },
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}Yesterday`,
+      updatedAt: yesterday,
+      requirements: cloneRequirements(baseRequirements),
+    },
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}Earlier this month`,
+      updatedAt: earlierThisMonth,
+      requirements: cloneRequirements(baseRequirements),
+    },
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}Last month`,
+      updatedAt: lastMonth,
+      requirements: cloneRequirements(baseRequirements),
+    },
+    {
+      name: `${SAMPLE_PROJECT_PREFIX}May 10`,
+      updatedAt: olderDate,
+      requirements: cloneRequirements(baseRequirements),
+    },
+  ];
+
+  if (size === 'compact') {
+    return baseProjects;
+  }
+
+  const targetCount = size === 'medium' ? 12 : 20;
+  const projects = [...baseProjects];
+  for (let i = projects.length; i < targetCount; i += 1) {
+    const offsetHours = (i - baseProjects.length + 1) * 6;
+    const updatedAt = new Date(now);
+    updatedAt.setHours(updatedAt.getHours() - offsetHours);
+    projects.push({
+      name: `${SAMPLE_PROJECT_PREFIX}Extra ${i - baseProjects.length + 1}`,
+      updatedAt,
+      requirements: cloneRequirements(baseRequirements),
+    });
+  }
+
+  return projects;
+};
+
 export const listProjects = (): Promise<ProjectRecord[]> =>
   new Promise((resolve, reject) => {
     const db = getDatabase();
@@ -115,6 +250,53 @@ export const createProject = (name: string): Promise<ProjectRecord> =>
       },
     );
   });
+
+export const seedSampleProjects = async (size: SampleSeedSize = 'compact'): Promise<number> => {
+  const existing = await listProjects();
+  if (existing.some((project) => project.name.startsWith(SAMPLE_PROJECT_PREFIX))) {
+    return 0;
+  }
+
+  const now = new Date();
+  const samples = buildSampleProjects(now, size);
+  const db = getDatabase();
+
+  await new Promise<void>((resolve, reject) => {
+    db.transaction(
+      (txn) => {
+        samples.forEach((sample) => {
+          const projectId = generateProjectId();
+          const timestamp = formatSqliteTimestampUTC(sample.updatedAt);
+          txn.executeSql(
+            `INSERT INTO projects (id, name, created_at, updated_at, last_opened_at)
+             VALUES (?, ?, ?, ?, ?)`,
+            [projectId, sample.name, timestamp, timestamp, timestamp],
+          );
+          sample.requirements.forEach((requirement, index) => {
+            const requirementId = generateRequirementId();
+            txn.executeSql(
+              `INSERT INTO requirements (id, project_id, text, level, position, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                requirementId,
+                projectId,
+                requirement.text,
+                requirement.level,
+                index,
+                timestamp,
+                timestamp,
+              ],
+            );
+          });
+        });
+      },
+      reject,
+      resolve,
+    );
+  });
+
+  return samples.length;
+};
 
 export const touchProject = (projectId: string): Promise<void> =>
   new Promise((resolve, reject) => {

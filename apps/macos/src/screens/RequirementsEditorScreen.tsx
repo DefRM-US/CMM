@@ -7,6 +7,7 @@ import {
   type ProjectRecord,
   type StoredRequirementRow,
   saveProjectRequirements,
+  seedSampleProjects,
   touchProject,
 } from '@repo/core';
 import {
@@ -20,6 +21,7 @@ import {
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   InteractionManager,
   NativeModules,
   Platform,
@@ -58,6 +60,168 @@ const formatTimestamp = (date: Date): string => {
   return `${year}${month}${day}-${hours}${minutes}`;
 };
 
+const MONTH_LABELS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+type EditedLabelInfo = {
+  label: string;
+  nextRefreshAt: Date | null;
+};
+
+const parseSqliteTimestamp = (value?: string | null): Date | null => {
+  if (!value) return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hours = Number(match[4]);
+  const minutes = Number(match[5]);
+  const seconds = Number(match[6] ?? '0');
+  const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const isSameLocalDate = (left: Date, right: Date): boolean =>
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
+
+const nextMinuteBoundary = (now: Date): Date => {
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+  next.setMinutes(next.getMinutes() + 1);
+  return next;
+};
+
+const nextHourBoundary = (now: Date): Date => {
+  const next = new Date(now);
+  next.setMinutes(0, 0, 0);
+  next.setHours(next.getHours() + 1);
+  return next;
+};
+
+const nextMidnight = (now: Date): Date =>
+  new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+const nextMonthBoundary = (now: Date): Date => new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+const isPreviousCalendarMonth = (date: Date, now: Date): boolean => {
+  let prevMonth = now.getMonth() - 1;
+  let prevYear = now.getFullYear();
+  if (prevMonth < 0) {
+    prevMonth = 11;
+    prevYear -= 1;
+  }
+  return date.getFullYear() === prevYear && date.getMonth() === prevMonth;
+};
+
+const formatAbsoluteDate = (date: Date, now: Date): string => {
+  const monthLabel = MONTH_LABELS[date.getMonth()] ?? 'Jan';
+  const day = date.getDate();
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${monthLabel} ${day}`;
+  }
+  return `${monthLabel} ${day}, ${date.getFullYear()}`;
+};
+
+const getEditedLabelInfo = (timestamp?: string | null, now: Date = new Date()): EditedLabelInfo => {
+  const date = parseSqliteTimestamp(timestamp);
+  if (!date) {
+    return { label: 'just now', nextRefreshAt: null };
+  }
+
+  const msPerMinute = 60 * 1000;
+  const msPerHour = 60 * msPerMinute;
+  const msPerDay = 24 * msPerHour;
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
+
+  if (diffMs < msPerMinute) {
+    return { label: 'just now', nextRefreshAt: nextMinuteBoundary(now) };
+  }
+
+  const minutes = Math.floor(diffMs / msPerMinute);
+  if (minutes < 60) {
+    return {
+      label: minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`,
+      nextRefreshAt: nextMinuteBoundary(now),
+    };
+  }
+
+  const hours = Math.floor(diffMs / msPerHour);
+  if (hours < 24) {
+    return {
+      label: hours === 1 ? '1 hour ago' : `${hours} hours ago`,
+      nextRefreshAt: nextHourBoundary(now),
+    };
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameLocalDate(date, yesterday)) {
+    return { label: 'yesterday', nextRefreshAt: nextMidnight(now) };
+  }
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.floor((startOfToday.getTime() - startOfDate.getTime()) / msPerDay);
+
+  if (diffDays < 7) {
+    return {
+      label: diffDays === 1 ? '1 day ago' : `${diffDays} days ago`,
+      nextRefreshAt: nextMidnight(now),
+    };
+  }
+
+  if (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    diffDays <= 27
+  ) {
+    return { label: 'Earlier this month', nextRefreshAt: nextMonthBoundary(now) };
+  }
+
+  if (isPreviousCalendarMonth(date, now) && diffDays <= 59) {
+    return { label: 'Last month', nextRefreshAt: nextMonthBoundary(now) };
+  }
+
+  return { label: formatAbsoluteDate(date, now), nextRefreshAt: null };
+};
+
+const formatEditedLabel = (timestamp?: string | null, now: Date = new Date()): string =>
+  getEditedLabelInfo(timestamp, now).label;
+
+const getNextRefreshDelayMs = (projects: ProjectRecord[], now: Date): number => {
+  let nextRefreshMs: number | null = null;
+  projects.forEach((project) => {
+    const timestamp = project.updatedAt ?? project.lastOpenedAt ?? null;
+    const { nextRefreshAt } = getEditedLabelInfo(timestamp, now);
+    if (!nextRefreshAt) return;
+    const nextAtMs = nextRefreshAt.getTime();
+    if (nextRefreshMs === null || nextAtMs < nextRefreshMs) {
+      nextRefreshMs = nextAtMs;
+    }
+  });
+
+  if (nextRefreshMs === null) return Number.POSITIVE_INFINITY;
+  const delay = nextRefreshMs - now.getTime();
+  if (delay <= 0) return 1000;
+  return Math.min(delay, 2147483647);
+};
+
 type SavePanelModule = {
   showSavePanel: (options: {
     defaultFileName: string;
@@ -80,6 +244,8 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const [newProjectName, setNewProjectName] = useState('');
   const [projectError, setProjectError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSeedingSamples, setIsSeedingSamples] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportPath, setExportPath] = useState<string | null>(null);
@@ -96,6 +262,9 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const lastSavedSnapshotRef = useRef<{ projectId: string; signature: string } | null>(null);
   const isScrollingRef = useRef(false);
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const relativeRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [relativeTick, setRelativeTick] = useState(0);
+  const [appState, setAppState] = useState(AppState.currentState ?? 'active');
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
@@ -235,6 +404,46 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      setAppState(nextState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (relativeRefreshTimeoutRef.current) {
+      clearTimeout(relativeRefreshTimeoutRef.current);
+      relativeRefreshTimeoutRef.current = null;
+    }
+
+    if (appState !== 'active') {
+      return;
+    }
+
+    const now = new Date(Math.max(Date.now(), relativeTick));
+    const delay = getNextRefreshDelayMs(projects, now);
+    if (!Number.isFinite(delay) || delay === Number.POSITIVE_INFINITY) {
+      return;
+    }
+
+    relativeRefreshTimeoutRef.current = setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        setRelativeTick(Date.now());
+      });
+    }, delay);
+
+    return () => {
+      if (relativeRefreshTimeoutRef.current) {
+        clearTimeout(relativeRefreshTimeoutRef.current);
+        relativeRefreshTimeoutRef.current = null;
+      }
+    };
+  }, [appState, projects, relativeTick]);
+
+  useEffect(() => {
     if (!selectedProjectId) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -339,6 +548,9 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       if (scrollEndTimeoutRef.current) {
         clearTimeout(scrollEndTimeoutRef.current);
       }
+      if (relativeRefreshTimeoutRef.current) {
+        clearTimeout(relativeRefreshTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -350,7 +562,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         ? `capability-matrix-${selectedProject.name.replace(/\s+/g, '-').toLowerCase()}`
         : 'capability-matrix';
       const filename = `${filenameBase}-${formatTimestamp(new Date())}.xlsx`;
-      const saveModule = NativeModules.SavePanelModule as SavePanelModule | undefined;
+      const saveModule = (NativeModules as { SavePanelModule?: SavePanelModule }).SavePanelModule;
       let selectedPath: string | null = null;
 
       if (saveModule?.showSavePanel) {
@@ -455,6 +667,32 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       setIsCreating(false);
     }
   }, [newProjectName, resetExportState]);
+
+  const handleSeedSampleData = useCallback(() => {
+    if (isSeedingSamples) return;
+    setSeedError(null);
+    setIsSeedingSamples(true);
+
+    InteractionManager.runAfterInteractions(() => {
+      const runSeed = async () => {
+        try {
+          const inserted = await seedSampleProjects('compact');
+          const updatedProjects = await listProjects();
+          setProjects(updatedProjects);
+          if (inserted === 0) {
+            setSeedError('Sample data already loaded.');
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to load sample data.';
+          setSeedError(message);
+        } finally {
+          setIsSeedingSamples(false);
+        }
+      };
+
+      void runSeed();
+    });
+  }, [isSeedingSamples]);
 
   const handleSelectProject = useCallback(
     async (projectId: string) => {
@@ -628,6 +866,15 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         newProjectSpacer: {
           width: theme.spacing[2],
         },
+        seedButton: {
+          marginTop: theme.spacing[2],
+        },
+        seedStatus: {
+          marginTop: theme.spacing[2],
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.sidebarForeground,
+          opacity: 0.6,
+        },
         main: {
           flex: 1,
         },
@@ -783,6 +1030,8 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     [gridColumns, gridRows, scanlines, themedStyles],
   );
 
+  const now = new Date();
+
   return (
     <View style={themedStyles.root}>
       <View pointerEvents="none" style={themedStyles.glassTint} />
@@ -827,7 +1076,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                       {project.name}
                     </ThemedText>
                     <ThemedText style={themedStyles.projectMeta}>
-                      Last edited {project.updatedAt ?? project.lastOpenedAt ?? 'just now'}
+                      Edited {formatEditedLabel(project.updatedAt ?? project.lastOpenedAt, now)}
                     </ThemedText>
                   </View>
                 </Pressable>
@@ -856,9 +1105,25 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                 </View>
               </>
             ) : (
-              <Button onPress={handleStartProjectCreate} variant="ghost" size="sm" fullWidth>
-                New Project
-              </Button>
+              <>
+                <Button onPress={handleStartProjectCreate} variant="ghost" size="sm" fullWidth>
+                  New Project
+                </Button>
+                <View style={themedStyles.seedButton}>
+                  <Button
+                    onPress={handleSeedSampleData}
+                    variant="outline"
+                    size="sm"
+                    fullWidth
+                    disabled={isSeedingSamples}
+                  >
+                    {isSeedingSamples ? 'Loading Samples...' : 'Load Sample Data'}
+                  </Button>
+                </View>
+                {seedError ? (
+                  <ThemedText style={themedStyles.seedStatus}>{seedError}</ThemedText>
+                ) : null}
+              </>
             )}
           </View>
         </View>

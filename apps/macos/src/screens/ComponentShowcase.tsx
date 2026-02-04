@@ -80,10 +80,7 @@ export function ComponentShowcase(): React.JSX.Element {
   const { theme, colorScheme, toggleColorScheme } = useTheme();
   const [inputValue, setInputValue] = useState('');
 
-  const handleFormSubmit = (data: UserFormData) => {
-    // eslint-disable-next-line no-console
-    console.log('Form submitted:', data);
-  };
+  const handleFormSubmit = (_data: UserFormData) => {};
 
   return (
     <ScrollView

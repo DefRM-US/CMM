@@ -100,9 +100,10 @@ const columnLetter = (index: number): string => {
 };
 
 const buildWorksheetXml = (rows: Array<unknown[]>, columns: SpreadsheetColumn[] | null): string => {
+  const columnList = columns ?? [];
   const colsXml =
-    columns && columns.some((column) => column.width !== undefined)
-      ? `<cols>${columns
+    columnList.some((column) => column.width !== undefined)
+      ? `<cols>${columnList
           .map((column, index) => {
             const width = column.width ?? 20;
             const position = index + 1;

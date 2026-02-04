@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   type DimensionValue,
@@ -112,13 +112,18 @@ export function Skeleton({
     }
   };
 
+  const lineKeys = useMemo(
+    () => Array.from({ length: lines }, (_, lineIndex) => `line-${lineIndex + 1}`),
+    [lines],
+  );
+
   // For text variant with multiple lines
   if (variant === 'text' && lines > 1) {
     return (
       <View style={[styles.textContainer, style]}>
-        {Array.from({ length: lines }).map((_, index) => (
+        {lineKeys.map((key, index) => (
           <Animated.View
-            key={index}
+            key={key}
             style={[
               styles.skeleton,
               {

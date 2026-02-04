@@ -29,7 +29,7 @@ const computeNumbers = (rows: RequirementRow[]): string[] => {
     while (counters.length <= row.level) {
       counters.push(0);
     }
-    counters[row.level] += 1;
+    counters[row.level] = (counters[row.level] ?? 0) + 1;
     counters.splice(row.level + 1);
     return counters.join('.');
   });

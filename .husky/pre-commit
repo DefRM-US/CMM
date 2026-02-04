@@ -1,1 +1,8 @@
+#!/usr/bin/env sh
+set -e
+
 biome check --staged --write --no-errors-on-unmatched
+pnpm format
+pnpm lint
+pnpm check
+pnpm typecheck

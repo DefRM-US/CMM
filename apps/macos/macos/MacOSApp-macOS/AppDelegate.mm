@@ -12,8 +12,39 @@
   // They will be passed down to the ViewController used by React Native.
   self.initialProps = @{};
   self.dependencyProvider = [RCTAppDependencyProvider new];
-  
-  return [super applicationDidFinishLaunching:notification];
+
+  [super applicationDidFinishLaunching:notification];
+
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSWindow *window = self.window;
+    if (!window) {
+      return;
+    }
+
+    NSViewController *rootViewController = window.contentViewController;
+    if (!rootViewController) {
+      return;
+    }
+
+    NSView *reactView = rootViewController.view;
+    if (!reactView) {
+      return;
+    }
+
+    window.opaque = NO;
+    window.backgroundColor = [NSColor clearColor];
+
+    NSVisualEffectView *vibrancy = [[NSVisualEffectView alloc] initWithFrame:reactView.bounds];
+    vibrancy.material = NSVisualEffectMaterialUnderWindowBackground;
+    vibrancy.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+    vibrancy.state = NSVisualEffectStateActive;
+    vibrancy.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+
+    reactView.wantsLayer = YES;
+    reactView.layer.backgroundColor = NSColor.clearColor.CGColor;
+
+    [reactView addSubview:vibrancy positioned:NSWindowBelow relativeTo:nil];
+  });
 }
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   InteractionManager,
   NativeModules,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -68,6 +69,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export function RequirementsEditorScreen(): React.JSX.Element {
   const { theme } = useTheme();
+  const isMac = Platform.OS === 'macos';
   const [rows, setRows] = useState<RequirementRow[]>(() => [createInitialRow()]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -496,7 +498,11 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       StyleSheet.create({
         root: {
           flex: 1,
-          backgroundColor: theme.colors.background,
+          backgroundColor: isMac ? 'transparent' : theme.colors.background,
+        },
+        glassTint: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: isMac ? `${theme.colors.background}B3` : 'transparent',
         },
         backgroundLayer: {
           ...StyleSheet.absoluteFillObject,
@@ -537,7 +543,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         },
         sidebar: {
           width: 264,
-          backgroundColor: theme.colors.sidebar,
+          backgroundColor: isMac ? `${theme.colors.sidebar}66` : theme.colors.sidebar,
           borderRightWidth: 1,
           borderColor: theme.colors.sidebarBorder,
           paddingHorizontal: theme.spacing[5],
@@ -601,7 +607,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           fontWeight: theme.typography.fontWeight.medium,
         },
         projectItemTextActive: {
-          color: theme.colors.sidebarPrimaryForeground,
+          color: theme.colors.sidebarAccentForeground,
         },
         projectMeta: {
           marginTop: 2,
@@ -747,7 +753,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           borderColor: theme.colors.border,
         },
       }),
-    [theme],
+    [isMac, theme],
   );
 
   const backgroundOverlay = useMemo(
@@ -779,6 +785,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
 
   return (
     <View style={themedStyles.root}>
+      <View pointerEvents="none" style={themedStyles.glassTint} />
       {backgroundOverlay}
 
       <View style={themedStyles.layout}>
@@ -973,6 +980,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           ) : null}
         </ScrollView>
       </View>
+
     </View>
   );
 }

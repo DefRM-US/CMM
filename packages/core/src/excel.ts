@@ -101,16 +101,15 @@ const columnLetter = (index: number): string => {
 
 const buildWorksheetXml = (rows: Array<unknown[]>, columns: SpreadsheetColumn[] | null): string => {
   const columnList = columns ?? [];
-  const colsXml =
-    columnList.some((column) => column.width !== undefined)
-      ? `<cols>${columnList
-          .map((column, index) => {
-            const width = column.width ?? 20;
-            const position = index + 1;
-            return `<col min="${position}" max="${position}" width="${width}" customWidth="1"/>`;
-          })
-          .join('')}</cols>`
-      : '';
+  const colsXml = columnList.some((column) => column.width !== undefined)
+    ? `<cols>${columnList
+        .map((column, index) => {
+          const width = column.width ?? 20;
+          const position = index + 1;
+          return `<col min="${position}" max="${position}" width="${width}" customWidth="1"/>`;
+        })
+        .join('')}</cols>`
+    : '';
 
   const rowsXml = rows
     .map((row, rowIndex) => {

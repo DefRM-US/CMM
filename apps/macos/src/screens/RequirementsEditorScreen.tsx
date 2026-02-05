@@ -2,6 +2,7 @@ import {
   type CapabilityImportRecord,
   type CapabilityImportRowRecord,
   createProject,
+  deleteProjects,
   generateCapabilityMatrixSpreadsheet,
   initDatabase,
   listCapabilityImportRows,
@@ -30,6 +31,7 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
+  Dimensions,
   InteractionManager,
   NativeModules,
   Platform,
@@ -66,6 +68,43 @@ const getFilename = (filePath: string): string => {
 };
 
 const stripExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
+
+const TrashIcon = ({ size = 14, color }: { size?: number; color: string }): React.JSX.Element => {
+  const stroke = Math.max(1, Math.round(size / 10));
+  const lidWidth = size * 0.8;
+  const handleWidth = size * 0.35;
+  const bodyWidth = size * 0.7;
+  const bodyHeight = size * 0.58;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: handleWidth,
+          height: stroke,
+          backgroundColor: color,
+          marginBottom: stroke,
+        }}
+      />
+      <View
+        style={{
+          width: lidWidth,
+          height: stroke,
+          backgroundColor: color,
+          marginBottom: stroke,
+        }}
+      />
+      <View
+        style={{
+          width: bodyWidth,
+          height: bodyHeight,
+          borderWidth: stroke,
+          borderColor: color,
+        }}
+      />
+    </View>
+  );
+};
 
 const formatTimestamp = (date: Date): string => {
   const pad = (value: number) => value.toString().padStart(2, '0');
@@ -294,6 +333,17 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const [isCreating, setIsCreating] = useState(false);
   const [isSeedingSamples, setIsSeedingSamples] = useState(false);
   const [seedError, setSeedError] = useState<string | null>(null);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [deleteSelection, setDeleteSelection] = useState<Set<string>>(() => new Set());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    projectId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportPath, setExportPath] = useState<string | null>(null);
@@ -366,6 +416,21 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const responseCountLabel = `${capabilityImports.length} compan${
     capabilityImports.length === 1 ? 'y' : 'ies'
   }`;
+  const deleteSelectionCount = deleteSelection.size;
+
+  const pendingDeleteProjects = useMemo(
+    () =>
+      pendingDeleteIds
+        .map((id) => projects.find((project) => project.id === id))
+        .filter((project): project is ProjectRecord => Boolean(project)),
+    [pendingDeleteIds, projects],
+  );
+
+  const visibleDeleteProjects = pendingDeleteProjects.slice(0, 4);
+  const remainingDeleteCount = Math.max(
+    0,
+    pendingDeleteProjects.length - visibleDeleteProjects.length,
+  );
 
   const buildExportRows = useCallback(
     () =>
@@ -542,6 +607,12 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (showExportModal || showImportModal || showDeleteModal) {
+      setContextMenu(null);
+    }
+  }, [showDeleteModal, showExportModal, showImportModal]);
 
   useEffect(() => {
     if (relativeRefreshTimeoutRef.current) {
@@ -1171,6 +1242,120 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     });
   }, [isSeedingSamples]);
 
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const handleToggleDeleteMode = useCallback(() => {
+    setDeleteError(null);
+    setPendingDeleteIds([]);
+    setShowDeleteModal(false);
+    setDeleteSelection(new Set());
+    setIsDeleteMode((prev) => !prev);
+    closeContextMenu();
+  }, [closeContextMenu]);
+
+  const handleCancelDeleteMode = useCallback(() => {
+    setIsDeleteMode(false);
+    setDeleteSelection(new Set());
+    setDeleteError(null);
+  }, []);
+
+  const handleToggleDeleteSelection = useCallback((projectId: string) => {
+    setDeleteSelection((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleOpenDeleteModal = useCallback(
+    (projectIds: string[]) => {
+      if (projectIds.length === 0) return;
+      setDeleteError(null);
+      setPendingDeleteIds(projectIds);
+      setShowDeleteModal(true);
+      closeContextMenu();
+    },
+    [closeContextMenu],
+  );
+
+  const handleCloseDeleteModal = useCallback(() => {
+    if (isDeleting) return;
+    setShowDeleteModal(false);
+    setPendingDeleteIds([]);
+    setDeleteError(null);
+  }, [isDeleting]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (isDeleting) return;
+    const idsToDelete = pendingDeleteIds.filter(Boolean);
+    if (idsToDelete.length === 0) {
+      setShowDeleteModal(false);
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      if (selectedProjectId && idsToDelete.includes(selectedProjectId)) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        pendingSaveRef.current = null;
+      }
+
+      await deleteProjects(idsToDelete);
+      const updatedProjects = await listProjects();
+      setProjects(updatedProjects);
+
+      const stillSelected =
+        selectedProjectId && updatedProjects.some((project) => project.id === selectedProjectId);
+      setSelectedProjectId(stillSelected ? selectedProjectId : (updatedProjects[0]?.id ?? null));
+
+      setShowDeleteModal(false);
+      setPendingDeleteIds([]);
+      setIsDeleteMode(false);
+      setDeleteSelection(new Set());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete project.';
+      setDeleteError(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [isDeleting, pendingDeleteIds, selectedProjectId]);
+
+  const handleProjectPointerDown = useCallback(
+    (
+      event: {
+        nativeEvent: { button?: number; pageX?: number; pageY?: number };
+        preventDefault?: () => void;
+        stopPropagation?: () => void;
+      },
+      projectId: string,
+    ) => {
+      if (isDeleteMode) return;
+      if (event.nativeEvent.button !== 2) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      const { width, height } = Dimensions.get('window');
+      const menuWidth = 180;
+      const menuHeight = 44;
+      const padding = theme.spacing[2];
+      const rawX = event.nativeEvent.pageX ?? padding;
+      const rawY = event.nativeEvent.pageY ?? padding;
+      const x = Math.max(padding, Math.min(rawX, width - menuWidth - padding));
+      const y = Math.max(padding, Math.min(rawY, height - menuHeight - padding));
+      setContextMenu({ projectId, x, y });
+    },
+    [isDeleteMode, theme],
+  );
+
   const handleSelectProject = useCallback(
     async (projectId: string) => {
       if (projectId === selectedProjectId) return;
@@ -1187,6 +1372,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   );
 
   const handleMainScroll = useCallback(() => {
+    closeContextMenu();
     isScrollingRef.current = true;
     if (scrollEndTimeoutRef.current) {
       clearTimeout(scrollEndTimeoutRef.current);
@@ -1195,7 +1381,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       isScrollingRef.current = false;
       flushPendingSave();
     }, 160);
-  }, [flushPendingSave]);
+  }, [closeContextMenu, flushPendingSave]);
 
   const saveStatusLabel = useMemo(() => {
     if (!selectedProjectId) return 'No project selected';
@@ -1444,10 +1630,52 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           color: theme.colors.sidebarForeground,
           opacity: 0.6,
         },
+        projectItemDeleteMode: {
+          borderWidth: 1,
+          borderColor: theme.colors.sidebarRing,
+        },
+        projectItemDeleteSelected: {
+          backgroundColor: `${theme.colors.destructive}26`,
+          borderColor: theme.colors.destructive,
+        },
+        projectIndicatorDelete: {
+          backgroundColor: theme.colors.destructive,
+        },
+        projectItemTextDelete: {
+          color: theme.colors.destructiveForeground,
+        },
+        projectMetaDelete: {
+          color: theme.colors.sidebarForeground,
+          opacity: 0.85,
+        },
         newProjectSection: {
           paddingTop: theme.spacing[4],
           borderTopWidth: 1,
           borderColor: theme.colors.sidebarBorder,
+        },
+        deleteModePanel: {
+          padding: theme.spacing[3],
+          borderWidth: 1,
+          borderColor: theme.colors.sidebarBorder,
+          backgroundColor: `${theme.colors.sidebarAccent}CC`,
+        },
+        deleteModeTitle: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          textTransform: 'uppercase',
+          letterSpacing: 1.4,
+          color: theme.colors.sidebarForeground,
+          opacity: 0.7,
+        },
+        deleteModeCount: {
+          marginTop: theme.spacing[2],
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.sidebarForeground,
+        },
+        deleteModeActions: {
+          marginTop: theme.spacing[3],
+          flexDirection: 'row',
+          alignItems: 'center',
         },
         newProjectActions: {
           flexDirection: 'row',
@@ -1465,6 +1693,31 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           fontSize: theme.typography.fontSize.xs,
           color: theme.colors.sidebarForeground,
           opacity: 0.6,
+        },
+        deleteToggleWrapper: {
+          marginTop: theme.spacing[3],
+        },
+        deleteToggle: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: theme.spacing[2],
+          paddingHorizontal: theme.spacing[2],
+          borderWidth: 1,
+          borderColor: theme.colors.sidebarBorder,
+        },
+        deleteTogglePressed: {
+          backgroundColor: theme.colors.sidebarAccent,
+        },
+        deleteToggleDisabled: {
+          opacity: 0.5,
+        },
+        deleteToggleText: {
+          marginLeft: theme.spacing[2],
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          textTransform: 'uppercase',
+          letterSpacing: 1.2,
+          color: theme.colors.destructive,
         },
         main: {
           flex: 1,
@@ -1955,6 +2208,61 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         modalActionSpacer: {
           width: theme.spacing[2],
         },
+        deleteModalBody: {
+          marginTop: theme.spacing[2],
+          color: theme.colors.mutedForeground,
+        },
+        deleteList: {
+          marginTop: theme.spacing[3],
+          padding: theme.spacing[3],
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: `${theme.colors.card}E6`,
+        },
+        deleteListItem: {
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.foreground,
+        },
+        deleteListMore: {
+          marginTop: theme.spacing[2],
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+        },
+        contextMenuLayer: {
+          ...StyleSheet.absoluteFillObject,
+          zIndex: 850,
+        },
+        contextMenuScrim: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'transparent',
+        },
+        contextMenu: {
+          position: 'absolute',
+          width: 180,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.card,
+          paddingVertical: theme.spacing[1],
+          shadowColor: '#000000',
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+        },
+        contextMenuItem: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: theme.spacing[2],
+          paddingHorizontal: theme.spacing[3],
+        },
+        contextMenuItemPressed: {
+          backgroundColor: theme.colors.accent,
+        },
+        contextMenuText: {
+          marginLeft: theme.spacing[2],
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.foreground,
+        },
       }),
     [isMac, theme],
   );
@@ -2058,7 +2366,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
 
       <View
         style={themedStyles.layout}
-        pointerEvents={showExportModal || showImportModal ? 'none' : 'auto'}
+        pointerEvents={showExportModal || showImportModal || showDeleteModal ? 'none' : 'auto'}
       >
         <View style={themedStyles.sidebar}>
           <View style={themedStyles.sidebarHeader}>
@@ -2072,19 +2380,33 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           <ScrollView
             contentContainerStyle={themedStyles.projectList}
             showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={closeContextMenu}
           >
             {projects.map((project) => {
               const isActive = project.id === selectedProjectId;
+              const isDeleteSelected = deleteSelection.has(project.id);
+              const showActive = isActive && !isDeleteMode;
               return (
                 <Pressable
                   key={project.id}
-                  onPress={() => void handleSelectProject(project.id)}
-                  style={[themedStyles.projectItem, isActive && themedStyles.projectItemActive]}
+                  onPress={() =>
+                    isDeleteMode
+                      ? handleToggleDeleteSelection(project.id)
+                      : void handleSelectProject(project.id)
+                  }
+                  onPointerDown={(event) => handleProjectPointerDown(event, project.id)}
+                  style={[
+                    themedStyles.projectItem,
+                    showActive && themedStyles.projectItemActive,
+                    isDeleteMode && themedStyles.projectItemDeleteMode,
+                    isDeleteSelected && themedStyles.projectItemDeleteSelected,
+                  ]}
                 >
                   <View
                     style={[
                       themedStyles.projectIndicator,
-                      isActive && themedStyles.projectIndicatorActive,
+                      showActive && themedStyles.projectIndicatorActive,
+                      isDeleteSelected && themedStyles.projectIndicatorDelete,
                     ]}
                   />
                   <View style={themedStyles.projectContent}>
@@ -2092,12 +2414,18 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                       variant="label"
                       style={[
                         themedStyles.projectItemText,
-                        isActive && themedStyles.projectItemTextActive,
+                        showActive && themedStyles.projectItemTextActive,
+                        isDeleteSelected && themedStyles.projectItemTextDelete,
                       ]}
                     >
                       {project.name}
                     </ThemedText>
-                    <ThemedText style={themedStyles.projectMeta}>
+                    <ThemedText
+                      style={[
+                        themedStyles.projectMeta,
+                        isDeleteSelected && themedStyles.projectMetaDelete,
+                      ]}
+                    >
                       Edited {formatEditedLabel(project.updatedAt ?? project.lastOpenedAt, now)}
                     </ThemedText>
                   </View>
@@ -2107,7 +2435,32 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           </ScrollView>
 
           <View style={themedStyles.newProjectSection}>
-            {isCreatingProject ? (
+            {isDeleteMode ? (
+              <View style={themedStyles.deleteModePanel}>
+                <ThemedText style={themedStyles.deleteModeTitle}>
+                  Select projects to delete
+                </ThemedText>
+                <ThemedText style={themedStyles.deleteModeCount}>
+                  {deleteSelectionCount === 0
+                    ? 'No projects selected'
+                    : `${deleteSelectionCount} selected`}
+                </ThemedText>
+                <View style={themedStyles.deleteModeActions}>
+                  <Button onPress={handleCancelDeleteMode} variant="outline" size="sm">
+                    Cancel
+                  </Button>
+                  <View style={themedStyles.newProjectSpacer} />
+                  <Button
+                    onPress={() => handleOpenDeleteModal(Array.from(deleteSelection))}
+                    variant="destructive"
+                    size="sm"
+                    disabled={deleteSelectionCount === 0}
+                  >
+                    Delete
+                  </Button>
+                </View>
+              </View>
+            ) : isCreatingProject ? (
               <>
                 <TextInput
                   value={newProjectName}
@@ -2145,6 +2498,20 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                 {seedError ? (
                   <ThemedText style={themedStyles.seedStatus}>{seedError}</ThemedText>
                 ) : null}
+                <View style={themedStyles.deleteToggleWrapper}>
+                  <Pressable
+                    onPress={handleToggleDeleteMode}
+                    disabled={projects.length === 0}
+                    style={({ pressed }) => [
+                      themedStyles.deleteToggle,
+                      pressed && themedStyles.deleteTogglePressed,
+                      projects.length === 0 && themedStyles.deleteToggleDisabled,
+                    ]}
+                  >
+                    <TrashIcon size={14} color={theme.colors.destructive} />
+                    <ThemedText style={themedStyles.deleteToggleText}>Delete Projects</ThemedText>
+                  </Pressable>
+                </View>
               </>
             )}
           </View>
@@ -2385,6 +2752,23 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           ) : null}
         </ScrollView>
       </View>
+      {contextMenu ? (
+        <View style={themedStyles.contextMenuLayer} pointerEvents="auto">
+          <Pressable style={themedStyles.contextMenuScrim} onPress={closeContextMenu} />
+          <View style={[themedStyles.contextMenu, { top: contextMenu.y, left: contextMenu.x }]}>
+            <Pressable
+              onPress={() => handleOpenDeleteModal([contextMenu.projectId])}
+              style={({ pressed }) => [
+                themedStyles.contextMenuItem,
+                pressed && themedStyles.contextMenuItemPressed,
+              ]}
+            >
+              <TrashIcon size={14} color={theme.colors.destructive} />
+              <ThemedText style={themedStyles.contextMenuText}>Delete</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
       {selectedResponse ? (
         <View style={themedStyles.drawerBackdrop} pointerEvents="auto">
           <Pressable style={themedStyles.drawerScrim} onPress={handleCloseResponseDetail} />
@@ -2437,6 +2821,50 @@ export function RequirementsEditorScreen(): React.JSX.Element {
             <View style={themedStyles.drawerActions}>
               <Button variant="outline" onPress={handleCloseResponseDetail} size="sm">
                 Close
+              </Button>
+            </View>
+          </View>
+        </View>
+      ) : null}
+      {showDeleteModal ? (
+        <View style={themedStyles.modalBackdrop} pointerEvents="auto">
+          <Pressable style={themedStyles.modalScrim} onPress={handleCloseDeleteModal} />
+          <View style={themedStyles.modalCard}>
+            <ThemedText variant="h1" style={themedStyles.modalTitle}>
+              Delete project{pendingDeleteIds.length === 1 ? '' : 's'}?
+            </ThemedText>
+            <ThemedText variant="body" style={themedStyles.deleteModalBody}>
+              This removes requirements and imported responses. This can't be undone.
+            </ThemedText>
+            <View style={themedStyles.deleteList}>
+              {visibleDeleteProjects.map((project) => (
+                <ThemedText key={project.id} style={themedStyles.deleteListItem}>
+                  {project.name}
+                </ThemedText>
+              ))}
+              {remainingDeleteCount > 0 ? (
+                <ThemedText style={themedStyles.deleteListMore}>
+                  + {remainingDeleteCount} more
+                </ThemedText>
+              ) : null}
+            </View>
+            {deleteError ? (
+              <ThemedText style={[themedStyles.exportStatus, themedStyles.errorText]}>
+                {deleteError}
+              </ThemedText>
+            ) : null}
+            <View style={themedStyles.modalActions}>
+              <Button variant="outline" onPress={handleCloseDeleteModal} size="sm">
+                Cancel
+              </Button>
+              <View style={themedStyles.modalActionSpacer} />
+              <Button
+                variant="destructive"
+                onPress={handleConfirmDelete}
+                size="sm"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
             </View>
           </View>

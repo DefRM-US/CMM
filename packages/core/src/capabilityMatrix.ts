@@ -251,6 +251,25 @@ export const createProject = (name: string): Promise<ProjectRecord> =>
     );
   });
 
+export const deleteProjects = (projectIds: string[]): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const uniqueIds = Array.from(new Set(projectIds.filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      resolve();
+      return;
+    }
+
+    const db = getDatabase();
+    const placeholders = uniqueIds.map(() => '?').join(', ');
+    db.transaction(
+      (txn) => {
+        txn.executeSql(`DELETE FROM projects WHERE id IN (${placeholders})`, uniqueIds);
+      },
+      reject,
+      resolve,
+    );
+  });
+
 export const seedSampleProjects = async (size: SampleSeedSize = 'compact'): Promise<number> => {
   const existing = await listProjects();
   if (existing.some((project) => project.name.startsWith(SAMPLE_PROJECT_PREFIX))) {

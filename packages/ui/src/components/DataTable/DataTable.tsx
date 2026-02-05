@@ -14,6 +14,7 @@ export interface DataTableColumn<T> {
   key: keyof T & string;
   header: string;
   sortable?: boolean;
+  width?: number;
 }
 
 export interface DataTableProps<T> {
@@ -70,21 +71,23 @@ export function DataTable<T>({ data, columns, keyExtractor }: DataTableProps<T>)
     return String(value);
   };
 
+  const getColumnStyle = (width?: number) => (width ? { width, flexShrink: 0 } : { flex: 1 });
+
   const themedStyles = StyleSheet.create({
     container: {
       borderWidth: 1,
       borderColor: theme.colors.border,
       borderRadius: theme.radius.md,
       overflow: 'hidden',
+      backgroundColor: `${theme.colors.card}E6`,
     },
     headerRow: {
       flexDirection: 'row',
-      backgroundColor: theme.colors.muted,
-      borderBottomWidth: 1,
+      backgroundColor: theme.colors.accent,
+      borderBottomWidth: 2,
       borderBottomColor: theme.colors.border,
     },
     headerCell: {
-      flex: 1,
       padding: theme.spacing[3],
     },
     sortableHeader: {
@@ -92,27 +95,31 @@ export function DataTable<T>({ data, columns, keyExtractor }: DataTableProps<T>)
     },
     headerText: {
       fontWeight: theme.typography.fontWeight.semibold,
-      color: theme.colors.foreground,
-      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.mutedForeground,
+      fontSize: theme.typography.fontSize.xs,
+      fontFamily: theme.typography.fontFamily.mono,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
     },
     row: {
       flexDirection: 'row',
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
+      minHeight: 48,
     },
     rowEven: {
-      backgroundColor: 'transparent',
+      backgroundColor: `${theme.colors.card}E6`,
     },
     rowOdd: {
-      backgroundColor: `${theme.colors.muted}40`, // 25% opacity
+      backgroundColor: `${theme.colors.muted}1A`,
     },
     cell: {
-      flex: 1,
       padding: theme.spacing[3],
     },
     cellText: {
       color: theme.colors.foreground,
       fontSize: theme.typography.fontSize.sm,
+      lineHeight: theme.typography.fontSize.sm + 6,
     },
     emptyRow: {
       padding: theme.spacing[6],
@@ -134,11 +141,15 @@ export function DataTable<T>({ data, columns, keyExtractor }: DataTableProps<T>)
             <Pressable
               key={col.key}
               onPress={() => toggleSort(col.key, sortable)}
-              style={[themedStyles.headerCell, sortable && themedStyles.sortableHeader]}
+              style={[
+                themedStyles.headerCell,
+                getColumnStyle(col.width),
+                sortable && themedStyles.sortableHeader,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={`Sort by ${col.header}`}
             >
-              <ThemedText style={themedStyles.headerText}>
+              <ThemedText style={themedStyles.headerText} numberOfLines={2} ellipsizeMode="tail">
                 {col.header}
                 {getSortIndicator(col.key)}
               </ThemedText>
@@ -154,7 +165,7 @@ export function DataTable<T>({ data, columns, keyExtractor }: DataTableProps<T>)
           style={[themedStyles.row, index % 2 === 0 ? themedStyles.rowEven : themedStyles.rowOdd]}
         >
           {columns.map((col) => (
-            <View key={col.key} style={themedStyles.cell}>
+            <View key={col.key} style={[themedStyles.cell, getColumnStyle(col.width)]}>
               <ThemedText style={themedStyles.cellText}>
                 {getCellValue(row.original, col.key)}
               </ThemedText>

@@ -58,6 +58,7 @@ export interface TextInputProps
   containerStyle?: ViewStyle;
   inputStyle?: RNTextInputProps['style'];
   error?: string | undefined;
+  hideErrorMessage?: boolean;
   onKeyDown?: (event: KeyEvent) => void;
   onKeyUp?: (event: KeyEvent) => void;
   keyDownEvents?: HandledKeyEvent[];
@@ -73,6 +74,7 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
     containerStyle,
     inputStyle,
     error,
+    hideErrorMessage,
     onBlur,
     onFocus,
     keyboardType,
@@ -165,7 +167,7 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
           onContentSizeChange={onContentSizeChange}
         />
       </View>
-      {error != null && (
+      {error != null && !hideErrorMessage && (
         <Text style={[styles.errorText, { color: theme.colors.destructive }]}>{error}</Text>
       )}
     </View>

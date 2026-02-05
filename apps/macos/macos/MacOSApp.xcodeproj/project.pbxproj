@@ -11,9 +11,10 @@
 		514201522437B4B40078DB4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 514201512437B4B40078DB4F /* Assets.xcassets */; };
 		514201552437B4B40078DB4F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 514201532437B4B40078DB4F /* Main.storyboard */; };
 		514201582437B4B40078DB4F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 514201572437B4B40078DB4F /* main.m */; };
-		B5A1F0AB24C8F1A000A1B2C3 /* SavePanelModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = B5A1F0AA24C8F1A000A1B2C3 /* SavePanelModule.mm */; };
 		7DD48DE16F029EAFB323DED4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D0EB06A312D8242839DE2749 /* PrivacyInfo.xcprivacy */; };
 		A1F3A66BC3AF5E95620D9C5C /* libPods-MacOSApp-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7BB471C3C367B08A1602116E /* libPods-MacOSApp-macOS.a */; };
+		B5A1F0AB24C8F1A000A1B2C3 /* SavePanelModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = B5A1F0AA24C8F1A000A1B2C3 /* SavePanelModule.mm */; };
+		B5A1F0AE24C8F1A000A1B2C4 /* OpenPanelModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = B5A1F0AD24C8F1A000A1B2C4 /* OpenPanelModule.mm */; };
 		E8ABC4AFF46D001817E42FBE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D0EB06A312D8242839DE2749 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
@@ -24,14 +25,16 @@
 		514201492437B4B30078DB4F /* MacOSApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacOSApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5142014B2437B4B30078DB4F /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		5142014C2437B4B30078DB4F /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
-		B5A1F0A924C8F1A000A1B2C3 /* SavePanelModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SavePanelModule.h; sourceTree = "<group>"; };
-		B5A1F0AA24C8F1A000A1B2C3 /* SavePanelModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SavePanelModule.mm; sourceTree = "<group>"; };
 		514201512437B4B40078DB4F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		514201542437B4B40078DB4F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		514201562437B4B40078DB4F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		514201572437B4B40078DB4F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		514201592437B4B40078DB4F /* MacOSApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MacOSApp.entitlements; sourceTree = "<group>"; };
 		7BB471C3C367B08A1602116E /* libPods-MacOSApp-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MacOSApp-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5A1F0A924C8F1A000A1B2C3 /* SavePanelModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SavePanelModule.h; sourceTree = "<group>"; };
+		B5A1F0AA24C8F1A000A1B2C3 /* SavePanelModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SavePanelModule.mm; sourceTree = "<group>"; };
+		B5A1F0AC24C8F1A000A1B2C4 /* OpenPanelModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenPanelModule.h; sourceTree = "<group>"; };
+		B5A1F0AD24C8F1A000A1B2C4 /* OpenPanelModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenPanelModule.mm; sourceTree = "<group>"; };
 		D0EB06A312D8242839DE2749 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -71,6 +74,8 @@
 				5142014C2437B4B30078DB4F /* AppDelegate.mm */,
 				B5A1F0A924C8F1A000A1B2C3 /* SavePanelModule.h */,
 				B5A1F0AA24C8F1A000A1B2C3 /* SavePanelModule.mm */,
+				B5A1F0AC24C8F1A000A1B2C4 /* OpenPanelModule.h */,
+				B5A1F0AD24C8F1A000A1B2C4 /* OpenPanelModule.mm */,
 				514201512437B4B40078DB4F /* Assets.xcassets */,
 				514201532437B4B40078DB4F /* Main.storyboard */,
 				514201562437B4B40078DB4F /* Info.plist */,
@@ -319,6 +324,7 @@
 				514201582437B4B40078DB4F /* main.m in Sources */,
 				5142014D2437B4B30078DB4F /* AppDelegate.mm in Sources */,
 				B5A1F0AB24C8F1A000A1B2C3 /* SavePanelModule.mm in Sources */,
+				B5A1F0AE24C8F1A000A1B2C4 /* OpenPanelModule.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -395,7 +401,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = MacOSApp;
+				PRODUCT_NAME = "Capability Matrix Manager";
 				SDKROOT = macosx;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -418,7 +424,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = MacOSApp;
+				PRODUCT_NAME = "Capability Matrix Manager";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
 			};

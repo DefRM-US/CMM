@@ -1,5 +1,6 @@
 import './globals'; // Must be first
-import { DocumentDirectoryPath, writeFile } from '@dr.pogodin/react-native-fs';
+import { DocumentDirectoryPath, readFile, writeFile } from '@dr.pogodin/react-native-fs';
+import { inflateSync } from 'fflate';
 
 export interface SpreadsheetColumn {
   header: string;
@@ -36,6 +37,19 @@ export interface CapabilityMatrixExportOptions {
   sheetName?: string;
   filename?: string;
   filePath?: string;
+}
+
+export interface ParsedCapabilityMatrixRow {
+  number: string;
+  text: string;
+  score: number | null;
+  pastPerformance: string;
+  comments: string;
+}
+
+export interface ParsedCapabilityMatrixSheet {
+  title: string;
+  rows: ParsedCapabilityMatrixRow[];
 }
 
 const resolveOptions = (
@@ -137,6 +151,332 @@ export const buildCapabilityMatrixXlsxBuffer = (options: CapabilityMatrixExportO
     { path: 'xl/styles.xml', data: Buffer.from(stylesXml, 'utf8') },
     { path: 'xl/worksheets/sheet1.xml', data: Buffer.from(worksheetXml, 'utf8') },
   ]);
+};
+
+const normalizeCellText = (value: string | null): string => (value ?? '').trim();
+
+const xmlUnescape = (value: string): string =>
+  value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+
+const parseSharedStrings = (xml: string): string[] => {
+  const strings: string[] = [];
+  const siRegex = /<si[^>]*>([\s\S]*?)<\/si>/g;
+  let match: RegExpExecArray | null = siRegex.exec(xml);
+  while (match) {
+    const siContent = match[1] ?? '';
+    const textParts = Array.from(siContent.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)).map((m) =>
+      xmlUnescape(m[1] ?? ''),
+    );
+    strings.push(textParts.join(''));
+    match = siRegex.exec(xml);
+  }
+  return strings;
+};
+
+const parseWorkbookSheetName = (
+  workbookXml: string | null,
+  relsXml: string | null,
+  preferredName: string,
+): string | null => {
+  if (!workbookXml || !relsXml) return null;
+  const sheets = Array.from(
+    workbookXml.matchAll(/<sheet[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"[^>]*\/>/g),
+  ).map((match) => ({
+    name: xmlUnescape(match[1] ?? ''),
+    relId: match[2] ?? '',
+  }));
+  if (sheets.length === 0) return null;
+
+  const relMap = new Map<string, string>();
+  const rels = Array.from(
+    relsXml.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"[^>]*\/>/g),
+  );
+  rels.forEach((rel) => {
+    const id = rel[1] ?? '';
+    const target = rel[2] ?? '';
+    if (id && target) {
+      relMap.set(id, target);
+    }
+  });
+
+  const preferred = sheets.find((sheet) => sheet.name === preferredName) ?? sheets[0];
+  if (!preferred) return null;
+  const target = relMap.get(preferred.relId);
+  if (!target) return null;
+  return target.startsWith('xl/') ? target : `xl/${target}`;
+};
+
+const parseWorksheetXml = (
+  xml: string,
+  sharedStrings: string[],
+  log?: ParseLogFn,
+): ParsedCapabilityMatrixSheet => {
+  const rowsByIndex = new Map<number, Partial<ParsedCapabilityMatrixRow>>();
+  const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+  let cellMatch: RegExpExecArray | null;
+  let parsedCells = 0;
+
+  const getAttr = (attrs: string, name: string): string | null => {
+    const match = attrs.match(new RegExp(`${name}="([^"]+)"`));
+    return match ? (match[1] ?? null) : null;
+  };
+
+  const readCellValue = (cellType: string | null, cellBody: string): string => {
+    if (cellType === 'inlineStr') {
+      const texts = Array.from(cellBody.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)).map((m) =>
+        xmlUnescape(m[1] ?? ''),
+      );
+      return texts.join('');
+    }
+
+    const valueMatch = cellBody.match(/<v[^>]*>([\s\S]*?)<\/v>/);
+    const rawValue = valueMatch ? xmlUnescape(valueMatch[1] ?? '') : '';
+
+    if (cellType === 's') {
+      const index = Number(rawValue);
+      return Number.isFinite(index) && sharedStrings[index] !== undefined
+        ? (sharedStrings[index] ?? '')
+        : '';
+    }
+
+    return rawValue;
+  };
+
+  cellMatch = cellRegex.exec(xml);
+  while (cellMatch) {
+    const attrs = cellMatch[1] ?? '';
+    const body = cellMatch[2] ?? '';
+    const cellRef = getAttr(attrs, 'r');
+    if (!cellRef) {
+      cellMatch = cellRegex.exec(xml);
+      continue;
+    }
+    const cellType = getAttr(attrs, 't');
+
+    const match = cellRef.match(/^([A-Z]+)(\d+)$/);
+    if (!match) {
+      cellMatch = cellRegex.exec(xml);
+      continue;
+    }
+    const col = match[1] ?? '';
+    const rowIndex = Number(match[2]);
+    if (!Number.isFinite(rowIndex)) {
+      cellMatch = cellRegex.exec(xml);
+      continue;
+    }
+
+    const value = readCellValue(cellType, body);
+    const row = rowsByIndex.get(rowIndex) ?? {};
+
+    switch (col) {
+      case 'A':
+        row.number = normalizeCellText(value);
+        break;
+      case 'B':
+        row.text = normalizeCellText(value);
+        break;
+      case 'C':
+        row.score = value.trim() === '' ? null : Number(value);
+        break;
+      case 'D':
+        row.pastPerformance = normalizeCellText(value);
+        break;
+      case 'E':
+        row.comments = normalizeCellText(value);
+        break;
+      default:
+        break;
+    }
+
+    rowsByIndex.set(rowIndex, row);
+    parsedCells += 1;
+    if (parsedCells % 200 === 0) {
+      log?.(`Parsed ${parsedCells} cell(s)...`);
+    }
+    cellMatch = cellRegex.exec(xml);
+  }
+
+  const titleRow = rowsByIndex.get(1);
+  const title = normalizeCellText(typeof titleRow?.number === 'string' ? titleRow.number : '');
+  const rows: ParsedCapabilityMatrixRow[] = [];
+
+  const rowIndices = Array.from(rowsByIndex.keys())
+    .filter((rowIndex) => rowIndex >= 7)
+    .sort((a, b) => a - b);
+
+  rowIndices.forEach((rowIndex) => {
+    const row = rowsByIndex.get(rowIndex);
+    if (!row) return;
+    const number = row.number ?? '';
+    const text = row.text ?? '';
+    const score = Number.isFinite(row.score ?? NaN) ? (row.score ?? null) : null;
+    const pastPerformance = row.pastPerformance ?? '';
+    const comments = row.comments ?? '';
+
+    const hasContent =
+      number.length > 0 ||
+      text.length > 0 ||
+      score !== null ||
+      pastPerformance.length > 0 ||
+      comments.length > 0;
+
+    if (!hasContent) return;
+
+    rows.push({
+      number,
+      text,
+      score,
+      pastPerformance,
+      comments,
+    });
+  });
+
+  return { title, rows };
+};
+
+type ZipEntryMeta = {
+  name: string;
+  method: number;
+  compressedSize: number;
+  uncompressedSize: number;
+  localHeaderOffset: number;
+};
+
+const readZipEntries = (buffer: Buffer, log?: ParseLogFn): Map<string, ZipEntryMeta> => {
+  const eocdSignature = 0x06054b50;
+  const cdSignature = 0x02014b50;
+  let eocdOffset = -1;
+  const minOffset = Math.max(0, buffer.length - 22 - 0xffff);
+
+  for (let offset = buffer.length - 22; offset >= minOffset; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === eocdSignature) {
+      eocdOffset = offset;
+      break;
+    }
+  }
+
+  if (eocdOffset === -1) {
+    throw new Error('Invalid XLSX file (missing ZIP end record).');
+  }
+
+  const centralDirectorySize = buffer.readUInt32LE(eocdOffset + 12);
+  const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
+  const entries = new Map<string, ZipEntryMeta>();
+  let cursor = centralDirectoryOffset;
+  const end = centralDirectoryOffset + centralDirectorySize;
+
+  while (cursor < end) {
+    if (buffer.readUInt32LE(cursor) !== cdSignature) {
+      break;
+    }
+    const method = buffer.readUInt16LE(cursor + 10);
+    const compressedSize = buffer.readUInt32LE(cursor + 20);
+    const uncompressedSize = buffer.readUInt32LE(cursor + 24);
+    const nameLength = buffer.readUInt16LE(cursor + 28);
+    const extraLength = buffer.readUInt16LE(cursor + 30);
+    const commentLength = buffer.readUInt16LE(cursor + 32);
+    const localHeaderOffset = buffer.readUInt32LE(cursor + 42);
+    const nameStart = cursor + 46;
+    const nameEnd = nameStart + nameLength;
+    const name = buffer.toString('utf8', nameStart, nameEnd);
+
+    entries.set(name, {
+      name,
+      method,
+      compressedSize,
+      uncompressedSize,
+      localHeaderOffset,
+    });
+
+    cursor = nameEnd + extraLength + commentLength;
+  }
+
+  log?.(`ZIP entries: ${entries.size}.`);
+  return entries;
+};
+
+const readZipEntryData = (buffer: Buffer, entry: ZipEntryMeta): Buffer => {
+  const localSignature = 0x04034b50;
+  const offset = entry.localHeaderOffset;
+  if (buffer.readUInt32LE(offset) !== localSignature) {
+    throw new Error(`Invalid ZIP entry header for ${entry.name}.`);
+  }
+  const nameLength = buffer.readUInt16LE(offset + 26);
+  const extraLength = buffer.readUInt16LE(offset + 28);
+  const dataStart = offset + 30 + nameLength + extraLength;
+  const dataEnd = dataStart + entry.compressedSize;
+  const data = buffer.slice(dataStart, dataEnd);
+
+  if (entry.method === 0) {
+    return data;
+  }
+  if (entry.method === 8) {
+    return Buffer.from(inflateSync(data));
+  }
+
+  throw new Error(`Unsupported ZIP compression method (${entry.method}) for ${entry.name}.`);
+};
+
+type ParseLogFn = ((message: string) => void) | undefined;
+
+export const parseCapabilityMatrixXlsxBuffer = async (
+  buffer: Buffer,
+  log?: ParseLogFn,
+): Promise<ParsedCapabilityMatrixSheet> => {
+  log?.('Parsing XLSX ZIP...');
+  const entries = readZipEntries(buffer, log);
+  const workbookEntry = entries.get('xl/workbook.xml');
+  const relsEntry = entries.get('xl/_rels/workbook.xml.rels');
+  const sharedStringsEntry = entries.get('xl/sharedStrings.xml');
+
+  const workbookXml = workbookEntry
+    ? readZipEntryData(buffer, workbookEntry).toString('utf8')
+    : null;
+  const relsXml = relsEntry ? readZipEntryData(buffer, relsEntry).toString('utf8') : null;
+  const sheetPath =
+    parseWorkbookSheetName(workbookXml, relsXml, 'Capability Matrix') ??
+    (entries.has('xl/worksheets/sheet1.xml') ? 'xl/worksheets/sheet1.xml' : null);
+
+  if (!sheetPath) {
+    throw new Error('Could not locate worksheet data in XLSX file.');
+  }
+
+  const sheetEntry = entries.get(sheetPath);
+  if (!sheetEntry) {
+    throw new Error(`Worksheet not found: ${sheetPath}`);
+  }
+
+  log?.(`Using worksheet: ${sheetPath}`);
+  const sheetXml = readZipEntryData(buffer, sheetEntry).toString('utf8');
+  log?.(`Worksheet size: ${sheetXml.length} chars.`);
+
+  const sharedStrings = sharedStringsEntry
+    ? parseSharedStrings(readZipEntryData(buffer, sharedStringsEntry).toString('utf8'))
+    : [];
+  if (sharedStrings.length > 0) {
+    log?.(`Loaded ${sharedStrings.length} shared strings.`);
+  }
+
+  const parsed = parseWorksheetXml(sheetXml, sharedStrings, log);
+  log?.(`Parsed ${parsed.rows.length} data row(s).`);
+  return parsed;
+};
+
+export const parseCapabilityMatrixSpreadsheet = async (
+  filePath: string,
+  log?: ParseLogFn,
+): Promise<ParsedCapabilityMatrixSheet> => {
+  log?.('Reading file...');
+  const base64 = await readFile(filePath, 'base64');
+  log?.(`Read ${base64.length} base64 chars.`);
+  const buffer = Buffer.from(base64, 'base64');
+  log?.(`Decoded ${buffer.length} bytes.`);
+  return parseCapabilityMatrixXlsxBuffer(buffer, log);
 };
 
 const xmlEscape = (value: string): string =>

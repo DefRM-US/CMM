@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 
-import { buildCapabilityMatrixXlsxBuffer } from '../excel';
+import { buildCapabilityMatrixXlsxBuffer, parseCapabilityMatrixXlsxBuffer } from '../excel';
 
 const buildSampleBuffer = () =>
   buildCapabilityMatrixXlsxBuffer({
@@ -47,5 +47,16 @@ describe('Capability matrix export', () => {
     expect(stylesXml).toContain('FF0070C0');
     expect(stylesXml).toContain('FF00B050');
     expect(stylesXml).toContain('FFFFFF00');
+  });
+
+  it('parses exported worksheets', async () => {
+    const buffer = buildSampleBuffer();
+    const parsed = await parseCapabilityMatrixXlsxBuffer(buffer);
+
+    expect(parsed.title).toBe('Sample Capability Matrix');
+    expect(parsed.rows.length).toBe(2);
+    expect(parsed.rows[0]?.number).toBe('1');
+    expect(parsed.rows[0]?.text).toBe('Requirement one');
+    expect(parsed.rows[0]?.score).toBe(0);
   });
 });

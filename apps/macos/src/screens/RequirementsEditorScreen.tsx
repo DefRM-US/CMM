@@ -1,17 +1,25 @@
 import {
+  type CapabilityImportRecord,
+  type CapabilityImportRowRecord,
   createProject,
   generateCapabilityMatrixSpreadsheet,
   initDatabase,
+  listCapabilityImportRows,
+  listCapabilityImports,
   listProjects,
   loadProjectRequirements,
+  type ParsedCapabilityMatrixRow,
   type ProjectRecord,
+  parseCapabilityMatrixSpreadsheet,
   type StoredRequirementRow,
+  saveCapabilityImportWithRows,
   saveProjectRequirements,
   seedSampleProjects,
   touchProject,
 } from '@repo/core';
 import {
   Button,
+  DataTable,
   type RequirementRow,
   RequirementsEditor,
   TextInput,
@@ -49,6 +57,15 @@ const computeNumbers = (rows: RequirementRow[]): string[] => {
     return counters.join('.');
   });
 };
+
+const normalizeText = (value: string): string => value.trim().replace(/\s+/g, ' ').toLowerCase();
+
+const getFilename = (filePath: string): string => {
+  const parts = filePath.split('/');
+  return parts[parts.length - 1] || filePath;
+};
+
+const stripExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
 
 const formatTimestamp = (date: Date): string => {
   const pad = (value: number) => value.toString().padStart(2, '0');
@@ -229,7 +246,38 @@ type SavePanelModule = {
   }) => Promise<string | null>;
 };
 
+type OpenPanelModule = {
+  showOpenPanel: (options: {
+    allowedExtensions?: string[];
+    allowsMultipleSelection?: boolean;
+  }) => Promise<string[] | null>;
+};
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+type MatrixTab = 'base' | 'responses';
+
+type PendingImport = {
+  id: string;
+  filePath: string;
+  filename: string;
+  companyName: string;
+  sheetTitle: string;
+  rows: ParsedCapabilityMatrixRow[];
+};
+
+type ImportReviewReason = 'missing' | 'text_mismatch';
+
+type ImportReviewItem = {
+  id: string;
+  importId: string;
+  rowIndex: number;
+  number: string;
+  text: string;
+  reason: ImportReviewReason;
+  mappedNumber: string;
+  ignored: boolean;
+};
 
 export function RequirementsEditorScreen(): React.JSX.Element {
   const { theme } = useTheme();
@@ -259,6 +307,19 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const [legend1, setLegend1] = useState('');
   const [legend0, setLegend0] = useState('');
 
+  const [isImporting, setIsImporting] = useState(false);
+  const [isApplyingImport, setIsApplyingImport] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [pendingImports, setPendingImports] = useState<PendingImport[]>([]);
+  const [reviewItems, setReviewItems] = useState<ImportReviewItem[]>([]);
+  const [responsesError, setResponsesError] = useState<string | null>(null);
+  const [capabilityImports, setCapabilityImports] = useState<CapabilityImportRecord[]>([]);
+  const [capabilityImportRows, setCapabilityImportRows] = useState<
+    Record<string, CapabilityImportRowRecord[]>
+  >({});
+
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isHydrating, setIsHydrating] = useState(false);
@@ -278,6 +339,32 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   );
 
   const numbers = useMemo(() => computeNumbers(rows), [rows]);
+  const importSeedRef = useRef(0);
+  const tabPreferenceRef = useRef(false);
+  const [activeTab, setActiveTab] = useState<MatrixTab>('base');
+
+  const requirementIndex = useMemo(
+    () =>
+      rows.map((row, index) => ({
+        id: row.id,
+        number: numbers[index] ?? `${index + 1}`,
+        text: row.text.trim(),
+      })),
+    [numbers, rows],
+  );
+
+  const requirementByNumber = useMemo(() => {
+    const map = new Map<string, { id: string; number: string; text: string }>();
+    requirementIndex.forEach((req) => {
+      map.set(req.number, req);
+    });
+    return map;
+  }, [requirementIndex]);
+
+  const hasImportedResponses = capabilityImports.length > 0;
+  const responseCountLabel = `${capabilityImports.length} compan${
+    capabilityImports.length === 1 ? 'y' : 'ies'
+  }`;
 
   const buildExportRows = useCallback(
     () =>
@@ -392,6 +479,22 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     [hasUnsavedChanges, mapRowsForSave, markRowsSaved],
   );
 
+  const loadCapabilityResponses = useCallback(async (projectId: string) => {
+    setResponsesError(null);
+    try {
+      const imports = await listCapabilityImports(projectId);
+      const rowsByImport: Record<string, CapabilityImportRowRecord[]> = {};
+      for (const entry of imports) {
+        rowsByImport[entry.id] = await listCapabilityImportRows(entry.id);
+      }
+      setCapabilityImports(imports);
+      setCapabilityImportRows(rowsByImport);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load responses.';
+      setResponsesError(message);
+    }
+  }, []);
+
   const flushPendingSave = useCallback(() => {
     const pending = pendingSaveRef.current;
     if (!pending) return;
@@ -491,6 +594,14 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     setSaveStatus('idle');
     setSaveError(null);
     resetExportState();
+    setImportError(null);
+    setImportStatus(null);
+    setShowImportModal(false);
+    setPendingImports([]);
+    setReviewItems([]);
+    setResponsesError(null);
+    setCapabilityImports([]);
+    setCapabilityImportRows({});
 
     const load = async () => {
       try {
@@ -512,6 +623,10 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         if (isActive) {
           setProjects(updatedProjects);
         }
+
+        if (isActive) {
+          await loadCapabilityResponses(selectedProjectId);
+        }
       } catch (error) {
         if (!isActive) return;
         const message = error instanceof Error ? error.message : 'Failed to load project.';
@@ -529,7 +644,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     return () => {
       isActive = false;
     };
-  }, [markRowsSaved, resetExportState, selectedProjectId]);
+  }, [loadCapabilityResponses, markRowsSaved, resetExportState, selectedProjectId]);
 
   useEffect(() => {
     if (!selectedProjectId || isHydrating) return;
@@ -678,6 +793,299 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     void runExport();
   }, [isExporting, runExport]);
 
+  const createPendingImportId = useCallback(() => {
+    importSeedRef.current += 1;
+    return `pending-${Date.now().toString(36)}-${importSeedRef.current.toString(36)}`;
+  }, []);
+
+  const buildReviewItems = useCallback(
+    (importId: string, rowsToReview: ParsedCapabilityMatrixRow[]): ImportReviewItem[] => {
+      const items: ImportReviewItem[] = [];
+      rowsToReview.forEach((row, index) => {
+        const number = row.number.trim();
+        const text = row.text.trim();
+        const requirement = requirementByNumber.get(number);
+
+        if (!requirement) {
+          items.push({
+            id: `${importId}-${index}`,
+            importId,
+            rowIndex: index,
+            number,
+            text,
+            reason: 'missing',
+            mappedNumber: '',
+            ignored: false,
+          });
+          return;
+        }
+
+        if (normalizeText(requirement.text) !== normalizeText(text)) {
+          items.push({
+            id: `${importId}-${index}`,
+            importId,
+            rowIndex: index,
+            number,
+            text,
+            reason: 'text_mismatch',
+            mappedNumber: requirement.number,
+            ignored: false,
+          });
+        }
+      });
+      return items;
+    },
+    [requirementByNumber],
+  );
+
+  const handleImportPress = useCallback(async () => {
+    setImportError(null);
+    setImportStatus(null);
+
+    if (!selectedProjectId) {
+      setImportError('Create or select a project to import responses.');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const openModule = (NativeModules as { OpenPanelModule?: OpenPanelModule }).OpenPanelModule;
+      if (!openModule?.showOpenPanel) {
+        setImportError('Open dialog unavailable. Rebuild the app to enable it.');
+        return;
+      }
+
+      const selectedPaths = await openModule.showOpenPanel({
+        allowedExtensions: ['xlsx'],
+        allowsMultipleSelection: true,
+      });
+
+      if (!selectedPaths || selectedPaths.length === 0) {
+        return;
+      }
+
+      const parsedImports: PendingImport[] = [];
+      const reviewQueue: ImportReviewItem[] = [];
+
+      for (const filePath of selectedPaths) {
+        const filename = getFilename(filePath);
+        const parsed = await parseCapabilityMatrixSpreadsheet(filePath);
+        const companyName = stripExtension(filename).trim() || filename;
+        const importId = createPendingImportId();
+
+        parsedImports.push({
+          id: importId,
+          filePath,
+          filename,
+          companyName,
+          sheetTitle: parsed.title,
+          rows: parsed.rows,
+        });
+
+        reviewQueue.push(...buildReviewItems(importId, parsed.rows));
+      }
+
+      setPendingImports(parsedImports);
+      setReviewItems(reviewQueue);
+      setShowImportModal(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import spreadsheet.';
+      setImportError(message);
+    } finally {
+      setIsImporting(false);
+    }
+  }, [buildReviewItems, createPendingImportId, selectedProjectId]);
+
+  const updatePendingCompanyName = useCallback((importId: string, nextName: string) => {
+    setPendingImports((current) =>
+      current.map((entry) => (entry.id === importId ? { ...entry, companyName: nextName } : entry)),
+    );
+  }, []);
+
+  const updateReviewItem = useCallback((itemId: string, nextValue: string) => {
+    setReviewItems((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, mappedNumber: nextValue } : item)),
+    );
+  }, []);
+
+  const toggleReviewIgnore = useCallback((itemId: string) => {
+    setReviewItems((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, ignored: !item.ignored } : item)),
+    );
+  }, []);
+
+  const reviewFlags = useMemo(() => {
+    const missing = new Set<string>();
+    const invalid = new Set<string>();
+    const duplicateIds = new Set<string>();
+    const mappingByImport = new Map<string, Map<string, string[]>>();
+
+    reviewItems.forEach((item) => {
+      if (item.ignored) {
+        return;
+      }
+      const mapped = item.mappedNumber.trim();
+      if (!mapped) {
+        missing.add(item.id);
+        return;
+      }
+      if (!requirementByNumber.has(mapped)) {
+        invalid.add(item.id);
+        return;
+      }
+      const perImport = mappingByImport.get(item.importId) ?? new Map<string, string[]>();
+      const list = perImport.get(mapped) ?? [];
+      list.push(item.id);
+      perImport.set(mapped, list);
+      mappingByImport.set(item.importId, perImport);
+    });
+
+    mappingByImport.forEach((map) => {
+      map.forEach((ids) => {
+        if (ids.length > 1) {
+          ids.forEach((id) => {
+            duplicateIds.add(id);
+          });
+        }
+      });
+    });
+
+    return {
+      missing,
+      invalid,
+      duplicateIds,
+    };
+  }, [requirementByNumber, reviewItems]);
+
+  const invalidCompanyIds = useMemo(() => {
+    const invalid = new Set<string>();
+    pendingImports.forEach((entry) => {
+      if (!entry.companyName.trim()) {
+        invalid.add(entry.id);
+      }
+    });
+    return invalid;
+  }, [pendingImports]);
+
+  const pendingImportById = useMemo(() => {
+    const map = new Map<string, PendingImport>();
+    pendingImports.forEach((entry) => {
+      map.set(entry.id, entry);
+    });
+    return map;
+  }, [pendingImports]);
+
+  const reviewHintMessage = useMemo(() => {
+    if (invalidCompanyIds.size > 0) {
+      return 'Provide a company name for each file.';
+    }
+    return 'Blank or invalid mappings will be ignored on import.';
+  }, [invalidCompanyIds.size]);
+
+  const importDisabled =
+    isApplyingImport || pendingImports.length === 0 || invalidCompanyIds.size > 0;
+
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    if (!hasImportedResponses) {
+      setActiveTab('base');
+      return;
+    }
+    if (!tabPreferenceRef.current) {
+      setActiveTab('responses');
+    }
+  }, [hasImportedResponses, selectedProjectId]);
+
+  const handleTabPress = useCallback((tab: MatrixTab) => {
+    tabPreferenceRef.current = true;
+    setActiveTab(tab);
+  }, []);
+
+  const handleCloseImportModal = useCallback(() => {
+    if (isApplyingImport) return;
+    setShowImportModal(false);
+    setPendingImports([]);
+    setReviewItems([]);
+  }, [isApplyingImport]);
+
+  const handleConfirmImport = useCallback(async () => {
+    if (!selectedProjectId || isApplyingImport) return;
+    if (invalidCompanyIds.size > 0) return;
+
+    setIsApplyingImport(true);
+    setImportError(null);
+
+    try {
+      const reviewByImport = new Map<string, Map<number, ImportReviewItem>>();
+      reviewItems.forEach((item) => {
+        const map = reviewByImport.get(item.importId) ?? new Map<number, ImportReviewItem>();
+        map.set(item.rowIndex, item);
+        reviewByImport.set(item.importId, map);
+      });
+
+      for (const pending of pendingImports) {
+        const perImportReview = reviewByImport.get(pending.id) ?? new Map();
+        const usedRequirementIds = new Set<string>();
+        const rowsToSave = pending.rows.flatMap((row, index) => {
+          const review = perImportReview.get(index);
+          if (review?.ignored) {
+            return [];
+          }
+          const mappedNumber = review ? review.mappedNumber.trim() : row.number.trim();
+          if (!mappedNumber) {
+            return [];
+          }
+          const requirement = requirementByNumber.get(mappedNumber);
+          if (!requirement) {
+            return [];
+          }
+          if (usedRequirementIds.has(requirement.id)) {
+            return [];
+          }
+          usedRequirementIds.add(requirement.id);
+          return [
+            {
+              requirementId: requirement.id,
+              requirementNumber: requirement.number,
+              requirementText: requirement.text,
+              score: row.score ?? null,
+              pastPerformance: row.pastPerformance || null,
+              comments: row.comments || null,
+            },
+          ];
+        });
+
+        await saveCapabilityImportWithRows({
+          projectId: selectedProjectId,
+          companyName: pending.companyName.trim(),
+          sourceFilename: pending.filename,
+          rows: rowsToSave,
+        });
+      }
+
+      setImportStatus(
+        `Imported ${pendingImports.length} response${pendingImports.length === 1 ? '' : 's'}.`,
+      );
+      setPendingImports([]);
+      setReviewItems([]);
+      setShowImportModal(false);
+      await loadCapabilityResponses(selectedProjectId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save imported responses.';
+      setImportError(message);
+    } finally {
+      setIsApplyingImport(false);
+    }
+  }, [
+    invalidCompanyIds.size,
+    isApplyingImport,
+    loadCapabilityResponses,
+    pendingImports,
+    requirementByNumber,
+    reviewItems,
+    selectedProjectId,
+  ]);
+
   const modalKeyEvents = useMemo(
     () => [{ key: 'Escape' }, { key: 'Enter' }, { key: 'Return' }],
     [],
@@ -765,6 +1173,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const handleSelectProject = useCallback(
     async (projectId: string) => {
       if (projectId === selectedProjectId) return;
+      tabPreferenceRef.current = false;
       if (saveTimeoutRef.current && selectedProjectId && !isHydrating) {
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
@@ -794,6 +1203,62 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     if (saveStatus === 'error') return 'Save failed';
     return 'Autosave';
   }, [saveStatus, selectedProjectId]);
+
+  type MatrixRow = { id: string; number: string; text: string } & Record<string, string>;
+
+  const formatResponseCell = useCallback((row: CapabilityImportRowRecord): string => {
+    const lines: string[] = [];
+    const scoreLabel = row.score === null || row.score === undefined ? '' : String(row.score);
+    lines.push(`Score: ${scoreLabel}`);
+    if (row.pastPerformance && row.pastPerformance.trim().length > 0) {
+      lines.push(`Past: ${row.pastPerformance.trim()}`);
+    }
+    if (row.comments && row.comments.trim().length > 0) {
+      lines.push(`Comments: ${row.comments.trim()}`);
+    }
+    return lines.join('\n');
+  }, []);
+
+  const matrixData = useMemo<MatrixRow[]>(() => {
+    const rowsByRequirement = new Map<string, MatrixRow>();
+    const companyKeys = capabilityImports.map((entry) => `company_${entry.id}`);
+
+    const baseRows = requirementIndex.map((req) => {
+      const base: MatrixRow = { id: req.id, number: req.number, text: req.text };
+      companyKeys.forEach((key) => {
+        base[key] = '';
+      });
+      rowsByRequirement.set(req.id, base);
+      return base;
+    });
+
+    capabilityImports.forEach((entry) => {
+      const key = `company_${entry.id}`;
+      const rows = capabilityImportRows[entry.id] ?? [];
+      rows.forEach((row) => {
+        if (!row.requirementId) return;
+        const target = rowsByRequirement.get(row.requirementId);
+        if (!target) return;
+        target[key] = formatResponseCell(row);
+      });
+    });
+
+    return baseRows;
+  }, [capabilityImportRows, capabilityImports, formatResponseCell, requirementIndex]);
+
+  const matrixColumns = useMemo(() => {
+    const columns = [
+      { key: 'number', header: 'Number', sortable: true, width: 110 },
+      { key: 'text', header: 'Requirement', sortable: true, width: 360 },
+    ];
+    const companyColumns = capabilityImports.map((entry) => ({
+      key: `company_${entry.id}`,
+      header: entry.companyName,
+      sortable: false,
+      width: 260,
+    }));
+    return [...columns, ...companyColumns];
+  }, [capabilityImports]);
 
   const gridRows = useMemo(() => Array.from({ length: 9 }, (_, index) => index), []);
   const gridColumns = useMemo(() => Array.from({ length: 7 }, (_, index) => index), []);
@@ -1051,6 +1516,12 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           fontSize: theme.typography.fontSize.xs,
           color: theme.colors.mutedForeground,
         },
+        importStatus: {
+          marginTop: theme.spacing[2],
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+        },
         editorPanel: {
           width: '100%',
           borderRadius: theme.radius.none,
@@ -1058,6 +1529,98 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           backgroundColor: `${theme.colors.card}E6`,
           borderWidth: 1,
           borderColor: theme.colors.border,
+        },
+        panelTitle: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.sm,
+          textTransform: 'uppercase',
+          letterSpacing: 1.5,
+          color: theme.colors.mutedForeground,
+        },
+        panelSubtitle: {
+          marginTop: theme.spacing[1],
+          color: theme.colors.mutedForeground,
+        },
+        panelDivider: {
+          height: 1,
+          backgroundColor: theme.colors.border,
+          marginTop: theme.spacing[3],
+          marginBottom: theme.spacing[3],
+        },
+        responsesPanel: {
+          width: '100%',
+          borderRadius: theme.radius.none,
+          padding: theme.spacing[4],
+          backgroundColor: `${theme.colors.card}E6`,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          marginTop: theme.spacing[5],
+        },
+        responsesHeader: {
+          marginBottom: theme.spacing[3],
+        },
+        responsesMetaRow: {
+          marginTop: theme.spacing[2],
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        responsesTable: {
+          width: '100%',
+        },
+        tabRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: theme.spacing[4],
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: `${theme.colors.muted}B3`,
+        },
+        tabButton: {
+          flex: 1,
+          paddingVertical: theme.spacing[2],
+          paddingHorizontal: theme.spacing[3],
+          alignItems: 'center',
+        },
+        tabButtonActive: {
+          backgroundColor: theme.colors.primary,
+        },
+        tabDivider: {
+          width: 1,
+          alignSelf: 'stretch',
+          backgroundColor: theme.colors.border,
+        },
+        tabText: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.mutedForeground,
+        },
+        tabTextActive: {
+          color: theme.colors.primaryForeground,
+        },
+        tabLabelRow: {
+          marginTop: theme.spacing[3],
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        },
+        tabLabel: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          textTransform: 'uppercase',
+          letterSpacing: 2,
+          color: theme.colors.mutedForeground,
+        },
+        infoPill: {
+          paddingVertical: 4,
+          paddingHorizontal: theme.spacing[2],
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: `${theme.colors.accent}CC`,
+        },
+        infoPillText: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
         },
         emptyState: {
           width: '100%',
@@ -1086,13 +1649,17 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         },
         modalCard: {
           width: '100%',
-          maxWidth: 640,
+          maxWidth: 980,
+          maxHeight: 720,
           borderWidth: 1,
           borderRadius: theme.radius.none,
           borderColor: theme.colors.border,
           backgroundColor: theme.colors.card,
           padding: theme.spacing[5],
           zIndex: 1,
+        },
+        modalScroll: {
+          maxHeight: 520,
         },
         modalTitle: {
           fontFamily: 'Montserrat-Bold',
@@ -1105,6 +1672,112 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         },
         modalField: {
           marginBottom: theme.spacing[3],
+        },
+        modalSection: {
+          marginTop: theme.spacing[4],
+        },
+        modalSectionTitle: {
+          marginBottom: theme.spacing[2],
+        },
+        importCard: {
+          padding: theme.spacing[3],
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: `${theme.colors.card}E6`,
+          marginBottom: theme.spacing[3],
+        },
+        importFilename: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+        },
+        reviewTable: {
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: `${theme.colors.card}E6`,
+        },
+        reviewHeaderRow: {
+          flexDirection: 'row',
+          backgroundColor: theme.colors.accent,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+        },
+        reviewHeaderCell: {
+          paddingVertical: theme.spacing[2],
+          paddingHorizontal: theme.spacing[3],
+        },
+        reviewHeaderText: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+          textTransform: 'uppercase',
+          letterSpacing: 1.2,
+        },
+        reviewRow: {
+          flexDirection: 'row',
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
+        },
+        reviewRowEven: {
+          backgroundColor: `${theme.colors.card}E6`,
+        },
+        reviewRowOdd: {
+          backgroundColor: `${theme.colors.muted}12`,
+        },
+        reviewCell: {
+          paddingVertical: theme.spacing[2],
+          paddingHorizontal: theme.spacing[3],
+          justifyContent: 'center',
+        },
+        reviewCellText: {
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.foreground,
+        },
+        reviewCellMuted: {
+          marginTop: 2,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+          fontFamily: theme.typography.fontFamily.mono,
+        },
+        reviewCellInputWrapper: {
+          marginBottom: 0,
+        },
+        reviewCellInput: {
+          minHeight: 36,
+          paddingVertical: 6,
+          fontSize: theme.typography.fontSize.sm,
+        },
+        reviewPill: {
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          paddingVertical: 6,
+          paddingHorizontal: theme.spacing[2],
+          alignItems: 'center',
+        },
+        reviewPillActive: {
+          backgroundColor: theme.colors.secondary,
+          borderColor: theme.colors.secondary,
+        },
+        reviewPillText: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+        },
+        reviewPillTextActive: {
+          color: theme.colors.secondaryForeground,
+        },
+        reviewEmpty: {
+          padding: theme.spacing[4],
+          alignItems: 'center',
+        },
+        reviewHint: {
+          marginTop: theme.spacing[3],
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+        },
+        reviewHintWarning: {
+          color: theme.colors.destructive,
         },
         modalActions: {
           marginTop: theme.spacing[4],
@@ -1153,7 +1826,10 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       <View pointerEvents="none" style={themedStyles.glassTint} />
       {backgroundOverlay}
 
-      <View style={themedStyles.layout} pointerEvents={showExportModal ? 'none' : 'auto'}>
+      <View
+        style={themedStyles.layout}
+        pointerEvents={showExportModal || showImportModal ? 'none' : 'auto'}
+      >
         <View style={themedStyles.sidebar}>
           <View style={themedStyles.sidebarHeader}>
             <ThemedText style={themedStyles.sidebarEyebrow}>Projects</ThemedText>
@@ -1294,6 +1970,11 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                         {isExporting ? 'Exporting...' : 'Export to Excel'}
                       </Button>
                     </View>
+                    <View style={{ marginTop: theme.spacing[2] }}>
+                      <Button onPress={handleImportPress} variant="outline" disabled={isImporting}>
+                        {isImporting ? 'Importing...' : 'Import Responses'}
+                      </Button>
+                    </View>
                   </View>
                 </View>
 
@@ -1301,13 +1982,62 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                   Use Tab to indent, Shift+Tab to outdent, and Enter to add a new row.
                 </ThemedText>
 
+                {hasImportedResponses ? (
+                  <View style={themedStyles.tabLabelRow}>
+                    <ThemedText style={themedStyles.tabLabel}>View</ThemedText>
+                    <View style={themedStyles.infoPill}>
+                      <ThemedText style={themedStyles.infoPillText}>
+                        {responseCountLabel}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ) : null}
+
+                {hasImportedResponses ? (
+                  <View style={themedStyles.tabRow}>
+                    <Pressable
+                      style={[
+                        themedStyles.tabButton,
+                        activeTab === 'base' && themedStyles.tabButtonActive,
+                      ]}
+                      onPress={() => handleTabPress('base')}
+                    >
+                      <ThemedText
+                        style={[
+                          themedStyles.tabText,
+                          activeTab === 'base' && themedStyles.tabTextActive,
+                        ]}
+                      >
+                        Base Matrix
+                      </ThemedText>
+                    </Pressable>
+                    <View style={themedStyles.tabDivider} />
+                    <Pressable
+                      style={[
+                        themedStyles.tabButton,
+                        activeTab === 'responses' && themedStyles.tabButtonActive,
+                      ]}
+                      onPress={() => handleTabPress('responses')}
+                    >
+                      <ThemedText
+                        style={[
+                          themedStyles.tabText,
+                          activeTab === 'responses' && themedStyles.tabTextActive,
+                        ]}
+                      >
+                        Imported Responses
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                ) : null}
+
                 {saveStatus === 'error' && saveError ? (
                   <ThemedText style={[themedStyles.exportStatus, themedStyles.errorText]}>
                     {saveError}
                   </ThemedText>
                 ) : null}
 
-                {(exportPath || exportError || showEmptyWarning) && (
+                {(exportPath || exportError || showEmptyWarning || importError || importStatus) && (
                   <View style={themedStyles.noticePanel}>
                     {showEmptyWarning && emptyRowNumbers.length > 0 ? (
                       <View style={themedStyles.warningPanel}>
@@ -1350,13 +2080,77 @@ export function RequirementsEditorScreen(): React.JSX.Element {
                         Export failed: {exportError}
                       </ThemedText>
                     ) : null}
+
+                    {importStatus ? (
+                      <ThemedText variant="caption" style={themedStyles.importStatus}>
+                        {importStatus}
+                      </ThemedText>
+                    ) : null}
+
+                    {importError ? (
+                      <ThemedText
+                        variant="caption"
+                        style={[themedStyles.importStatus, themedStyles.errorText]}
+                      >
+                        Import failed: {importError}
+                      </ThemedText>
+                    ) : null}
                   </View>
                 )}
               </View>
 
-              <View style={themedStyles.editorPanel}>
-                <RequirementsEditor rows={rows} onRowsChange={setRows} />
-              </View>
+              {activeTab === 'base' ? (
+                <View style={themedStyles.editorPanel}>
+                  <ThemedText style={themedStyles.panelTitle}>Base Matrix</ThemedText>
+                  <ThemedText variant="caption" style={themedStyles.panelSubtitle}>
+                    Define the capability requirements that vendors will answer.
+                  </ThemedText>
+                  <View style={themedStyles.panelDivider} />
+                  <RequirementsEditor rows={rows} onRowsChange={setRows} />
+                </View>
+              ) : null}
+
+              {activeTab === 'responses' ? (
+                <View style={themedStyles.responsesPanel}>
+                  <View style={themedStyles.responsesHeader}>
+                    <ThemedText variant="h1">Responses</ThemedText>
+                    <ThemedText
+                      variant="body"
+                      color="muted"
+                      style={{ marginTop: theme.spacing[1] }}
+                    >
+                      Compare imported responses across companies.
+                    </ThemedText>
+                    <View style={themedStyles.responsesMetaRow}>
+                      <View style={themedStyles.infoPill}>
+                        <ThemedText style={themedStyles.infoPillText}>
+                          {responseCountLabel}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    {responsesError ? (
+                      <ThemedText
+                        variant="caption"
+                        style={[themedStyles.importStatus, themedStyles.errorText]}
+                      >
+                        {responsesError}
+                      </ThemedText>
+                    ) : null}
+                    {capabilityImports.length === 0 ? (
+                      <ThemedText variant="caption" color="muted" style={{ marginTop: 4 }}>
+                        No responses imported yet.
+                      </ThemedText>
+                    ) : null}
+                  </View>
+                  <ScrollView horizontal style={themedStyles.responsesTable}>
+                    <DataTable
+                      data={matrixData}
+                      columns={matrixColumns}
+                      keyExtractor={(item) => item.id}
+                    />
+                  </ScrollView>
+                </View>
+              ) : null}
             </>
           ) : null}
         </ScrollView>
@@ -1430,6 +2224,162 @@ export function RequirementsEditorScreen(): React.JSX.Element {
               <View style={themedStyles.modalActionSpacer} />
               <Button onPress={handleConfirmExport} size="sm" disabled={isExporting}>
                 {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
+            </View>
+          </View>
+        </View>
+      ) : null}
+      {showImportModal ? (
+        <View style={themedStyles.modalBackdrop} pointerEvents="auto">
+          <Pressable style={themedStyles.modalScrim} onPress={handleCloseImportModal} />
+          <View style={themedStyles.modalCard}>
+            <ThemedText variant="h1" style={themedStyles.modalTitle}>
+              Import responses
+            </ThemedText>
+            <ThemedText variant="body" color="muted" style={themedStyles.modalSubtitle}>
+              Confirm company names and resolve any mismatched rows before importing.
+            </ThemedText>
+            <ScrollView style={themedStyles.modalScroll} showsVerticalScrollIndicator={false}>
+              <View style={themedStyles.modalSection}>
+                <ThemedText variant="label" style={themedStyles.modalSectionTitle}>
+                  Files
+                </ThemedText>
+                {pendingImports.map((entry) => (
+                  <View key={entry.id} style={themedStyles.importCard}>
+                    <ThemedText variant="label">{entry.filename}</ThemedText>
+                    <ThemedText style={themedStyles.importFilename}>
+                      {entry.sheetTitle ? `Sheet: ${entry.sheetTitle}` : 'Sheet: (unnamed)'}
+                    </ThemedText>
+                    <TextInput
+                      label="Company name"
+                      value={entry.companyName}
+                      onChangeText={(value) => updatePendingCompanyName(entry.id, value)}
+                      containerStyle={{ marginTop: theme.spacing[2] }}
+                      error={
+                        invalidCompanyIds.has(entry.id) ? 'Company name is required.' : undefined
+                      }
+                    />
+                  </View>
+                ))}
+              </View>
+
+              <View style={themedStyles.modalSection}>
+                <ThemedText variant="label" style={themedStyles.modalSectionTitle}>
+                  Rows needing review
+                </ThemedText>
+                <View style={themedStyles.reviewTable}>
+                  <View style={themedStyles.reviewHeaderRow}>
+                    <View style={[themedStyles.reviewHeaderCell, { flex: 1.1 }]}>
+                      <ThemedText style={themedStyles.reviewHeaderText}>Company</ThemedText>
+                    </View>
+                    <View style={[themedStyles.reviewHeaderCell, { flex: 0.6 }]}>
+                      <ThemedText style={themedStyles.reviewHeaderText}>Imported #</ThemedText>
+                    </View>
+                    <View style={[themedStyles.reviewHeaderCell, { flex: 2.2 }]}>
+                      <ThemedText style={themedStyles.reviewHeaderText}>Imported Text</ThemedText>
+                    </View>
+                    <View style={[themedStyles.reviewHeaderCell, { flex: 0.9 }]}>
+                      <ThemedText style={themedStyles.reviewHeaderText}>Map To #</ThemedText>
+                    </View>
+                    <View style={[themedStyles.reviewHeaderCell, { flex: 0.7 }]}>
+                      <ThemedText style={themedStyles.reviewHeaderText}>Ignore</ThemedText>
+                    </View>
+                  </View>
+
+                  {reviewItems.length === 0 ? (
+                    <View style={themedStyles.reviewEmpty}>
+                      <ThemedText variant="body" color="muted">
+                        All rows matched your current requirements.
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    reviewItems.map((item, index) => {
+                      const companyName =
+                        pendingImportById.get(item.importId)?.companyName ?? 'Unknown';
+                      const missing = reviewFlags.missing.has(item.id);
+                      const invalid = reviewFlags.invalid.has(item.id);
+                      const duplicate = reviewFlags.duplicateIds.has(item.id);
+                      const showError = !item.ignored && (missing || invalid || duplicate);
+                      const reasonLabel =
+                        item.reason === 'missing' ? 'Missing requirement' : 'Text mismatch';
+                      return (
+                        <View
+                          key={item.id}
+                          style={[
+                            themedStyles.reviewRow,
+                            index % 2 === 0
+                              ? themedStyles.reviewRowEven
+                              : themedStyles.reviewRowOdd,
+                          ]}
+                        >
+                          <View style={[themedStyles.reviewCell, { flex: 1.1 }]}>
+                            <ThemedText style={themedStyles.reviewCellText} numberOfLines={1}>
+                              {companyName}
+                            </ThemedText>
+                          </View>
+                          <View style={[themedStyles.reviewCell, { flex: 0.6 }]}>
+                            <ThemedText style={themedStyles.reviewCellText}>
+                              {item.number || '—'}
+                            </ThemedText>
+                          </View>
+                          <View style={[themedStyles.reviewCell, { flex: 2.2 }]}>
+                            <ThemedText style={themedStyles.reviewCellText} numberOfLines={2}>
+                              {item.text || '—'}
+                            </ThemedText>
+                            <ThemedText style={themedStyles.reviewCellMuted}>
+                              {reasonLabel}
+                            </ThemedText>
+                          </View>
+                          <View style={[themedStyles.reviewCell, { flex: 0.9 }]}>
+                            <TextInput
+                              value={item.mappedNumber}
+                              onChangeText={(value) => updateReviewItem(item.id, value)}
+                              placeholder="Map #"
+                              containerStyle={themedStyles.reviewCellInputWrapper}
+                              inputStyle={themedStyles.reviewCellInput}
+                              error={showError ? ' ' : undefined}
+                              hideErrorMessage
+                            />
+                          </View>
+                          <View style={[themedStyles.reviewCell, { flex: 0.7 }]}>
+                            <Pressable
+                              style={[
+                                themedStyles.reviewPill,
+                                item.ignored && themedStyles.reviewPillActive,
+                              ]}
+                              onPress={() => toggleReviewIgnore(item.id)}
+                            >
+                              <ThemedText
+                                style={[
+                                  themedStyles.reviewPillText,
+                                  item.ignored && themedStyles.reviewPillTextActive,
+                                ]}
+                              >
+                                {item.ignored ? 'Ignored' : 'Ignore'}
+                              </ThemedText>
+                            </Pressable>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              </View>
+
+              <ThemedText style={themedStyles.reviewHint}>{reviewHintMessage}</ThemedText>
+              {reviewFlags.duplicateIds.size > 0 ? (
+                <ThemedText style={[themedStyles.reviewHint, themedStyles.reviewHintWarning]}>
+                  Duplicate mappings detected. Only the first match will be imported.
+                </ThemedText>
+              ) : null}
+            </ScrollView>
+            <View style={themedStyles.modalActions}>
+              <Button variant="outline" onPress={handleCloseImportModal} size="sm">
+                Cancel
+              </Button>
+              <View style={themedStyles.modalActionSpacer} />
+              <Button onPress={handleConfirmImport} size="sm" disabled={importDisabled}>
+                {isApplyingImport ? 'Importing...' : 'Import'}
               </Button>
             </View>
           </View>

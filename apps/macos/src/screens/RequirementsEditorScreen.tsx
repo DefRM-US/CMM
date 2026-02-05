@@ -319,6 +319,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const [capabilityImportRows, setCapabilityImportRows] = useState<
     Record<string, CapabilityImportRowRecord[]>
   >({});
+  const [selectedResponse, setSelectedResponse] = useState<MatrixResponseCell | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -1204,20 +1205,43 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     return 'Autosave';
   }, [saveStatus, selectedProjectId]);
 
-  type MatrixRow = { id: string; number: string; text: string } & Record<string, string>;
+  type MatrixResponseCell = {
+    score: number | null;
+    pastPerformance: string | null;
+    comments: string | null;
+    companyName: string;
+    requirementNumber: string;
+    requirementText: string;
+  };
 
-  const formatResponseCell = useCallback((row: CapabilityImportRowRecord): string => {
-    const lines: string[] = [];
-    const scoreLabel = row.score === null || row.score === undefined ? '' : String(row.score);
-    lines.push(`Score: ${scoreLabel}`);
-    if (row.pastPerformance && row.pastPerformance.trim().length > 0) {
-      lines.push(`Past: ${row.pastPerformance.trim()}`);
-    }
-    if (row.comments && row.comments.trim().length > 0) {
-      lines.push(`Comments: ${row.comments.trim()}`);
-    }
-    return lines.join('\n');
+  type MatrixRow = {
+    id: string;
+    number: string;
+    text: string;
+    [key: string]: string | MatrixResponseCell | null;
+  };
+
+  const normalizeDetail = useCallback((value?: string | null): string | null => {
+    const trimmed = value?.trim();
+    return trimmed && trimmed.length > 0 ? trimmed : null;
   }, []);
+
+  const buildResponseCell = useCallback(
+    (
+      row: CapabilityImportRowRecord,
+      companyName: string,
+      requirementNumber: string,
+      requirementText: string,
+    ): MatrixResponseCell => ({
+      score: row.score ?? null,
+      pastPerformance: normalizeDetail(row.pastPerformance),
+      comments: normalizeDetail(row.comments),
+      companyName,
+      requirementNumber,
+      requirementText,
+    }),
+    [normalizeDetail],
+  );
 
   const matrixData = useMemo<MatrixRow[]>(() => {
     const rowsByRequirement = new Map<string, MatrixRow>();
@@ -1226,7 +1250,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     const baseRows = requirementIndex.map((req) => {
       const base: MatrixRow = { id: req.id, number: req.number, text: req.text };
       companyKeys.forEach((key) => {
-        base[key] = '';
+        base[key] = null;
       });
       rowsByRequirement.set(req.id, base);
       return base;
@@ -1239,26 +1263,60 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         if (!row.requirementId) return;
         const target = rowsByRequirement.get(row.requirementId);
         if (!target) return;
-        target[key] = formatResponseCell(row);
+        target[key] = buildResponseCell(row, entry.companyName, target.number, target.text);
       });
     });
 
     return baseRows;
-  }, [capabilityImportRows, capabilityImports, formatResponseCell, requirementIndex]);
+  }, [buildResponseCell, capabilityImportRows, capabilityImports, requirementIndex]);
 
-  const matrixColumns = useMemo(() => {
-    const columns = [
-      { key: 'number', header: 'Number', sortable: true, width: 110 },
-      { key: 'text', header: 'Requirement', sortable: true, width: 360 },
-    ];
-    const companyColumns = capabilityImports.map((entry) => ({
-      key: `company_${entry.id}`,
-      header: entry.companyName,
-      sortable: false,
-      width: 260,
-    }));
-    return [...columns, ...companyColumns];
-  }, [capabilityImports]);
+  const handleOpenResponseDetail = useCallback((cell: MatrixResponseCell) => {
+    setSelectedResponse(cell);
+  }, []);
+
+  const handleCloseResponseDetail = useCallback(() => {
+    setSelectedResponse(null);
+  }, []);
+
+  const getScoreStyles = useCallback(
+    (score: number | null) => {
+      if (score === 3) {
+        return {
+          container: { backgroundColor: '#0070C0', borderColor: '#0070C0' },
+          text: '#FFFFFF',
+        };
+      }
+      if (score === 2) {
+        return {
+          container: { backgroundColor: '#00B050', borderColor: '#00B050' },
+          text: '#FFFFFF',
+        };
+      }
+      if (score === 1) {
+        return {
+          container: { backgroundColor: '#FFFF00', borderColor: '#FFFF00' },
+          text: '#0A0A0A',
+        };
+      }
+      return {
+        container: { backgroundColor: 'transparent', borderColor: theme.colors.border },
+        text: theme.colors.mutedForeground,
+      };
+    },
+    [theme.colors.border, theme.colors.mutedForeground],
+  );
+
+  const selectedScoreLabel = useMemo(() => {
+    if (!selectedResponse) return '—';
+    return selectedResponse.score === null || selectedResponse.score === undefined
+      ? '—'
+      : String(selectedResponse.score);
+  }, [selectedResponse]);
+
+  const selectedScoreStyles = useMemo(
+    () => (selectedResponse ? getScoreStyles(selectedResponse.score) : null),
+    [getScoreStyles, selectedResponse],
+  );
 
   const gridRows = useMemo(() => Array.from({ length: 9 }, (_, index) => index), []);
   const gridColumns = useMemo(() => Array.from({ length: 7 }, (_, index) => index), []);
@@ -1567,6 +1625,51 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         responsesTable: {
           width: '100%',
         },
+        responseCell: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          cursor: 'pointer',
+        },
+        scoreBadge: {
+          minWidth: 28,
+          height: 22,
+          paddingHorizontal: 6,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderRadius: 4,
+          marginRight: theme.spacing[2],
+        },
+        scoreBadgeText: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          fontWeight: theme.typography.fontWeight.semibold,
+        },
+        responseSummary: {
+          flex: 1,
+        },
+        responseSummaryRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        responseSummaryRowSpacing: {
+          marginTop: 2,
+        },
+        responseSummaryLabel: {
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+          marginRight: theme.spacing[1],
+        },
+        responseSummaryText: {
+          flex: 1,
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.foreground,
+        },
+        responseEmpty: {
+          fontSize: theme.typography.fontSize.xs,
+          color: theme.colors.mutedForeground,
+        },
         tabRow: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -1678,6 +1781,70 @@ export function RequirementsEditorScreen(): React.JSX.Element {
         },
         modalSectionTitle: {
           marginBottom: theme.spacing[2],
+        },
+        drawerBackdrop: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 900,
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+        },
+        drawerScrim: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.35)',
+          zIndex: 0,
+        },
+        drawerPanel: {
+          width: 460,
+          maxWidth: 520,
+          height: '100%',
+          borderLeftWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.card,
+          padding: theme.spacing[5],
+          zIndex: 1,
+        },
+        drawerHeader: {
+          marginBottom: theme.spacing[3],
+        },
+        drawerTitle: {
+          fontFamily: 'Montserrat-Bold',
+        },
+        drawerMeta: {
+          marginTop: theme.spacing[1],
+          color: theme.colors.mutedForeground,
+        },
+        drawerScoreRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: theme.spacing[2],
+        },
+        drawerScroll: {
+          flex: 1,
+        },
+        drawerSection: {
+          marginTop: theme.spacing[4],
+        },
+        drawerSectionTitle: {
+          marginBottom: theme.spacing[2],
+          fontFamily: theme.typography.fontFamily.mono,
+          fontSize: theme.typography.fontSize.xs,
+          textTransform: 'uppercase',
+          letterSpacing: 1.2,
+          color: theme.colors.mutedForeground,
+        },
+        drawerText: {
+          fontSize: theme.typography.fontSize.sm,
+          color: theme.colors.foreground,
+          lineHeight: theme.typography.fontSize.sm + 6,
+        },
+        drawerActions: {
+          marginTop: theme.spacing[4],
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
         },
         importCard: {
           padding: theme.spacing[3],
@@ -1791,6 +1958,69 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       }),
     [isMac, theme],
   );
+
+  const renderResponseCell = useCallback(
+    ({ value }: { value: MatrixRow[keyof MatrixRow] }) => {
+      if (!value || typeof value === 'string') {
+        return <ThemedText style={themedStyles.responseEmpty}>—</ThemedText>;
+      }
+
+      const cell = value as MatrixResponseCell;
+      const scoreLabel = cell.score === null || cell.score === undefined ? '—' : String(cell.score);
+      const pastSummary = cell.pastPerformance ?? '—';
+      const commentsSummary = cell.comments ?? '—';
+
+      const scoreStyles = getScoreStyles(cell.score);
+
+      return (
+        <Pressable onPress={() => handleOpenResponseDetail(cell)} style={themedStyles.responseCell}>
+          <View style={[themedStyles.scoreBadge, scoreStyles.container]}>
+            <ThemedText style={[themedStyles.scoreBadgeText, { color: scoreStyles.text }]}>
+              {scoreLabel}
+            </ThemedText>
+          </View>
+          <View style={themedStyles.responseSummary}>
+            <View style={themedStyles.responseSummaryRow}>
+              <ThemedText style={themedStyles.responseSummaryLabel}>Past:</ThemedText>
+              <ThemedText
+                style={themedStyles.responseSummaryText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {pastSummary}
+              </ThemedText>
+            </View>
+            <View style={[themedStyles.responseSummaryRow, themedStyles.responseSummaryRowSpacing]}>
+              <ThemedText style={themedStyles.responseSummaryLabel}>Comments:</ThemedText>
+              <ThemedText
+                style={themedStyles.responseSummaryText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {commentsSummary}
+              </ThemedText>
+            </View>
+          </View>
+        </Pressable>
+      );
+    },
+    [getScoreStyles, handleOpenResponseDetail, themedStyles],
+  );
+
+  const matrixColumns = useMemo(() => {
+    const columns = [
+      { key: 'number', header: 'Number', sortable: true, width: 110 },
+      { key: 'text', header: 'Requirement', sortable: true, width: 360 },
+    ];
+    const companyColumns = capabilityImports.map((entry) => ({
+      key: `company_${entry.id}`,
+      header: entry.companyName,
+      sortable: false,
+      width: 260,
+      renderCell: renderResponseCell,
+    }));
+    return [...columns, ...companyColumns];
+  }, [capabilityImports, renderResponseCell]);
 
   const backgroundOverlay = useMemo(
     () => (
@@ -2155,6 +2385,63 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           ) : null}
         </ScrollView>
       </View>
+      {selectedResponse ? (
+        <View style={themedStyles.drawerBackdrop} pointerEvents="auto">
+          <Pressable style={themedStyles.drawerScrim} onPress={handleCloseResponseDetail} />
+          <View style={themedStyles.drawerPanel}>
+            <View style={themedStyles.drawerHeader}>
+              <ThemedText variant="h1" style={themedStyles.drawerTitle}>
+                {selectedResponse.companyName}
+              </ThemedText>
+              <ThemedText variant="caption" style={themedStyles.drawerMeta}>
+                Requirement {selectedResponse.requirementNumber}
+              </ThemedText>
+              <ThemedText variant="body" style={themedStyles.drawerMeta}>
+                {selectedResponse.requirementText || '—'}
+              </ThemedText>
+              <View style={themedStyles.drawerScoreRow}>
+                <View
+                  style={[
+                    themedStyles.scoreBadge,
+                    selectedScoreStyles?.container ?? { borderColor: theme.colors.border },
+                  ]}
+                >
+                  <ThemedText
+                    style={[
+                      themedStyles.scoreBadgeText,
+                      { color: selectedScoreStyles?.text ?? theme.colors.mutedForeground },
+                    ]}
+                  >
+                    {selectedScoreLabel}
+                  </ThemedText>
+                </View>
+                <ThemedText variant="caption" style={themedStyles.drawerMeta}>
+                  Score
+                </ThemedText>
+              </View>
+            </View>
+            <ScrollView style={themedStyles.drawerScroll} showsVerticalScrollIndicator={false}>
+              <View style={themedStyles.drawerSection}>
+                <ThemedText style={themedStyles.drawerSectionTitle}>Past Experience</ThemedText>
+                <ThemedText style={themedStyles.drawerText}>
+                  {selectedResponse.pastPerformance ?? 'None provided.'}
+                </ThemedText>
+              </View>
+              <View style={themedStyles.drawerSection}>
+                <ThemedText style={themedStyles.drawerSectionTitle}>Comments</ThemedText>
+                <ThemedText style={themedStyles.drawerText}>
+                  {selectedResponse.comments ?? 'None provided.'}
+                </ThemedText>
+              </View>
+            </ScrollView>
+            <View style={themedStyles.drawerActions}>
+              <Button variant="outline" onPress={handleCloseResponseDetail} size="sm">
+                Close
+              </Button>
+            </View>
+          </View>
+        </View>
+      ) : null}
       {showExportModal ? (
         <View style={themedStyles.modalBackdrop} pointerEvents="auto">
           <Pressable style={themedStyles.modalScrim} onPress={handleCloseExportModal} />

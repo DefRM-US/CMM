@@ -5,6 +5,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table';
+import type React from 'react';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../Typography';
@@ -15,6 +16,7 @@ export interface DataTableColumn<T> {
   header: string;
   sortable?: boolean;
   width?: number;
+  renderCell?: (args: { value: T[keyof T]; row: T; columnKey: string }) => React.ReactNode;
 }
 
 export interface DataTableProps<T> {
@@ -166,9 +168,17 @@ export function DataTable<T>({ data, columns, keyExtractor }: DataTableProps<T>)
         >
           {columns.map((col) => (
             <View key={col.key} style={[themedStyles.cell, getColumnStyle(col.width)]}>
-              <ThemedText style={themedStyles.cellText}>
-                {getCellValue(row.original, col.key)}
-              </ThemedText>
+              {col.renderCell ? (
+                col.renderCell({
+                  value: row.original[col.key],
+                  row: row.original,
+                  columnKey: col.key,
+                })
+              ) : (
+                <ThemedText style={themedStyles.cellText}>
+                  {getCellValue(row.original, col.key)}
+                </ThemedText>
+              )}
             </View>
           ))}
         </View>

@@ -147,9 +147,9 @@ describe('createDesktopStore', () => {
     expect(activeImports).toHaveLength(1);
     expect(activeImports[0]?.id).toBe(secondImport.id);
     expect(allImports).toHaveLength(2);
-    expect(allImports.some((entry) => entry.id === firstImport.id && entry.archivedAt !== null)).toBe(
-      true,
-    );
+    expect(
+      allImports.some((entry) => entry.id === firstImport.id && entry.archivedAt !== null),
+    ).toBe(true);
     expect(activeRows).toHaveLength(1);
     expect(activeRows[0]?.score).toBe(2);
 

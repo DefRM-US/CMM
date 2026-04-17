@@ -1475,6 +1475,16 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const gridRows = useMemo(() => Array.from({ length: 9 }, (_, index) => index), []);
   const gridColumns = useMemo(() => Array.from({ length: 7 }, (_, index) => index), []);
   const scanlines = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
+  const absoluteFillStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+    }),
+    [],
+  );
 
   const themedStyles = useMemo(
     () =>
@@ -1484,15 +1494,15 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           backgroundColor: isMac ? 'transparent' : theme.colors.background,
         },
         glassTint: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           backgroundColor: isMac ? `${theme.colors.background}B3` : 'transparent',
         },
         backgroundLayer: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           overflow: 'hidden',
         },
         gridOverlay: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           opacity: 0.35,
         },
         gridLineHorizontal: {
@@ -1510,7 +1520,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           backgroundColor: `${theme.colors.muted}55`,
         },
         scanlineOverlay: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           opacity: 0.12,
         },
         scanline: {
@@ -1967,7 +1977,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           zIndex: 1000,
         },
         modalScrim: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           backgroundColor: 'rgba(0,0,0,0.45)',
           zIndex: 0,
         },
@@ -2014,7 +2024,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           justifyContent: 'flex-end',
         },
         drawerScrim: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           backgroundColor: 'rgba(0,0,0,0.35)',
           zIndex: 0,
         },
@@ -2198,11 +2208,11 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           color: theme.colors.mutedForeground,
         },
         contextMenuLayer: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           zIndex: 850,
         },
         contextMenuScrim: {
-          ...StyleSheet.absoluteFillObject,
+          ...absoluteFillStyle,
           backgroundColor: 'transparent',
         },
         contextMenu: {
@@ -2232,7 +2242,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
           color: theme.colors.foreground,
         },
       }),
-    [isMac, theme],
+    [absoluteFillStyle, isMac, theme],
   );
 
   const renderResponseCell = useCallback(

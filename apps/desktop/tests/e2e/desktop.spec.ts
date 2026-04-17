@@ -2,11 +2,11 @@ import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  type ElectronApplication,
   _electron as electron,
   expect,
-  test,
-  type ElectronApplication,
   type Page,
+  test,
 } from '@playwright/test';
 import {
   buildCapabilityMatrixXlsxBuffer,
@@ -112,86 +112,87 @@ test.afterEach(async () => {
   );
 });
 
-test.describe.serial('desktop app flows', () => {
-  test('creates a project, edits a requirement, and reloads persisted state', async () => {
-    const dataDir = await registerTempDir('cmm-desktop-e2e-data-');
+test.describe
+  .serial('desktop app flows', () => {
+    test('creates a project, edits a requirement, and reloads persisted state', async () => {
+      const dataDir = await registerTempDir('cmm-desktop-e2e-data-');
 
-    const firstSession = await launchDesktopApp(dataDir);
-    await expect(firstSession.page.getByText('Create your first project')).toBeVisible();
+      const firstSession = await launchDesktopApp(dataDir);
+      await expect(firstSession.page.getByText('Create your first project')).toBeVisible();
 
-    await firstSession.page.getByRole('button', { name: 'New Project' }).click();
-    await firstSession.page.getByPlaceholder('Project name').fill('Launch Checklist');
-    await firstSession.page.getByRole('button', { name: 'Create' }).click();
-    await firstSession.page.getByRole('button', { name: 'Add Row' }).click();
-    await firstSession.page
-      .locator('input[placeholder="Write a requirement..."]')
-      .first()
-      .fill('Collect customer goals');
-    await expect(firstSession.page.getByText('Saved', { exact: true })).toBeVisible({
-      timeout: 10_000,
-    });
-    await firstSession.electronApp.close();
+      await firstSession.page.getByRole('button', { name: 'New Project' }).click();
+      await firstSession.page.getByPlaceholder('Project name').fill('Launch Checklist');
+      await firstSession.page.getByRole('button', { name: 'Create' }).click();
+      await firstSession.page.getByRole('button', { name: 'Add Row' }).click();
+      await firstSession.page
+        .locator('input[placeholder="Write a requirement..."]')
+        .first()
+        .fill('Collect customer goals');
+      await expect(firstSession.page.getByText('Saved', { exact: true })).toBeVisible({
+        timeout: 10_000,
+      });
+      await firstSession.electronApp.close();
 
-    const secondSession = await launchDesktopApp(dataDir);
-    await expect(
-      secondSession.page.getByText('Launch Checklist', { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-      secondSession.page.locator('input[value="Collect customer goals"]').first(),
-    ).toBeVisible();
-    await secondSession.electronApp.close();
-  });
-
-  test('exports a seeded capability matrix workbook', async () => {
-    const dataDir = await registerTempDir('cmm-desktop-e2e-export-data-');
-    const exportDir = await registerTempDir('cmm-desktop-e2e-export-file-');
-    const exportPath = path.join(exportDir, 'sample-capability-matrix.xlsx');
-
-    const { electronApp, page } = await launchDesktopApp(dataDir, {
-      CMM_TEST_SAVE_PATH: exportPath,
+      const secondSession = await launchDesktopApp(dataDir);
+      await expect(
+        secondSession.page.getByText('Launch Checklist', { exact: true }).first(),
+      ).toBeVisible();
+      await expect(
+        secondSession.page.locator('input[value="Collect customer goals"]').first(),
+      ).toBeVisible();
+      await secondSession.electronApp.close();
     });
 
-    await page.getByRole('button', { name: 'Load Sample Data' }).click();
-    await expect(page.getByText('Sample - Just now', { exact: true }).first()).toBeVisible();
-    await page.getByText('Sample - Just now', { exact: true }).first().click();
-    await page.getByRole('button', { name: 'Export to Excel' }).click();
-    await expect(page.getByText('Export settings')).toBeVisible();
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    test('exports a seeded capability matrix workbook', async () => {
+      const dataDir = await registerTempDir('cmm-desktop-e2e-export-data-');
+      const exportDir = await registerTempDir('cmm-desktop-e2e-export-file-');
+      const exportPath = path.join(exportDir, 'sample-capability-matrix.xlsx');
 
-    await expect(page.getByText(`Saved to ${exportPath}`)).toBeVisible({ timeout: 10_000 });
-    await expect(access(exportPath)).resolves.toBeUndefined();
+      const { electronApp, page } = await launchDesktopApp(dataDir, {
+        CMM_TEST_SAVE_PATH: exportPath,
+      });
 
-    const parsedWorkbook = await parseCapabilityMatrixXlsxBuffer(await readFile(exportPath));
-    expect(parsedWorkbook.title).toBe('Sample - Just now - Capability Matrix');
-    expect(parsedWorkbook.rows.length).toBeGreaterThan(0);
+      await page.getByRole('button', { name: 'Load Sample Data' }).click();
+      await expect(page.getByText('Sample - Just now', { exact: true }).first()).toBeVisible();
+      await page.getByText('Sample - Just now', { exact: true }).first().click();
+      await page.getByRole('button', { name: 'Export to Excel' }).click();
+      await expect(page.getByText('Export settings')).toBeVisible();
+      await page.getByRole('button', { name: 'Export', exact: true }).click();
 
-    await electronApp.close();
-  });
+      await expect(page.getByText(`Saved to ${exportPath}`)).toBeVisible({ timeout: 10_000 });
+      await expect(access(exportPath)).resolves.toBeUndefined();
 
-  test('imports vendor responses and shows them in the comparison view', async () => {
-    const dataDir = await registerTempDir('cmm-desktop-e2e-import-data-');
-    const importDir = await registerTempDir('cmm-desktop-e2e-import-file-');
-    const importPath = path.join(importDir, 'Vendor A.xlsx');
+      const parsedWorkbook = await parseCapabilityMatrixXlsxBuffer(await readFile(exportPath));
+      expect(parsedWorkbook.title).toBe('Sample - Just now - Capability Matrix');
+      expect(parsedWorkbook.rows.length).toBeGreaterThan(0);
 
-    await buildSampleImportWorkbook(importPath);
-
-    const { electronApp, page } = await launchDesktopApp(dataDir, {
-      CMM_TEST_OPEN_PATHS: importPath,
+      await electronApp.close();
     });
 
-    await page.getByRole('button', { name: 'Load Sample Data' }).click();
-    await expect(page.getByText('Sample - Just now', { exact: true }).first()).toBeVisible();
-    await page.getByText('Sample - Just now', { exact: true }).first().click();
-    await page.getByRole('button', { name: 'Import Responses' }).click();
+    test('imports vendor responses and shows them in the comparison view', async () => {
+      const dataDir = await registerTempDir('cmm-desktop-e2e-import-data-');
+      const importDir = await registerTempDir('cmm-desktop-e2e-import-file-');
+      const importPath = path.join(importDir, 'Vendor A.xlsx');
 
-    await expect(page.getByText('Import responses', { exact: true })).toBeVisible();
-    await expect(page.getByText('Vendor A.xlsx')).toBeVisible();
-    await page.getByRole('button', { name: 'Import', exact: true }).click();
+      await buildSampleImportWorkbook(importPath);
 
-    await expect(page.getByText('Imported 1 response.')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Imported Responses', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Vendor A', { exact: true })).toBeVisible();
+      const { electronApp, page } = await launchDesktopApp(dataDir, {
+        CMM_TEST_OPEN_PATHS: importPath,
+      });
 
-    await electronApp.close();
+      await page.getByRole('button', { name: 'Load Sample Data' }).click();
+      await expect(page.getByText('Sample - Just now', { exact: true }).first()).toBeVisible();
+      await page.getByText('Sample - Just now', { exact: true }).first().click();
+      await page.getByRole('button', { name: 'Import Responses' }).click();
+
+      await expect(page.getByText('Import responses', { exact: true })).toBeVisible();
+      await expect(page.getByText('Vendor A.xlsx')).toBeVisible();
+      await page.getByRole('button', { name: 'Import', exact: true }).click();
+
+      await expect(page.getByText('Imported 1 response.')).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText('Imported Responses', { exact: true }).first()).toBeVisible();
+      await expect(page.getByText('Vendor A', { exact: true })).toBeVisible();
+
+      await electronApp.close();
+    });
   });
-});

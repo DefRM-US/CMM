@@ -5,6 +5,7 @@ module.exports = {
   ...baseConfig,
   displayName: 'core',
   testEnvironment: 'node',
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   transform: {
     '^.+\\.[tj]sx?$': 'babel-jest',
   },

@@ -46,7 +46,7 @@ export function ThemeProvider({
     if (!followSystem) return;
 
     const subscription = Appearance.addChangeListener(({ colorScheme: newScheme }) => {
-      if (newScheme) {
+      if (newScheme === 'light' || newScheme === 'dark') {
         setColorSchemeState(newScheme);
       }
     });

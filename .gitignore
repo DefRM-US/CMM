@@ -6,6 +6,7 @@ vendor/
 
 # Build outputs
 dist/
+dist-electron/
 build/
 *.tsbuildinfo
 .next/

@@ -1,62 +1,58 @@
 # Capability Matrix Manager
 
-Capability Matrix Manager is a React Native desktop app for building structured requirement matrices and exporting them to Excel. It’s designed for fast capture, hierarchical organization, and clean handoffs.
+Capability Matrix Manager is an Electron desktop app for building structured requirement matrices, exporting them to Excel, and importing vendor responses for side-by-side review.
 
 **Status**
-- macOS: stable
-- Windows: experimental
+- Desktop: supported via a single Electron app
 
 **Key Features**
 - Project list with autosave
-- Hierarchical requirements (Tab to indent, Shift+Tab to outdent)
-- Excel export with a consistent, ready-to-share template
+- Hierarchical requirements with keyboard-first editing
+- Excel export with a ready-to-share template
+- Vendor response import and comparison view
 
-**Quick Start (macOS)**
+**Quick Start**
 ```bash
 pnpm install
-pnpm macos:dev
+pnpm desktop:dev
 ```
 
 **Requirements**
-- Node.js 22 LTS recommended (required for Windows tooling; works for macOS too)
-- pnpm (workspace uses `node-linker=hoisted` in `.npmrc`)
-- Xcode + macOS developer tooling for building the macOS app
-
-For the full environment setup (including Windows), see `appInfo/setup.md`.
+- Node.js 22 LTS recommended
+- pnpm with the workspace hoisting configuration from `.npmrc`
 
 **How It Works**
-The macOS app stores projects and requirements in a local SQLite database and autosaves as you type. Requirements are nested into a numbered outline. The Excel export uses a lightweight XLSX generator implemented in `packages/core/src/excel.ts`.
+The Electron app persists project data locally and autosaves as you type. Requirements are nested into a numbered outline. Spreadsheet export and import use the buffer-based XLSX helpers in `packages/core/src/excel-buffer.ts`.
 
 **Repo Layout**
-```
+```text
 apps/
-  macos/      React Native macOS app
-  windows/    React Native Windows app (experimental)
+  desktop/    Electron app
 packages/
-  core/       Database + export + filesystem utilities
-  ui/         Shared React Native components
+  core/       Spreadsheet helpers and shared logic
+  ui/         Shared component primitives
   types/      Shared TypeScript types
   typescript-config/  Shared TS configs
 ```
 
-**Excel Export Notes**
-- Single worksheet named `Data Export`
-- Columns: `Number`, `Requirement`, `Status`, `Contractor Response`, `Contractor Notes`
-- All values stored as strings
+**Testing**
+```bash
+pnpm --filter @app/desktop test
+```
 
-More details in `appInfo/excel-export.md`.
+The desktop suite includes store-level unit tests and Playwright Electron flows covering project creation, persistence, export, and import.
 
 **Troubleshooting**
-- If Metro resolves the wrong React Native instance (RCTText crash), use the macOS Metro config in `apps/macos/metro.config.js`. See `appInfo/macos-metro-react-native.md`.
-- If Metro can’t resolve modules in the monorepo, confirm `.npmrc` includes `node-linker=hoisted`, then reinstall dependencies.
+- If Electron starts without rendering the app, rebuild the desktop bundle with `pnpm --filter @app/desktop build`.
+- If workspace resolution drifts, reinstall dependencies with `pnpm install` so the React and React DOM overrides are applied consistently.
 
 **Contributing**
 Pull requests are welcome. By contributing, you agree that your contributions will be licensed under the same license as this repository and that DefRM branding and attribution requirements remain in place.
 
-**License (DefRM Source‑Available)**
-This project is source‑available, free to use, and allows modifications and redistribution with conditions:
+**License (DefRM Source-Available)**
+This project is source-available, free to use, and allows modifications and redistribution with conditions:
 - DefRM branding must remain visible in the app UI.
-- DefRM attribution must appear in documentation/README for any redistribution.
+- DefRM attribution must appear in documentation or README for any redistribution.
 - Modified versions must note that changes were made.
 - Commercial use is allowed, but selling the software itself or charging for access to it is not allowed.
 

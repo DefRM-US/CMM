@@ -1,8 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "./apps/macos" },
-    { "path": "./apps/windows" },
+    { "path": "./apps/desktop" },
     { "path": "./packages/core" },
     { "path": "./packages/ui" },
     { "path": "./packages/types" }

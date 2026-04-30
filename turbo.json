@@ -5,8 +5,15 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"],
-      "inputs": ["src/**", "package.json", "tsconfig.json"]
+      "outputs": ["dist/**", "dist-electron/**", "build/**"],
+      "inputs": [
+        "src/**",
+        "electron/**",
+        "index.html",
+        "vite.config.ts",
+        "package.json",
+        "tsconfig.json"
+      ]
     },
     "dev": {
       "cache": false,
@@ -28,8 +35,8 @@
     },
     "test": {
       "dependsOn": ["build"],
-      "outputs": ["coverage/**"],
-      "inputs": ["src/**", "**/*.test.ts", "**/*.test.tsx"]
+      "outputs": [],
+      "inputs": ["src/**", "electron/**", "tests/**", "**/*.test.ts", "**/*.test.tsx"]
     },
     "typecheck": {
       "dependsOn": ["^build"],

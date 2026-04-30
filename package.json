@@ -12,8 +12,8 @@
     "check": "turbo run check",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "macos:dev": "turbo run dev --filter=@app/macos",
-    "windows:dev": "turbo run dev --filter=@app/windows",
+    "desktop:dev": "turbo run dev --filter=@app/desktop",
+    "desktop:test": "turbo run test --filter=@app/desktop",
     "prepare": "husky"
   },
   "keywords": [],
@@ -28,7 +28,8 @@
   },
   "pnpm": {
     "overrides": {
-      "react": "19.0.0"
+      "react": "19.0.0",
+      "react-dom": "19.0.0"
     }
   }
 }

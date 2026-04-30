@@ -42,6 +42,7 @@ import {
   showSaveDialog,
   touchProject,
 } from '../lib/core';
+import { deriveImportFileDetails } from '../lib/import-filenames';
 
 const createInitialRow = (): RequirementRow => ({
   id: `req-${Date.now().toString(36)}`,
@@ -63,13 +64,6 @@ const computeNumbers = (rows: RequirementRow[]): string[] => {
 };
 
 const normalizeText = (value: string): string => value.trim().replace(/\s+/g, ' ').toLowerCase();
-
-const getFilename = (filePath: string): string => {
-  const parts = filePath.split('/');
-  return parts[parts.length - 1] || filePath;
-};
-
-const stripExtension = (filename: string): string => filename.replace(/\.[^/.]+$/, '');
 
 const TrashIcon = ({ size = 14, color }: { size?: number; color: string }): React.JSX.Element => {
   const stroke = Math.max(1, Math.round(size / 10));
@@ -966,9 +960,8 @@ export function RequirementsEditorScreen(): React.JSX.Element {
       const reviewQueue: ImportReviewItem[] = [];
 
       for (const filePath of selectedPaths) {
-        const filename = getFilename(filePath);
+        const { filename, companyName } = deriveImportFileDetails(filePath);
         const parsed = await parseCapabilityMatrixSpreadsheet(filePath);
-        const companyName = stripExtension(filename).trim() || filename;
         const importId = createPendingImportId();
 
         parsedImports.push({

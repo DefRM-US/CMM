@@ -63,3 +63,5 @@ export const parseCapabilityMatrixSpreadsheet = (filePath: string) =>
 export const showSaveDialog = (defaultFileName: string) =>
   window.desktopApi.showSaveDialog(defaultFileName);
 export const showOpenDialog = () => window.desktopApi.showOpenDialog();
+export const onCloseRequested = (listener: () => Promise<void> | void) =>
+  window.desktopApi.onCloseRequested(listener);

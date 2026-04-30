@@ -95,6 +95,7 @@ export interface DesktopApi {
     filePath: string;
   }): Promise<string>;
   parseCapabilityMatrixSpreadsheet(filePath: string): Promise<DesktopParsedCapabilityMatrixSheet>;
+  onCloseRequested(listener: () => Promise<void> | void): () => void;
 }
 
 declare global {

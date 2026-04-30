@@ -143,6 +143,32 @@ test.describe
       await secondSession.electronApp.close();
     });
 
+    test('persists a requirement edit when the app closes before autosave completes', async () => {
+      const dataDir = await registerTempDir('cmm-desktop-e2e-quick-close-data-');
+
+      const firstSession = await launchDesktopApp(dataDir);
+      await expect(firstSession.page.getByText('Create your first project')).toBeVisible();
+
+      await firstSession.page.getByRole('button', { name: 'New Project' }).click();
+      await firstSession.page.getByPlaceholder('Project name').fill('Immediate Close Plan');
+      await firstSession.page.getByRole('button', { name: 'Create' }).click();
+
+      const firstRequirement = firstSession.page
+        .locator('input[placeholder="Write a requirement..."]')
+        .first();
+      await firstRequirement.fill('Persist edits during close');
+      await firstSession.electronApp.close();
+
+      const secondSession = await launchDesktopApp(dataDir);
+      await expect(
+        secondSession.page.getByText('Immediate Close Plan', { exact: true }).first(),
+      ).toBeVisible();
+      await expect(
+        secondSession.page.locator('input[value="Persist edits during close"]').first(),
+      ).toBeVisible();
+      await secondSession.electronApp.close();
+    });
+
     test('exports a seeded capability matrix workbook', async () => {
       const dataDir = await registerTempDir('cmm-desktop-e2e-export-data-');
       const exportDir = await registerTempDir('cmm-desktop-e2e-export-file-');

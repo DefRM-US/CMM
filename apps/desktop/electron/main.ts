@@ -4,9 +4,61 @@ import { createDesktopStore } from './store';
 
 const rendererRoot = path.resolve(__dirname, '../dist');
 const preloadPath = path.resolve(__dirname, 'preload.js');
+const CLOSE_FLUSH_TIMEOUT_MS = 5000;
 
 const getDataDir = () => process.env.CMM_DATA_DIR ?? path.join(app.getPath('userData'), 'data');
 const store = createDesktopStore(getDataDir());
+const pendingCloseFlushes = new Map<
+  string,
+  { senderId: number; resolve: () => void; timeout: ReturnType<typeof setTimeout> }
+>();
+
+let closeFlushId = 0;
+let quitAfterCloseFlush = false;
+let quitFlushInProgress = false;
+
+const requestRendererCloseFlush = (window: BrowserWindow): Promise<void> => {
+  if (window.isDestroyed() || window.webContents.isDestroyed()) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    closeFlushId += 1;
+    const requestId = `close-flush-${Date.now().toString(36)}-${closeFlushId.toString(36)}`;
+    const timeout = setTimeout(() => {
+      pendingCloseFlushes.delete(requestId);
+      resolve();
+    }, CLOSE_FLUSH_TIMEOUT_MS);
+
+    pendingCloseFlushes.set(requestId, {
+      senderId: window.webContents.id,
+      resolve,
+      timeout,
+    });
+    window.webContents.send('desktop:flushPendingSavesForClose', requestId);
+  });
+};
+
+const resolveCloseFlush = (requestId: string, senderId: number) => {
+  const pending = pendingCloseFlushes.get(requestId);
+  if (!pending || pending.senderId !== senderId) {
+    return;
+  }
+
+  clearTimeout(pending.timeout);
+  pendingCloseFlushes.delete(requestId);
+  pending.resolve();
+};
+
+const flushOpenWindowsBeforeQuit = async () => {
+  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
+  await Promise.all(windows.map((window) => requestRendererCloseFlush(window)));
+  windows.forEach((window) => {
+    if (!window.isDestroyed()) {
+      window.destroy();
+    }
+  });
+};
 
 const createWindow = async () => {
   const window = new BrowserWindow({
@@ -20,6 +72,22 @@ const createWindow = async () => {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+  let closeAfterFlush = false;
+  let closeFlushInProgress = false;
+
+  window.on('close', (event) => {
+    if (closeAfterFlush) return;
+    event.preventDefault();
+    if (closeFlushInProgress) return;
+
+    closeFlushInProgress = true;
+    void requestRendererCloseFlush(window).finally(() => {
+      closeAfterFlush = true;
+      if (!window.isDestroyed()) {
+        window.destroy();
+      }
+    });
   });
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
@@ -63,6 +131,9 @@ const registerHandlers = () => {
   ipcMain.handle('desktop:saveCapabilityImportWithRows', (_event, input) =>
     store.saveCapabilityImportWithRows(input),
   );
+  ipcMain.on('desktop:closeFlushComplete', (event, requestId: string) => {
+    resolveCloseFlush(requestId, event.sender.id);
+  });
   ipcMain.handle('desktop:showSaveDialog', async (_event, defaultFileName: string) => {
     if (process.env.CMM_TEST_SAVE_PATH) {
       return process.env.CMM_TEST_SAVE_PATH;
@@ -101,6 +172,21 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       void createWindow();
     }
+  });
+});
+
+app.on('before-quit', (event) => {
+  if (quitAfterCloseFlush) return;
+  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
+  if (windows.length === 0) return;
+
+  event.preventDefault();
+  if (quitFlushInProgress) return;
+  quitFlushInProgress = true;
+
+  void flushOpenWindowsBeforeQuit().finally(() => {
+    quitAfterCloseFlush = true;
+    app.exit(0);
   });
 });
 

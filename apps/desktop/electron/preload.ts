@@ -1,5 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+type CloseRequestedListener = () => Promise<void> | void;
+
+const closeRequestedListeners = new Set<CloseRequestedListener>();
+
+ipcRenderer.on('desktop:flushPendingSavesForClose', async (_event, requestId: string) => {
+  try {
+    await Promise.all(Array.from(closeRequestedListeners, (listener) => listener()));
+  } finally {
+    ipcRenderer.send('desktop:closeFlushComplete', requestId);
+  }
+});
+
 contextBridge.exposeInMainWorld('desktopApi', {
   initDatabase: () => ipcRenderer.invoke('desktop:initDatabase'),
   listProjects: () => ipcRenderer.invoke('desktop:listProjects'),
@@ -26,4 +38,10 @@ contextBridge.exposeInMainWorld('desktopApi', {
     ipcRenderer.invoke('desktop:generateCapabilityMatrixSpreadsheet', options),
   parseCapabilityMatrixSpreadsheet: (filePath: string) =>
     ipcRenderer.invoke('desktop:parseCapabilityMatrixSpreadsheet', filePath),
+  onCloseRequested: (listener: CloseRequestedListener) => {
+    closeRequestedListeners.add(listener);
+    return () => {
+      closeRequestedListeners.delete(listener);
+    };
+  },
 });

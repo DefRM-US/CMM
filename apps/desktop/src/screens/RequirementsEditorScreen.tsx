@@ -30,6 +30,7 @@ import {
   listCapabilityImports,
   listProjects,
   loadProjectRequirements,
+  onCloseRequested,
   type ParsedCapabilityMatrixRow,
   type ProjectRecord,
   parseCapabilityMatrixSpreadsheet,
@@ -308,7 +309,7 @@ type ImportReviewItem = {
 export function RequirementsEditorScreen(): React.JSX.Element {
   const { theme } = useTheme();
   const isMac = Platform.OS === 'macos';
-  const [rows, setRows] = useState<RequirementRow[]>(() => [createInitialRow()]);
+  const [rows, setRowsState] = useState<RequirementRow[]>(() => [createInitialRow()]);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(true);
@@ -363,18 +364,39 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   const [isHydrating, setIsHydrating] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveRequestIdRef = useRef(0);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingSaveRef = useRef<{ projectId: string; rows: RequirementRow[] } | null>(null);
   const lastSavedSnapshotRef = useRef<{ projectId: string; signature: string } | null>(null);
+  const rowsRef = useRef(rows);
+  const selectedProjectIdRef = useRef(selectedProjectId);
+  const isHydratingRef = useRef(isHydrating);
   const isScrollingRef = useRef(false);
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const relativeRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [relativeTick, setRelativeTick] = useState(0);
   const [appState, setAppState] = useState(AppState.currentState ?? 'active');
 
+  const setRows = useCallback((nextRows: RequirementRow[]) => {
+    rowsRef.current = nextRows;
+    setRowsState(nextRows);
+  }, []);
+
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
   );
+
+  useEffect(() => {
+    selectedProjectIdRef.current = selectedProjectId;
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    isHydratingRef.current = isHydrating;
+  }, [isHydrating]);
+
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   const numbers = useMemo(() => computeNumbers(rows), [rows]);
   const importSeedRef = useRef(0);
@@ -508,26 +530,33 @@ export function RequirementsEditorScreen(): React.JSX.Element {
   }, []);
 
   const persistRows = useCallback(
-    async (projectId: string, rowsToSave: RequirementRow[]) => {
-      try {
-        if (!hasUnsavedChanges(projectId, rowsToSave)) {
-          setSaveStatus('saved');
-          setSaveError(null);
-          return;
-        }
-        setSaveStatus('saving');
-        setSaveError(null);
-        await saveProjectRequirements(projectId, mapRowsForSave(rowsToSave));
-        markRowsSaved(projectId, rowsToSave);
-        const updatedProjects = await listProjects();
-        setProjects(updatedProjects);
-        setSaveStatus('saved');
-        setSaveError(null);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to save changes.';
-        setSaveStatus('error');
-        setSaveError(message);
-      }
+    (projectId: string, rowsToSave: RequirementRow[]) => {
+      const rowsSnapshot = rowsToSave.map((row) => ({ ...row }));
+      const nextSave = saveQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          try {
+            if (!hasUnsavedChanges(projectId, rowsSnapshot)) {
+              setSaveStatus('saved');
+              setSaveError(null);
+              return;
+            }
+            setSaveStatus('saving');
+            setSaveError(null);
+            await saveProjectRequirements(projectId, mapRowsForSave(rowsSnapshot));
+            markRowsSaved(projectId, rowsSnapshot);
+            const updatedProjects = await listProjects();
+            setProjects(updatedProjects);
+            setSaveStatus('saved');
+            setSaveError(null);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to save changes.';
+            setSaveStatus('error');
+            setSaveError(message);
+          }
+        });
+      saveQueueRef.current = nextSave;
+      return nextSave;
     },
     [hasUnsavedChanges, mapRowsForSave, markRowsSaved],
   );
@@ -554,6 +583,34 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     pendingSaveRef.current = null;
     void persistRows(pending.projectId, pending.rows);
   }, [persistRows]);
+
+  const flushPendingSavesForClose = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (scrollEndTimeoutRef.current) {
+      clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = null;
+    }
+    isScrollingRef.current = false;
+
+    const projectId = selectedProjectIdRef.current;
+    const pending = pendingSaveRef.current;
+    pendingSaveRef.current = null;
+
+    if (pending && pending.projectId !== projectId) {
+      await persistRows(pending.projectId, pending.rows);
+    }
+
+    if (projectId && !isHydratingRef.current) {
+      await persistRows(projectId, rowsRef.current);
+    }
+
+    await saveQueueRef.current.catch(() => undefined);
+  }, [persistRows]);
+
+  useEffect(() => onCloseRequested(flushPendingSavesForClose), [flushPendingSavesForClose]);
 
   useEffect(() => {
     let isMounted = true;
@@ -703,7 +760,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     return () => {
       isActive = false;
     };
-  }, [loadCapabilityResponses, markRowsSaved, resetExportState, selectedProjectId]);
+  }, [loadCapabilityResponses, markRowsSaved, resetExportState, selectedProjectId, setRows]);
 
   useEffect(() => {
     if (!selectedProjectId || isHydrating) return;
@@ -722,6 +779,7 @@ export function RequirementsEditorScreen(): React.JSX.Element {
     }
 
     saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null;
       InteractionManager.runAfterInteractions(() => {
         if (saveRequestIdRef.current !== requestId) return;
         if (isScrollingRef.current) {

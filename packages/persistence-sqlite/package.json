@@ -1,0 +1,26 @@
+{
+  "name": "@cmm/persistence-sqlite",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "check": "biome check .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cmm/typescript-config": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "@cmm/application": "workspace:*",
+    "@cmm/domain": "workspace:*",
+    "better-sqlite3": "^12.9.0"
+  }
+}

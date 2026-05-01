@@ -2,7 +2,12 @@
   "files": [],
   "references": [
     { "path": "./apps/desktop" },
+    { "path": "./packages/application" },
+    { "path": "./packages/contracts" },
     { "path": "./packages/core" },
+    { "path": "./packages/cmm-ui" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/persistence-sqlite" },
     { "path": "./packages/ui" },
     { "path": "./packages/types" }
   ]

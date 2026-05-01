@@ -1,12 +1,18 @@
-import type { IsoDateTime, Opportunity, OpportunityId } from '@cmm/domain';
+import type { BaseCapabilityMatrix, IsoDateTime, Opportunity, OpportunityId } from '@cmm/domain';
 import { describe, expect, it } from 'vitest';
 import { createOpportunityService, type OpportunityRepository } from './index';
 
 class InMemoryOpportunityRepository implements OpportunityRepository {
   readonly opportunities = new Map<OpportunityId, Opportunity>();
+  readonly matrices = new Map<OpportunityId, BaseCapabilityMatrix>();
 
   async saveOpportunity(opportunity: Opportunity): Promise<void> {
     this.opportunities.set(opportunity.id, opportunity);
+    this.matrices.set(opportunity.id, {
+      opportunityId: opportunity.id,
+      revision: 0,
+      requirements: [],
+    });
   }
 
   async listActiveOpportunities(): Promise<Opportunity[]> {
@@ -90,6 +96,28 @@ class InMemoryOpportunityRepository implements OpportunityRepository {
       throw new Error('Opportunity not found.');
     }
     this.opportunities.delete(opportunityId);
+    this.matrices.delete(opportunityId);
+  }
+
+  async loadBaseCapabilityMatrix(opportunityId: OpportunityId): Promise<BaseCapabilityMatrix> {
+    const matrix = this.matrices.get(opportunityId);
+    if (!matrix) {
+      throw new Error('Base Capability Matrix not found.');
+    }
+    return matrix;
+  }
+
+  async saveBaseCapabilityMatrix(matrix: BaseCapabilityMatrix): Promise<BaseCapabilityMatrix> {
+    const current = this.matrices.get(matrix.opportunityId);
+    if (!current) {
+      throw new Error('Base Capability Matrix not found.');
+    }
+    const saved = {
+      ...matrix,
+      revision: current.revision + 1,
+    };
+    this.matrices.set(matrix.opportunityId, saved);
+    return saved;
   }
 }
 
@@ -145,6 +173,7 @@ describe('OpportunityService', () => {
       },
       baseCapabilityMatrix: {
         opportunityId: 'opportunity-1',
+        revision: 0,
         requirements: [],
       },
     });
@@ -233,9 +262,129 @@ describe('OpportunityService', () => {
       },
       baseCapabilityMatrix: {
         opportunityId: 'opportunity-1',
+        revision: 0,
         requirements: [],
       },
     });
+  });
+
+  it('saves and reopens an active Opportunity Base Capability Matrix with stable Requirement IDs', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-01T09:05:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+
+    const saved = await service.saveBaseCapabilityMatrix({
+      opportunityId: created.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 3,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 2,
+          position: 8,
+          retiredAt: null,
+        },
+      ],
+    });
+
+    expect(saved).toEqual({
+      opportunityId: created.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 2,
+          position: 1,
+          retiredAt: null,
+        },
+      ],
+    });
+
+    const reopened = await service.openOpportunity({ opportunityId: created.id });
+
+    expect(reopened.baseCapabilityMatrix).toEqual(saved);
+  });
+
+  it('rejects stale Base Capability Matrix saves', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    await service.saveBaseCapabilityMatrix({
+      opportunityId: created.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    });
+
+    await expect(
+      service.saveBaseCapabilityMatrix({
+        opportunityId: created.id,
+        revision: 0,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: 'Provide secure hosting with stale revision',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      code: 'baseMatrix.revisionConflict',
+    });
+  });
+
+  it('rejects Base Capability Matrix saves for archived Opportunities', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-01T09:10:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    await service.archiveOpportunity({ opportunityId: created.id });
+
+    await expect(
+      service.saveBaseCapabilityMatrix({
+        opportunityId: created.id,
+        revision: 0,
+        requirements: [],
+      }),
+    ).rejects.toThrow('Opportunity not found.');
   });
 
   it('hard-deletes an archived Opportunity', async () => {

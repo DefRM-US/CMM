@@ -3,6 +3,7 @@ import {
   cmmIpcContracts,
   type OpenOpportunityIpcInput,
   type OpportunityLifecycleIpcInput,
+  type SaveBaseCapabilityMatrixIpcInput,
 } from '@cmm/contracts';
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -17,6 +18,8 @@ contextBridge.exposeInMainWorld('cmmApi', {
     ipcRenderer.invoke(cmmIpcContracts.openOpportunity.channel, input),
   openArchivedOpportunity: (input: OpportunityLifecycleIpcInput) =>
     ipcRenderer.invoke(cmmIpcContracts.openArchivedOpportunity.channel, input),
+  saveBaseCapabilityMatrix: (input: SaveBaseCapabilityMatrixIpcInput) =>
+    ipcRenderer.invoke(cmmIpcContracts.saveBaseCapabilityMatrix.channel, input),
   archiveOpportunity: (input: OpportunityLifecycleIpcInput) =>
     ipcRenderer.invoke(cmmIpcContracts.archiveOpportunity.channel, input),
   restoreArchivedOpportunity: (input: OpportunityLifecycleIpcInput) =>

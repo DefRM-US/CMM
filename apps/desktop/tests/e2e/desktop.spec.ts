@@ -73,6 +73,10 @@ test.describe
         firstSession.page.getByRole('heading', { name: 'Base Capability Matrix' }),
       ).toBeVisible();
       await expect(firstSession.page.getByText('No requirements yet.')).toBeVisible();
+      await firstSession.page.getByRole('button', { name: 'Add Requirement' }).click();
+      await firstSession.page.getByLabel('Requirement 1 text').fill('Provide secure hosting');
+      await firstSession.page.getByRole('button', { name: 'Save Matrix' }).click();
+      await expect(firstSession.page.getByText('Saved')).toBeVisible();
       await expect(
         firstSession.page.getByRole('button', { name: 'Open Maritime Logistics Support' }),
       ).toBeVisible();
@@ -97,7 +101,10 @@ test.describe
       await expect(
         secondSession.page.getByRole('heading', { name: 'Base Capability Matrix' }),
       ).toBeVisible();
-      await expect(secondSession.page.getByText('No requirements yet.')).toBeVisible();
+      await expect(secondSession.page.getByLabel('Requirement 1 text')).toHaveValue(
+        'Provide secure hosting',
+      );
+      await expect(secondSession.page.getByLabel('Requirement 1 text')).toBeDisabled();
       await expect(secondSession.page.getByText('Read-only')).toBeVisible();
 
       await secondSession.page.getByRole('button', { name: 'Restore Opportunity' }).click();

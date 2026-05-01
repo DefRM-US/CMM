@@ -1,4 +1,4 @@
-import type { OpportunityDto } from '@cmm/contracts';
+import type { BaseCapabilityMatrixDto, OpportunityDto } from '@cmm/contracts';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,12 @@ const archivedOpportunity: OpportunityDto = {
   archivedAt: '2026-05-01T09:10:00.000Z',
 };
 
+const emptyBaseCapabilityMatrix = (opportunityId: string): BaseCapabilityMatrixDto => ({
+  opportunityId,
+  revision: 0,
+  requirements: [],
+});
+
 const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
   const api: Window['cmmApi'] = {
     createOpportunity: vi.fn(),
@@ -34,20 +40,18 @@ const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
         ...activeOpportunity,
         id: opportunityId,
       },
-      baseCapabilityMatrix: {
-        opportunityId,
-        requirements: [],
-      },
+      baseCapabilityMatrix: emptyBaseCapabilityMatrix(opportunityId),
     })),
     openArchivedOpportunity: vi.fn(async ({ opportunityId }) => ({
       opportunity: {
         ...archivedOpportunity,
         id: opportunityId,
       },
-      baseCapabilityMatrix: {
-        opportunityId,
-        requirements: [],
-      },
+      baseCapabilityMatrix: emptyBaseCapabilityMatrix(opportunityId),
+    })),
+    saveBaseCapabilityMatrix: vi.fn(async (matrix) => ({
+      ...matrix,
+      revision: matrix.revision + 1,
     })),
     archiveOpportunity: vi.fn(),
     restoreArchivedOpportunity: vi.fn(),
@@ -102,10 +106,7 @@ describe('App', () => {
       listArchivedOpportunities: vi.fn(async () => archived),
       openOpportunity: vi.fn(async () => ({
         opportunity: activeOpportunity,
-        baseCapabilityMatrix: {
-          opportunityId: activeOpportunity.id,
-          requirements: [],
-        },
+        baseCapabilityMatrix: emptyBaseCapabilityMatrix(activeOpportunity.id),
       })),
       archiveOpportunity: vi.fn(async () => {
         active = [];
@@ -163,6 +164,117 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Archive Opportunity' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Open Archived Radar Upgrade' })).toBeVisible();
+  });
+
+  it('edits, retires, reveals, and saves active Base Capability Matrix Requirements', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+      ],
+    };
+    const randomUUID = vi.spyOn(globalThis.crypto, 'randomUUID');
+    randomUUID.mockReturnValue('00000000-0000-4000-8000-000000000001');
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 2 text'));
+    await user.type(screen.getByLabelText('Requirement 2 text'), 'Operate 24/7 help desk');
+    await user.click(screen.getByRole('button', { name: 'Move Requirement 2 up' }));
+    await user.click(screen.getByRole('button', { name: 'Indent Requirement 2' }));
+    await user.click(screen.getByRole('button', { name: 'Retire Requirement 1.1' }));
+
+    expect(screen.queryByDisplayValue('Provide secure hosting')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show retired Requirements' }));
+
+    expect(screen.getByDisplayValue('Provide secure hosting')).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Add Requirement' }));
+    await user.type(screen.getByLabelText('Requirement 2 text'), 'Train operators');
+    await user.click(screen.getByRole('button', { name: 'Save Matrix' }));
+
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-2',
+          text: 'Operate 24/7 help desk',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        expect.objectContaining({
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 2,
+          position: 1,
+        }),
+        {
+          id: '00000000-0000-4000-8000-000000000001',
+          text: 'Train operators',
+          level: 1,
+          position: 2,
+          retiredAt: null,
+        },
+      ],
+    });
+    expect(await screen.findByText('Saved')).toBeVisible();
+  });
+
+  it('loads archived Opportunity matrices in a read-only workspace', async () => {
+    installCmmApi({
+      openArchivedOpportunity: vi.fn(async () => ({
+        opportunity: archivedOpportunity,
+        baseCapabilityMatrix: {
+          opportunityId: archivedOpportunity.id,
+          revision: 1,
+          requirements: [
+            {
+              id: 'requirement-1',
+              text: 'Provide secure hosting',
+              level: 1,
+              position: 0,
+              retiredAt: null,
+            },
+          ],
+        },
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Archived' }));
+    await user.click(await screen.findByRole('button', { name: 'Open Archived Radar Upgrade' }));
+
+    expect(await screen.findByDisplayValue('Provide secure hosting')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Add Requirement' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Matrix' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retire Requirement 1' })).not.toBeInTheDocument();
   });
 
   it('requires confirmation before hard-deleting an archived Opportunity', async () => {

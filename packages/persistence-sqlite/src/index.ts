@@ -1,5 +1,5 @@
 import type { OpportunityRepository } from '@cmm/application';
-import type { Opportunity, OpportunityId } from '@cmm/domain';
+import type { BaseCapabilityMatrix, Opportunity, OpportunityId, Requirement } from '@cmm/domain';
 import type { Database as SqliteDatabase } from 'better-sqlite3';
 import Database from 'better-sqlite3';
 
@@ -32,6 +32,36 @@ const migrations: Migration[] = [
         ON opportunities (archived_at, last_opened_at, updated_at, created_at);
     `,
   },
+  {
+    id: 2,
+    name: '0002_create_base_capability_matrices',
+    sql: `
+      CREATE TABLE base_capability_matrices (
+        opportunity_id TEXT PRIMARY KEY
+          REFERENCES opportunities(id) ON DELETE CASCADE,
+        revision INTEGER NOT NULL DEFAULT 0
+      );
+
+      INSERT INTO base_capability_matrices (opportunity_id, revision)
+      SELECT id, 0
+      FROM opportunities
+      WHERE id NOT IN (SELECT opportunity_id FROM base_capability_matrices);
+
+      CREATE TABLE requirements (
+        id TEXT PRIMARY KEY,
+        opportunity_id TEXT NOT NULL
+          REFERENCES base_capability_matrices(opportunity_id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        level INTEGER NOT NULL CHECK (level >= 1),
+        position INTEGER NOT NULL CHECK (position >= 0),
+        retired_at TEXT,
+        UNIQUE (opportunity_id, position)
+      );
+
+      CREATE INDEX requirements_opportunity_order_idx
+        ON requirements (opportunity_id, position);
+    `,
+  },
 ];
 
 type MigrationRow = {
@@ -50,6 +80,20 @@ type OpportunityRow = {
   archived_at: string | null;
 };
 
+type BaseCapabilityMatrixRow = {
+  opportunity_id: string;
+  revision: number;
+};
+
+type RequirementRow = {
+  id: string;
+  opportunity_id: string;
+  text: string;
+  level: number;
+  position: number;
+  retired_at: string | null;
+};
+
 const toOpportunity = (row: OpportunityRow): Opportunity => ({
   id: row.id,
   name: row.name,
@@ -60,6 +104,14 @@ const toOpportunity = (row: OpportunityRow): Opportunity => ({
   updatedAt: row.updated_at,
   lastOpenedAt: row.last_opened_at,
   archivedAt: row.archived_at,
+});
+
+const toRequirement = (row: RequirementRow): Requirement => ({
+  id: row.id,
+  text: row.text,
+  level: row.level,
+  position: row.position,
+  retiredAt: row.retired_at,
 });
 
 export const runSqliteMigrations = (database: SqliteDatabase): void => {
@@ -216,9 +268,111 @@ export const createSqliteOpportunityRepository = (
     WHERE id = ? AND archived_at IS NOT NULL
   `);
 
+  const insertBaseCapabilityMatrix = database.prepare(`
+    INSERT INTO base_capability_matrices (opportunity_id, revision)
+    VALUES (?, 0)
+  `);
+
+  const findBaseCapabilityMatrix = database.prepare(`
+    SELECT opportunity_id, revision
+    FROM base_capability_matrices
+    WHERE opportunity_id = ?
+  `);
+
+  const listRequirements = database.prepare(`
+    SELECT
+      id,
+      opportunity_id,
+      text,
+      level,
+      position,
+      retired_at
+    FROM requirements
+    WHERE opportunity_id = ?
+    ORDER BY position ASC
+  `);
+
+  const updateBaseCapabilityMatrixRevision = database.prepare(`
+    UPDATE base_capability_matrices
+    SET revision = ?
+    WHERE opportunity_id = ? AND revision = ?
+  `);
+
+  const deleteRequirementsForOpportunity = database.prepare(`
+    DELETE FROM requirements
+    WHERE opportunity_id = ?
+  `);
+
+  const insertRequirement = database.prepare(`
+    INSERT INTO requirements (
+      id,
+      opportunity_id,
+      text,
+      level,
+      position,
+      retired_at
+    ) VALUES (
+      @id,
+      @opportunityId,
+      @text,
+      @level,
+      @position,
+      @retiredAt
+    )
+  `);
+
+  const loadMatrix = (opportunityId: OpportunityId): BaseCapabilityMatrix => {
+    const matrixRow = findBaseCapabilityMatrix.get(opportunityId) as
+      | BaseCapabilityMatrixRow
+      | undefined;
+    if (!matrixRow) {
+      throw new Error('Base Capability Matrix not found.');
+    }
+
+    return {
+      opportunityId: matrixRow.opportunity_id,
+      revision: matrixRow.revision,
+      requirements: listRequirements
+        .all(opportunityId)
+        .map((row) => toRequirement(row as RequirementRow)),
+    };
+  };
+
+  const saveOpportunityWithMatrix = database.transaction((opportunity: Opportunity) => {
+    insertOpportunity.run(opportunity);
+    insertBaseCapabilityMatrix.run(opportunity.id);
+  });
+
+  const saveMatrix = database.transaction((matrix: BaseCapabilityMatrix) => {
+    const current = loadMatrix(matrix.opportunityId);
+    const nextRevision = matrix.revision + 1;
+    const updateResult = updateBaseCapabilityMatrixRevision.run(
+      nextRevision,
+      matrix.opportunityId,
+      matrix.revision,
+    );
+    if (current.revision !== matrix.revision || updateResult.changes === 0) {
+      throw new Error('Base Capability Matrix revision conflict.');
+    }
+
+    deleteRequirementsForOpportunity.run(matrix.opportunityId);
+    for (const requirement of matrix.requirements) {
+      insertRequirement.run({
+        id: requirement.id,
+        opportunityId: matrix.opportunityId,
+        text: requirement.text,
+        level: requirement.level,
+        position: requirement.position,
+        retiredAt: requirement.retiredAt,
+      });
+    }
+
+    return loadMatrix(matrix.opportunityId);
+  });
+
   return {
     async saveOpportunity(opportunity) {
-      insertOpportunity.run(opportunity);
+      saveOpportunityWithMatrix(opportunity);
     },
 
     async listActiveOpportunities() {
@@ -271,6 +425,14 @@ export const createSqliteOpportunityRepository = (
       if (result.changes === 0) {
         throw new Error('Opportunity not found.');
       }
+    },
+
+    async loadBaseCapabilityMatrix(opportunityId) {
+      return loadMatrix(opportunityId);
+    },
+
+    async saveBaseCapabilityMatrix(matrix) {
+      return saveMatrix(matrix);
     },
   };
 };

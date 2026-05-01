@@ -135,6 +135,60 @@ describe('SQLite Opportunity repository', () => {
     secondDatabase.close();
   });
 
+  it('persists Base Capability Matrix Requirements across database connections', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'cmm-sqlite-base-matrix-'));
+    tempDirs.push(dir);
+    const databasePath = path.join(dir, 'cmm.sqlite');
+
+    const firstDatabase = createCmmSqliteDatabase(databasePath);
+    const firstService = createOpportunityService({
+      repository: createSqliteOpportunityRepository(firstDatabase),
+      clock: createClock(['2026-05-01T09:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await firstService.createOpportunity({
+      name: 'Maritime Logistics Support',
+    });
+    const saved = await firstService.saveBaseCapabilityMatrix({
+      opportunityId: created.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Retired draft Requirement',
+          level: 2,
+          position: 1,
+          retiredAt: '2026-05-01T10:00:00.000Z',
+        },
+      ],
+    });
+    firstDatabase.close();
+
+    const secondDatabase = createCmmSqliteDatabase(databasePath);
+    const secondService = createOpportunityService({
+      repository: createSqliteOpportunityRepository(secondDatabase),
+      clock: createClock(['2026-05-01T10:00:00.000Z']),
+      ids: { next: () => 'unused' },
+    });
+
+    await expect(secondService.openOpportunity({ opportunityId: created.id })).resolves.toEqual({
+      opportunity: {
+        ...created,
+        lastOpenedAt: '2026-05-01T10:00:00.000Z',
+      },
+      baseCapabilityMatrix: saved,
+    });
+    secondDatabase.close();
+  });
+
   it('removes hard-deleted archived Opportunities across database connections', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'cmm-sqlite-opportunities-'));
     tempDirs.push(dir);

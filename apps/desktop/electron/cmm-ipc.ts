@@ -47,6 +47,9 @@ export const registerCmmIpcHandlers = (
   registerValidatedHandler(ipcMain, cmmIpcContracts.openArchivedOpportunity, (input) =>
     opportunityService.openArchivedOpportunity(input),
   );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.saveBaseCapabilityMatrix, (input) =>
+    opportunityService.saveBaseCapabilityMatrix(input),
+  );
   registerValidatedHandler(ipcMain, cmmIpcContracts.archiveOpportunity, (input) =>
     opportunityService.archiveOpportunity(input),
   );

@@ -13,6 +13,27 @@ const opportunity = {
   archivedAt: null,
 };
 
+const baseCapabilityMatrix = {
+  opportunityId: 'opportunity-1',
+  revision: 1,
+  requirements: [
+    {
+      id: 'requirement-1',
+      text: 'Provide secure hosting',
+      level: 1,
+      position: 0,
+      retiredAt: null,
+    },
+    {
+      id: 'requirement-2',
+      text: 'Retired draft Requirement',
+      level: 2,
+      position: 1,
+      retiredAt: '2026-05-01T10:00:00.000Z',
+    },
+  ],
+};
+
 describe('Opportunity IPC contracts', () => {
   it('validates create, list, and open Opportunity IPC payloads', () => {
     expect(cmmIpcContracts.createOpportunity.channel).toBe('cmm:opportunities:create');
@@ -29,6 +50,7 @@ describe('Opportunity IPC contracts', () => {
     expect(cmmIpcContracts.hardDeleteArchivedOpportunity.channel).toBe(
       'cmm:opportunities:hard-delete-archived',
     );
+    expect(cmmIpcContracts.saveBaseCapabilityMatrix.channel).toBe('cmm:base-matrices:save');
 
     expect(
       validateIpcInput(cmmIpcContracts.createOpportunity, {
@@ -76,17 +98,11 @@ describe('Opportunity IPC contracts', () => {
     expect(
       validateIpcOutput(cmmIpcContracts.openOpportunity, {
         opportunity,
-        baseCapabilityMatrix: {
-          opportunityId: 'opportunity-1',
-          requirements: [],
-        },
+        baseCapabilityMatrix,
       }),
     ).toEqual({
       opportunity,
-      baseCapabilityMatrix: {
-        opportunityId: 'opportunity-1',
-        requirements: [],
-      },
+      baseCapabilityMatrix,
     });
     expect(
       validateIpcOutput(cmmIpcContracts.openArchivedOpportunity, {
@@ -94,21 +110,32 @@ describe('Opportunity IPC contracts', () => {
           ...opportunity,
           archivedAt: '2026-05-01T09:10:00.000Z',
         },
-        baseCapabilityMatrix: {
-          opportunityId: 'opportunity-1',
-          requirements: [],
-        },
+        baseCapabilityMatrix,
       }),
     ).toEqual({
       opportunity: {
         ...opportunity,
         archivedAt: '2026-05-01T09:10:00.000Z',
       },
-      baseCapabilityMatrix: {
-        opportunityId: 'opportunity-1',
-        requirements: [],
-      },
+      baseCapabilityMatrix,
     });
+    expect(
+      validateIpcInput(cmmIpcContracts.saveBaseCapabilityMatrix, baseCapabilityMatrix),
+    ).toEqual(baseCapabilityMatrix);
+    expect(() =>
+      validateIpcInput(cmmIpcContracts.saveBaseCapabilityMatrix, {
+        ...baseCapabilityMatrix,
+        requirements: [
+          {
+            ...baseCapabilityMatrix.requirements[0],
+            level: 0,
+          },
+        ],
+      }),
+    ).toThrow();
+    expect(
+      validateIpcOutput(cmmIpcContracts.saveBaseCapabilityMatrix, baseCapabilityMatrix),
+    ).toEqual(baseCapabilityMatrix);
     expect(validateIpcOutput(cmmIpcContracts.archiveOpportunity, opportunity)).toEqual(opportunity);
     expect(validateIpcOutput(cmmIpcContracts.restoreArchivedOpportunity, opportunity)).toEqual(
       opportunity,

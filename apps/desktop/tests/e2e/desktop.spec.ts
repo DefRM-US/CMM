@@ -76,9 +76,17 @@ test.describe
       await expect(
         firstSession.page.getByRole('button', { name: 'Open Maritime Logistics Support' }),
       ).toBeVisible();
+
+      await firstSession.page.getByRole('button', { name: 'Archive Opportunity' }).click();
+      await expect(firstSession.page.getByText('Read-only')).toBeVisible();
+      await expect(
+        firstSession.page.getByRole('button', { name: 'Restore Opportunity' }),
+      ).toBeVisible();
       await firstSession.electronApp.close();
 
       const secondSession = await launchDesktopApp(dataDir);
+      await expect(secondSession.page.getByText('No Opportunities yet')).toBeVisible();
+      await secondSession.page.getByRole('button', { name: 'Archived' }).click();
       await expect(
         secondSession.page.getByRole('button', { name: 'Open Maritime Logistics Support' }),
       ).toBeVisible();
@@ -90,6 +98,31 @@ test.describe
         secondSession.page.getByRole('heading', { name: 'Base Capability Matrix' }),
       ).toBeVisible();
       await expect(secondSession.page.getByText('No requirements yet.')).toBeVisible();
+      await expect(secondSession.page.getByText('Read-only')).toBeVisible();
+
+      await secondSession.page.getByRole('button', { name: 'Restore Opportunity' }).click();
+      await expect(secondSession.page.getByRole('button', { name: 'Active' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await expect(
+        secondSession.page.getByRole('button', { name: 'Archive Opportunity' }),
+      ).toBeVisible();
+
+      await secondSession.page.getByRole('button', { name: 'Archive Opportunity' }).click();
+      await expect(secondSession.page.getByText('Read-only')).toBeVisible();
+
+      secondSession.page.once('dialog', (dialog) => {
+        void dialog.accept();
+      });
+      await secondSession.page.getByRole('button', { name: 'Hard delete Opportunity' }).click();
+      await expect(secondSession.page.getByText('No archived Opportunities')).toBeVisible();
       await secondSession.electronApp.close();
+
+      const thirdSession = await launchDesktopApp(dataDir);
+      await expect(thirdSession.page.getByText('No Opportunities yet')).toBeVisible();
+      await thirdSession.page.getByRole('button', { name: 'Archived' }).click();
+      await expect(thirdSession.page.getByText('No archived Opportunities')).toBeVisible();
+      await thirdSession.electronApp.close();
     });
   });

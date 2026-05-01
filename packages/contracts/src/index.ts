@@ -22,7 +22,7 @@ const createOpportunityInputSchema = z.object({
   description: nullableTextSchema.optional(),
 });
 
-const openOpportunityInputSchema = z.object({
+const opportunityIdInputSchema = z.object({
   opportunityId: z
     .string()
     .refine((value) => value.trim().length > 0, 'Opportunity ID is required.'),
@@ -38,10 +38,18 @@ const openOpportunityOutputSchema = z.object({
   baseCapabilityMatrix: emptyBaseCapabilityMatrixSchema,
 });
 
+const hardDeleteArchivedOpportunityOutputSchema = z.object({
+  opportunityId: z.string().min(1),
+});
+
 export type OpportunityDto = z.infer<typeof opportunitySchema>;
 export type CreateOpportunityIpcInput = z.infer<typeof createOpportunityInputSchema>;
-export type OpenOpportunityIpcInput = z.infer<typeof openOpportunityInputSchema>;
+export type OpenOpportunityIpcInput = z.infer<typeof opportunityIdInputSchema>;
 export type OpenOpportunityIpcOutput = z.infer<typeof openOpportunityOutputSchema>;
+export type OpportunityLifecycleIpcInput = z.infer<typeof opportunityIdInputSchema>;
+export type HardDeleteArchivedOpportunityIpcOutput = z.infer<
+  typeof hardDeleteArchivedOpportunityOutputSchema
+>;
 
 export type IpcContract<Input, Output> = {
   channel: string;
@@ -64,10 +72,35 @@ export const cmmIpcContracts = {
     inputSchema: z.undefined(),
     outputSchema: z.array(opportunitySchema),
   }),
+  listArchivedOpportunities: defineContract({
+    channel: 'cmm:opportunities:list-archived',
+    inputSchema: z.undefined(),
+    outputSchema: z.array(opportunitySchema),
+  }),
   openOpportunity: defineContract({
     channel: 'cmm:opportunities:open',
-    inputSchema: openOpportunityInputSchema,
+    inputSchema: opportunityIdInputSchema,
     outputSchema: openOpportunityOutputSchema,
+  }),
+  openArchivedOpportunity: defineContract({
+    channel: 'cmm:opportunities:open-archived',
+    inputSchema: opportunityIdInputSchema,
+    outputSchema: openOpportunityOutputSchema,
+  }),
+  archiveOpportunity: defineContract({
+    channel: 'cmm:opportunities:archive',
+    inputSchema: opportunityIdInputSchema,
+    outputSchema: opportunitySchema,
+  }),
+  restoreArchivedOpportunity: defineContract({
+    channel: 'cmm:opportunities:restore-archived',
+    inputSchema: opportunityIdInputSchema,
+    outputSchema: opportunitySchema,
+  }),
+  hardDeleteArchivedOpportunity: defineContract({
+    channel: 'cmm:opportunities:hard-delete-archived',
+    inputSchema: opportunityIdInputSchema,
+    outputSchema: hardDeleteArchivedOpportunityOutputSchema,
   }),
 };
 

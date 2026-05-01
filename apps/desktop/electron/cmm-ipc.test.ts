@@ -34,6 +34,12 @@ describe('registerCmmIpcHandlers', () => {
     const opportunityService: OpportunityService = {
       createOpportunity: vi.fn(async () => opportunity),
       listActiveOpportunities: vi.fn(async () => [opportunity]),
+      listArchivedOpportunities: vi.fn(async () => [
+        {
+          ...opportunity,
+          archivedAt: '2026-05-01T09:10:00.000Z',
+        },
+      ]),
       openOpportunity: vi.fn(async () => ({
         opportunity: {
           ...opportunity,
@@ -44,6 +50,22 @@ describe('registerCmmIpcHandlers', () => {
           requirements: [],
         },
       })),
+      openArchivedOpportunity: vi.fn(async () => ({
+        opportunity: {
+          ...opportunity,
+          archivedAt: '2026-05-01T09:10:00.000Z',
+        },
+        baseCapabilityMatrix: {
+          opportunityId: opportunity.id,
+          requirements: [],
+        },
+      })),
+      archiveOpportunity: vi.fn(async () => ({
+        ...opportunity,
+        archivedAt: '2026-05-01T09:10:00.000Z',
+      })),
+      restoreArchivedOpportunity: vi.fn(async () => opportunity),
+      hardDeleteArchivedOpportunity: vi.fn(async () => undefined),
     };
 
     registerCmmIpcHandlers(ipcMain, { opportunityService });
@@ -52,7 +74,12 @@ describe('registerCmmIpcHandlers', () => {
       [
         cmmIpcContracts.createOpportunity.channel,
         cmmIpcContracts.listActiveOpportunities.channel,
+        cmmIpcContracts.listArchivedOpportunities.channel,
         cmmIpcContracts.openOpportunity.channel,
+        cmmIpcContracts.openArchivedOpportunity.channel,
+        cmmIpcContracts.archiveOpportunity.channel,
+        cmmIpcContracts.restoreArchivedOpportunity.channel,
+        cmmIpcContracts.hardDeleteArchivedOpportunity.channel,
       ].sort(),
     );
 
@@ -66,6 +93,25 @@ describe('registerCmmIpcHandlers', () => {
     );
     expect(opportunityService.createOpportunity).toHaveBeenCalledWith({
       name: 'Arctic Radar Upgrade',
+    });
+
+    const archiveHandler = ipcMain.handlers.get(cmmIpcContracts.archiveOpportunity.channel);
+    await expect(archiveHandler?.({}, { opportunityId: 'opportunity-1' })).resolves.toEqual({
+      ...opportunity,
+      archivedAt: '2026-05-01T09:10:00.000Z',
+    });
+    expect(opportunityService.archiveOpportunity).toHaveBeenCalledWith({
+      opportunityId: 'opportunity-1',
+    });
+
+    const hardDeleteHandler = ipcMain.handlers.get(
+      cmmIpcContracts.hardDeleteArchivedOpportunity.channel,
+    );
+    await expect(hardDeleteHandler?.({}, { opportunityId: 'opportunity-1' })).resolves.toEqual({
+      opportunityId: 'opportunity-1',
+    });
+    expect(opportunityService.hardDeleteArchivedOpportunity).toHaveBeenCalledWith({
+      opportunityId: 'opportunity-1',
     });
   });
 });

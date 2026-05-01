@@ -162,10 +162,58 @@ export const createSqliteOpportunityRepository = (
     WHERE id = ? AND archived_at IS NULL
   `);
 
+  const listArchived = database.prepare(`
+    SELECT
+      id,
+      name,
+      solicitation_number,
+      issuing_agency,
+      description,
+      created_at,
+      updated_at,
+      last_opened_at,
+      archived_at
+    FROM opportunities
+    WHERE archived_at IS NOT NULL
+    ORDER BY archived_at DESC, updated_at DESC, created_at DESC
+  `);
+
+  const findArchivedById = database.prepare(`
+    SELECT
+      id,
+      name,
+      solicitation_number,
+      issuing_agency,
+      description,
+      created_at,
+      updated_at,
+      last_opened_at,
+      archived_at
+    FROM opportunities
+    WHERE id = ? AND archived_at IS NOT NULL
+  `);
+
   const markOpened = database.prepare(`
     UPDATE opportunities
     SET last_opened_at = ?
     WHERE id = ? AND archived_at IS NULL
+  `);
+
+  const archiveOpportunity = database.prepare(`
+    UPDATE opportunities
+    SET archived_at = ?, updated_at = ?
+    WHERE id = ? AND archived_at IS NULL
+  `);
+
+  const restoreArchivedOpportunity = database.prepare(`
+    UPDATE opportunities
+    SET archived_at = NULL, updated_at = ?
+    WHERE id = ? AND archived_at IS NOT NULL
+  `);
+
+  const hardDeleteArchivedOpportunity = database.prepare(`
+    DELETE FROM opportunities
+    WHERE id = ? AND archived_at IS NOT NULL
   `);
 
   return {
@@ -177,8 +225,17 @@ export const createSqliteOpportunityRepository = (
       return listActive.all().map((row) => toOpportunity(row as OpportunityRow));
     },
 
+    async listArchivedOpportunities() {
+      return listArchived.all().map((row) => toOpportunity(row as OpportunityRow));
+    },
+
     async findActiveOpportunityById(opportunityId: OpportunityId) {
       const row = findActiveById.get(opportunityId);
+      return row ? toOpportunity(row as OpportunityRow) : null;
+    },
+
+    async findArchivedOpportunityById(opportunityId: OpportunityId) {
+      const row = findArchivedById.get(opportunityId);
       return row ? toOpportunity(row as OpportunityRow) : null;
     },
 
@@ -189,6 +246,31 @@ export const createSqliteOpportunityRepository = (
         throw new Error('Opportunity not found.');
       }
       return toOpportunity(row as OpportunityRow);
+    },
+
+    async archiveOpportunity(opportunityId, archivedAt) {
+      archiveOpportunity.run(archivedAt, archivedAt, opportunityId);
+      const row = findArchivedById.get(opportunityId);
+      if (!row) {
+        throw new Error('Opportunity not found.');
+      }
+      return toOpportunity(row as OpportunityRow);
+    },
+
+    async restoreArchivedOpportunity(opportunityId, restoredAt) {
+      restoreArchivedOpportunity.run(restoredAt, opportunityId);
+      const row = findActiveById.get(opportunityId);
+      if (!row) {
+        throw new Error('Opportunity not found.');
+      }
+      return toOpportunity(row as OpportunityRow);
+    },
+
+    async hardDeleteArchivedOpportunity(opportunityId) {
+      const result = hardDeleteArchivedOpportunity.run(opportunityId);
+      if (result.changes === 0) {
+        throw new Error('Opportunity not found.');
+      }
     },
   };
 };

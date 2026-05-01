@@ -15,9 +15,23 @@ class InMemoryOpportunityRepository implements OpportunityRepository {
     );
   }
 
+  async listArchivedOpportunities(): Promise<Opportunity[]> {
+    return Array.from(this.opportunities.values()).filter(
+      (opportunity) => opportunity.archivedAt !== null,
+    );
+  }
+
   async findActiveOpportunityById(opportunityId: OpportunityId): Promise<Opportunity | null> {
     const opportunity = this.opportunities.get(opportunityId);
     if (!opportunity || opportunity.archivedAt !== null) {
+      return null;
+    }
+    return opportunity;
+  }
+
+  async findArchivedOpportunityById(opportunityId: OpportunityId): Promise<Opportunity | null> {
+    const opportunity = this.opportunities.get(opportunityId);
+    if (!opportunity || opportunity.archivedAt === null) {
       return null;
     }
     return opportunity;
@@ -34,6 +48,48 @@ class InMemoryOpportunityRepository implements OpportunityRepository {
     const updated = { ...opportunity, lastOpenedAt };
     this.opportunities.set(opportunityId, updated);
     return updated;
+  }
+
+  async archiveOpportunity(
+    opportunityId: OpportunityId,
+    archivedAt: IsoDateTime,
+  ): Promise<Opportunity> {
+    const opportunity = this.opportunities.get(opportunityId);
+    if (!opportunity || opportunity.archivedAt !== null) {
+      throw new Error('Opportunity not found.');
+    }
+    const updated = {
+      ...opportunity,
+      updatedAt: archivedAt,
+      archivedAt,
+    };
+    this.opportunities.set(opportunityId, updated);
+    return updated;
+  }
+
+  async restoreArchivedOpportunity(
+    opportunityId: OpportunityId,
+    restoredAt: IsoDateTime,
+  ): Promise<Opportunity> {
+    const opportunity = this.opportunities.get(opportunityId);
+    if (!opportunity || opportunity.archivedAt === null) {
+      throw new Error('Opportunity not found.');
+    }
+    const updated = {
+      ...opportunity,
+      updatedAt: restoredAt,
+      archivedAt: null,
+    };
+    this.opportunities.set(opportunityId, updated);
+    return updated;
+  }
+
+  async hardDeleteArchivedOpportunity(opportunityId: OpportunityId): Promise<void> {
+    const opportunity = this.opportunities.get(opportunityId);
+    if (!opportunity || opportunity.archivedAt === null) {
+      throw new Error('Opportunity not found.');
+    }
+    this.opportunities.delete(opportunityId);
   }
 }
 
@@ -93,5 +149,127 @@ describe('OpportunityService', () => {
       },
     });
     await expect(service.listActiveOpportunities()).resolves.toEqual([opened.opportunity]);
+  });
+
+  it('archives an active Opportunity into the archived Opportunity list', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-01T09:10:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({
+      name: 'Arctic Radar Upgrade',
+    });
+
+    const archived = await service.archiveOpportunity({ opportunityId: created.id });
+
+    expect(archived).toEqual({
+      ...created,
+      updatedAt: '2026-05-01T09:10:00.000Z',
+      archivedAt: '2026-05-01T09:10:00.000Z',
+    });
+    await expect(service.listActiveOpportunities()).resolves.toEqual([]);
+    await expect(service.listArchivedOpportunities()).resolves.toEqual([archived]);
+  });
+
+  it('restores an archived Opportunity with prior data intact', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock([
+        '2026-05-01T09:00:00.000Z',
+        '2026-05-01T09:05:00.000Z',
+        '2026-05-01T09:10:00.000Z',
+        '2026-05-01T09:15:00.000Z',
+      ]),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({
+      name: 'Arctic Radar Upgrade',
+      solicitationNumber: 'RFP-2026-17',
+      issuingAgency: 'Naval Systems Command',
+      description: 'Sensor modernization pursuit',
+    });
+    const opened = await service.openOpportunity({ opportunityId: created.id });
+    const archived = await service.archiveOpportunity({ opportunityId: created.id });
+
+    const restored = await service.restoreArchivedOpportunity({ opportunityId: archived.id });
+
+    expect(restored).toEqual({
+      ...opened.opportunity,
+      updatedAt: '2026-05-01T09:15:00.000Z',
+      archivedAt: null,
+    });
+    await expect(service.listActiveOpportunities()).resolves.toEqual([restored]);
+    await expect(service.listArchivedOpportunities()).resolves.toEqual([]);
+  });
+
+  it('opens an archived Opportunity for read-only inspection without marking it opened', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock([
+        '2026-05-01T09:00:00.000Z',
+        '2026-05-01T09:05:00.000Z',
+        '2026-05-01T09:10:00.000Z',
+      ]),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    const opened = await service.openOpportunity({ opportunityId: created.id });
+    const archived = await service.archiveOpportunity({ opportunityId: created.id });
+
+    await expect(service.openOpportunity({ opportunityId: archived.id })).rejects.toThrow(
+      'Opportunity not found.',
+    );
+    await expect(service.openArchivedOpportunity({ opportunityId: archived.id })).resolves.toEqual({
+      opportunity: {
+        ...archived,
+        lastOpenedAt: opened.opportunity.lastOpenedAt,
+      },
+      baseCapabilityMatrix: {
+        opportunityId: 'opportunity-1',
+        requirements: [],
+      },
+    });
+  });
+
+  it('hard-deletes an archived Opportunity', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-01T09:10:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    const archived = await service.archiveOpportunity({ opportunityId: created.id });
+
+    await expect(
+      service.hardDeleteArchivedOpportunity({ opportunityId: archived.id }),
+    ).resolves.toBeUndefined();
+
+    await expect(service.listActiveOpportunities()).resolves.toEqual([]);
+    await expect(service.listArchivedOpportunities()).resolves.toEqual([]);
+  });
+
+  it('rejects hard delete for an active Opportunity', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const created = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+
+    await expect(
+      service.hardDeleteArchivedOpportunity({ opportunityId: created.id }),
+    ).rejects.toThrow('Opportunity not found.');
+    await expect(service.listActiveOpportunities()).resolves.toEqual([created]);
   });
 });

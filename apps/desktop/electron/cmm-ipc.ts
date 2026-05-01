@@ -38,7 +38,29 @@ export const registerCmmIpcHandlers = (
   registerValidatedHandler(ipcMain, cmmIpcContracts.listActiveOpportunities, () =>
     opportunityService.listActiveOpportunities(),
   );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.listArchivedOpportunities, () =>
+    opportunityService.listArchivedOpportunities(),
+  );
   registerValidatedHandler(ipcMain, cmmIpcContracts.openOpportunity, (input) =>
     opportunityService.openOpportunity(input),
+  );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.openArchivedOpportunity, (input) =>
+    opportunityService.openArchivedOpportunity(input),
+  );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.archiveOpportunity, (input) =>
+    opportunityService.archiveOpportunity(input),
+  );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.restoreArchivedOpportunity, (input) =>
+    opportunityService.restoreArchivedOpportunity(input),
+  );
+  registerValidatedHandler(
+    ipcMain,
+    cmmIpcContracts.hardDeleteArchivedOpportunity,
+    async (input) => {
+      await opportunityService.hardDeleteArchivedOpportunity(input);
+      return {
+        opportunityId: input.opportunityId,
+      };
+    },
   );
 };

@@ -14,6 +14,12 @@ type OpportunityFormState = {
   description: string;
 };
 
+type OpportunityListMode = 'active' | 'archived';
+
+type OpenedOpportunityState = OpenOpportunityIpcOutput & {
+  lifecycle: OpportunityListMode;
+};
+
 const emptyForm: OpportunityFormState = {
   name: '',
   solicitationNumber: '',
@@ -43,13 +49,20 @@ const formatOpenedAt = (opportunity: OpportunityDto): string => {
 
 function App(): React.JSX.Element {
   const [opportunities, setOpportunities] = useState<OpportunityDto[]>([]);
-  const [openedOpportunity, setOpenedOpportunity] = useState<OpenOpportunityIpcOutput | null>(null);
+  const [archivedOpportunities, setArchivedOpportunities] = useState<OpportunityDto[]>([]);
+  const [listMode, setListMode] = useState<OpportunityListMode>('active');
+  const [openedOpportunity, setOpenedOpportunity] = useState<OpenedOpportunityState | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
   const refreshOpportunities = useCallback(async () => {
-    setOpportunities(await window.cmmApi.listActiveOpportunities());
+    const [active, archived] = await Promise.all([
+      window.cmmApi.listActiveOpportunities(),
+      window.cmmApi.listArchivedOpportunities(),
+    ]);
+    setOpportunities(active);
+    setArchivedOpportunities(archived);
   }, []);
 
   useEffect(() => {
@@ -62,8 +75,14 @@ function App(): React.JSX.Element {
 
   const openOpportunity = async (opportunityId: string) => {
     setError(null);
-    const opened = await window.cmmApi.openOpportunity({ opportunityId });
-    setOpenedOpportunity(opened);
+    const opened =
+      listMode === 'active'
+        ? await window.cmmApi.openOpportunity({ opportunityId })
+        : await window.cmmApi.openArchivedOpportunity({ opportunityId });
+    setOpenedOpportunity({
+      ...opened,
+      lifecycle: listMode,
+    });
     await refreshOpportunities();
   };
 
@@ -83,6 +102,86 @@ function App(): React.JSX.Element {
     }
   };
 
+  const archiveOpenedOpportunity = async () => {
+    if (!openedOpportunity || openedOpportunity.lifecycle !== 'active') {
+      return;
+    }
+
+    setError(null);
+    try {
+      const archived = await window.cmmApi.archiveOpportunity({
+        opportunityId: openedOpportunity.opportunity.id,
+      });
+      await refreshOpportunities();
+      setListMode('archived');
+      setOpenedOpportunity({
+        ...openedOpportunity,
+        opportunity: archived,
+        lifecycle: 'archived',
+      });
+    } catch (unknownError) {
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'Unable to archive Opportunity.',
+      );
+    }
+  };
+
+  const restoreOpenedOpportunity = async () => {
+    if (!openedOpportunity || openedOpportunity.lifecycle !== 'archived') {
+      return;
+    }
+
+    setError(null);
+    try {
+      const restored = await window.cmmApi.restoreArchivedOpportunity({
+        opportunityId: openedOpportunity.opportunity.id,
+      });
+      await refreshOpportunities();
+      setListMode('active');
+      setOpenedOpportunity({
+        ...openedOpportunity,
+        opportunity: restored,
+        lifecycle: 'active',
+      });
+    } catch (unknownError) {
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'Unable to restore Opportunity.',
+      );
+    }
+  };
+
+  const hardDeleteOpenedOpportunity = async () => {
+    if (!openedOpportunity || openedOpportunity.lifecycle !== 'archived') {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Hard delete this archived Opportunity? This cannot be undone.',
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setError(null);
+    try {
+      await window.cmmApi.hardDeleteArchivedOpportunity({
+        opportunityId: openedOpportunity.opportunity.id,
+      });
+      await refreshOpportunities();
+      setListMode('archived');
+      setOpenedOpportunity(null);
+    } catch (unknownError) {
+      setError(
+        unknownError instanceof Error ? unknownError.message : 'Unable to hard delete Opportunity.',
+      );
+    }
+  };
+
+  const visibleOpportunities = listMode === 'active' ? opportunities : archivedOpportunities;
+  const emptyListLabel =
+    listMode === 'active' ? 'No Opportunities yet' : 'No archived Opportunities';
+  const isArchivedWorkspace = openedOpportunity?.lifecycle === 'archived';
+
   return (
     <div className="app-shell">
       <aside className="opportunity-sidebar" aria-label="Opportunity navigation">
@@ -92,6 +191,25 @@ function App(): React.JSX.Element {
             New Opportunity
           </Button>
         </div>
+
+        <nav className="opportunity-list-tabs" aria-label="Opportunity list">
+          <Button
+            aria-pressed={listMode === 'active'}
+            className={listMode === 'active' ? 'list-tab list-tab-active' : 'list-tab'}
+            variant="ghost"
+            onClick={() => setListMode('active')}
+          >
+            Active
+          </Button>
+          <Button
+            aria-pressed={listMode === 'archived'}
+            className={listMode === 'archived' ? 'list-tab list-tab-active' : 'list-tab'}
+            variant="ghost"
+            onClick={() => setListMode('archived')}
+          >
+            Archived
+          </Button>
+        </nav>
 
         {isCreating ? (
           <form className="opportunity-form" onSubmit={createOpportunity}>
@@ -147,14 +265,15 @@ function App(): React.JSX.Element {
         {error ? <p className="error-message">{error}</p> : null}
 
         <div className="opportunity-list">
-          {opportunities.length === 0 ? (
-            <p className="empty-state">No Opportunities yet</p>
+          {visibleOpportunities.length === 0 ? (
+            <p className="empty-state">{emptyListLabel}</p>
           ) : (
-            opportunities.map((opportunity) => (
+            visibleOpportunities.map((opportunity) => (
               <button
                 aria-label={`Open ${opportunity.name}`}
                 className={
-                  openedOpportunity?.opportunity.id === opportunity.id
+                  openedOpportunity?.opportunity.id === opportunity.id &&
+                  openedOpportunity.lifecycle === listMode
                     ? 'opportunity-row opportunity-row-active'
                     : 'opportunity-row'
                 }
@@ -178,13 +297,41 @@ function App(): React.JSX.Element {
                 <p className="eyebrow">{openedOpportunity.opportunity.name}</p>
                 <h2>Base Capability Matrix</h2>
               </div>
-              {openedOpportunity.opportunity.solicitationNumber ? (
-                <span className="solicitation-number">
-                  {openedOpportunity.opportunity.solicitationNumber}
-                </span>
-              ) : null}
+              <div className="workspace-actions">
+                {isArchivedWorkspace ? (
+                  <>
+                    <span className="read-only-badge">Read-only</span>
+                    <Button variant="secondary" onClick={() => void restoreOpenedOpportunity()}>
+                      Restore Opportunity
+                    </Button>
+                    <Button
+                      className="destructive-action"
+                      variant="secondary"
+                      onClick={() => void hardDeleteOpenedOpportunity()}
+                    >
+                      Hard delete Opportunity
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="secondary" onClick={() => void archiveOpenedOpportunity()}>
+                    Archive Opportunity
+                  </Button>
+                )}
+                {openedOpportunity.opportunity.solicitationNumber ? (
+                  <span className="solicitation-number">
+                    {openedOpportunity.opportunity.solicitationNumber}
+                  </span>
+                ) : null}
+              </div>
             </header>
-            <section className="matrix-empty" aria-label="Base Capability Matrix workspace">
+            <section
+              className="matrix-empty"
+              aria-label={
+                isArchivedWorkspace
+                  ? 'Read-only Base Capability Matrix workspace'
+                  : 'Base Capability Matrix workspace'
+              }
+            >
               <p>No requirements yet.</p>
             </section>
           </>

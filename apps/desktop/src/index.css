@@ -65,6 +65,26 @@ textarea {
   padding: 18px 0;
 }
 
+.opportunity-list-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  border: 1px solid #d9ded6;
+  border-radius: 6px;
+  background: #eef1eb;
+  padding: 4px;
+}
+
+.list-tab {
+  min-width: 0;
+}
+
+.list-tab-active {
+  background: #ffffff;
+  color: #1c2228;
+  box-shadow: 0 1px 2px rgba(28, 34, 40, 0.08);
+}
+
 .cmm-field {
   display: grid;
   gap: 6px;
@@ -192,6 +212,15 @@ textarea {
   padding-bottom: 24px;
 }
 
+.workspace-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .workspace-header h2,
 .workspace-empty h2 {
   font-size: 28px;
@@ -212,6 +241,21 @@ textarea {
   padding: 6px 10px;
   font-size: 13px;
   font-weight: 700;
+}
+
+.read-only-badge {
+  border: 1px solid #b8c2bc;
+  border-radius: 999px;
+  background: #e8ede9;
+  color: #405047;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.destructive-action {
+  border-color: #d9a7a1;
+  color: #8d1d15;
 }
 
 .matrix-empty,

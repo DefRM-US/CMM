@@ -8,8 +8,11 @@
     "skipLibCheck": true,
     "types": ["vitest/globals", "vite/client"],
     "paths": {
-      "@repo/ui": ["../../packages/ui/src/index.ts"],
-      "@repo/types": ["../../packages/types/src/index.ts"]
+      "@cmm/application": ["../../packages/application/src/index.ts"],
+      "@cmm/contracts": ["../../packages/contracts/src/index.ts"],
+      "@cmm/domain": ["../../packages/domain/src/index.ts"],
+      "@cmm/persistence-sqlite": ["../../packages/persistence-sqlite/src/index.ts"],
+      "@cmm/ui": ["../../packages/cmm-ui/src/index.tsx"]
     }
   },
   "include": [
@@ -19,9 +22,12 @@
     "tests/**/*.ts",
     "vite.config.ts",
     "playwright.config.ts",
-    "../../packages/ui/src/**/*.ts",
-    "../../packages/ui/src/**/*.tsx",
-    "../../packages/types/src/**/*.ts",
+    "../../packages/application/src/**/*.ts",
+    "../../packages/contracts/src/**/*.ts",
+    "../../packages/cmm-ui/src/**/*.ts",
+    "../../packages/cmm-ui/src/**/*.tsx",
+    "../../packages/domain/src/**/*.ts",
+    "../../packages/persistence-sqlite/src/**/*.ts",
     "../../packages/core/src/excel-buffer.ts"
   ]
 }

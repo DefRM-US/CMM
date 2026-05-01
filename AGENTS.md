@@ -124,6 +124,9 @@ Do not treat the prototype layout as the target architecture.
   critical workflow being replaced.
 - Do not add legacy compatibility, backup/restore, telemetry, encryption, global member
   directory, or packaging work unless the user explicitly brings it into scope.
+- Do not prefix agent-created branches with `codex/`; prefer issue-scoped branch names
+  such as `issue-6-rebuild-opportunity-tracer`.
+- Do not prefix pull request titles with `[codex]`.
 
 ## Code Style
 

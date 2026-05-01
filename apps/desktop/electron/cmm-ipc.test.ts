@@ -28,6 +28,20 @@ const opportunity: Opportunity = {
   archivedAt: null,
 };
 
+const baseCapabilityMatrix = {
+  opportunityId: opportunity.id,
+  revision: 1,
+  requirements: [
+    {
+      id: 'requirement-1',
+      text: 'Provide secure hosting',
+      level: 1,
+      position: 0,
+      retiredAt: null,
+    },
+  ],
+};
+
 describe('registerCmmIpcHandlers', () => {
   it('registers validated Opportunity handlers without exposing raw IPC to the renderer', async () => {
     const ipcMain = new FakeIpcMain();
@@ -45,21 +59,16 @@ describe('registerCmmIpcHandlers', () => {
           ...opportunity,
           lastOpenedAt: '2026-05-01T09:05:00.000Z',
         },
-        baseCapabilityMatrix: {
-          opportunityId: opportunity.id,
-          requirements: [],
-        },
+        baseCapabilityMatrix,
       })),
       openArchivedOpportunity: vi.fn(async () => ({
         opportunity: {
           ...opportunity,
           archivedAt: '2026-05-01T09:10:00.000Z',
         },
-        baseCapabilityMatrix: {
-          opportunityId: opportunity.id,
-          requirements: [],
-        },
+        baseCapabilityMatrix,
       })),
+      saveBaseCapabilityMatrix: vi.fn(async () => baseCapabilityMatrix),
       archiveOpportunity: vi.fn(async () => ({
         ...opportunity,
         archivedAt: '2026-05-01T09:10:00.000Z',
@@ -77,6 +86,7 @@ describe('registerCmmIpcHandlers', () => {
         cmmIpcContracts.listArchivedOpportunities.channel,
         cmmIpcContracts.openOpportunity.channel,
         cmmIpcContracts.openArchivedOpportunity.channel,
+        cmmIpcContracts.saveBaseCapabilityMatrix.channel,
         cmmIpcContracts.archiveOpportunity.channel,
         cmmIpcContracts.restoreArchivedOpportunity.channel,
         cmmIpcContracts.hardDeleteArchivedOpportunity.channel,
@@ -103,6 +113,17 @@ describe('registerCmmIpcHandlers', () => {
     expect(opportunityService.archiveOpportunity).toHaveBeenCalledWith({
       opportunityId: 'opportunity-1',
     });
+
+    const saveMatrixHandler = ipcMain.handlers.get(
+      cmmIpcContracts.saveBaseCapabilityMatrix.channel,
+    );
+    await expect(
+      saveMatrixHandler?.({}, { ...baseCapabilityMatrix, requirements: [{ id: 'bad' }] }),
+    ).rejects.toThrow();
+    await expect(saveMatrixHandler?.({}, baseCapabilityMatrix)).resolves.toEqual(
+      baseCapabilityMatrix,
+    );
+    expect(opportunityService.saveBaseCapabilityMatrix).toHaveBeenCalledWith(baseCapabilityMatrix);
 
     const hardDeleteHandler = ipcMain.handlers.get(
       cmmIpcContracts.hardDeleteArchivedOpportunity.channel,

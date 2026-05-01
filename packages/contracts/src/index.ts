@@ -28,14 +28,23 @@ const opportunityIdInputSchema = z.object({
     .refine((value) => value.trim().length > 0, 'Opportunity ID is required.'),
 });
 
-const emptyBaseCapabilityMatrixSchema = z.object({
+const requirementSchema = z.object({
+  id: z.string().min(1),
+  text: z.string(),
+  level: z.number().int().min(1),
+  position: z.number().int().min(0),
+  retiredAt: isoDateTimeSchema.nullable(),
+});
+
+const baseCapabilityMatrixSchema = z.object({
   opportunityId: z.string().min(1),
-  requirements: z.array(z.never()),
+  revision: z.number().int().min(0),
+  requirements: z.array(requirementSchema),
 });
 
 const openOpportunityOutputSchema = z.object({
   opportunity: opportunitySchema,
-  baseCapabilityMatrix: emptyBaseCapabilityMatrixSchema,
+  baseCapabilityMatrix: baseCapabilityMatrixSchema,
 });
 
 const hardDeleteArchivedOpportunityOutputSchema = z.object({
@@ -43,10 +52,13 @@ const hardDeleteArchivedOpportunityOutputSchema = z.object({
 });
 
 export type OpportunityDto = z.infer<typeof opportunitySchema>;
+export type RequirementDto = z.infer<typeof requirementSchema>;
+export type BaseCapabilityMatrixDto = z.infer<typeof baseCapabilityMatrixSchema>;
 export type CreateOpportunityIpcInput = z.infer<typeof createOpportunityInputSchema>;
 export type OpenOpportunityIpcInput = z.infer<typeof opportunityIdInputSchema>;
 export type OpenOpportunityIpcOutput = z.infer<typeof openOpportunityOutputSchema>;
 export type OpportunityLifecycleIpcInput = z.infer<typeof opportunityIdInputSchema>;
+export type SaveBaseCapabilityMatrixIpcInput = z.infer<typeof baseCapabilityMatrixSchema>;
 export type HardDeleteArchivedOpportunityIpcOutput = z.infer<
   typeof hardDeleteArchivedOpportunityOutputSchema
 >;
@@ -86,6 +98,11 @@ export const cmmIpcContracts = {
     channel: 'cmm:opportunities:open-archived',
     inputSchema: opportunityIdInputSchema,
     outputSchema: openOpportunityOutputSchema,
+  }),
+  saveBaseCapabilityMatrix: defineContract({
+    channel: 'cmm:base-matrices:save',
+    inputSchema: baseCapabilityMatrixSchema,
+    outputSchema: baseCapabilityMatrixSchema,
   }),
   archiveOpportunity: defineContract({
     channel: 'cmm:opportunities:archive',

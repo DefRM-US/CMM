@@ -4,8 +4,13 @@ import type {
   IsoDateTime,
   Opportunity,
   OpportunityId,
+  Requirement,
 } from '@cmm/domain';
-import { normalizeOptionalText, normalizeRequiredText } from '@cmm/domain';
+import {
+  normalizeOptionalText,
+  normalizeRequiredText,
+  normalizeRequirementPositions,
+} from '@cmm/domain';
 
 export type Clock = {
   now(): IsoDateTime;
@@ -31,6 +36,8 @@ export type OpportunityRepository = {
     restoredAt: IsoDateTime,
   ): Promise<Opportunity>;
   hardDeleteArchivedOpportunity(opportunityId: OpportunityId): Promise<void>;
+  loadBaseCapabilityMatrix(opportunityId: OpportunityId): Promise<BaseCapabilityMatrix>;
+  saveBaseCapabilityMatrix(matrix: BaseCapabilityMatrix): Promise<BaseCapabilityMatrix>;
 };
 
 export type OpenOpportunityInput = {
@@ -49,6 +56,12 @@ export type HardDeleteArchivedOpportunityInput = {
   opportunityId: OpportunityId;
 };
 
+export type SaveBaseCapabilityMatrixInput = {
+  opportunityId: OpportunityId;
+  revision: number;
+  requirements: Requirement[];
+};
+
 export type OpenOpportunityResult = {
   opportunity: Opportunity;
   baseCapabilityMatrix: BaseCapabilityMatrix;
@@ -60,6 +73,7 @@ export type OpportunityService = {
   listArchivedOpportunities(): Promise<Opportunity[]>;
   openOpportunity(input: OpenOpportunityInput): Promise<OpenOpportunityResult>;
   openArchivedOpportunity(input: OpenOpportunityInput): Promise<OpenOpportunityResult>;
+  saveBaseCapabilityMatrix(input: SaveBaseCapabilityMatrixInput): Promise<BaseCapabilityMatrix>;
   archiveOpportunity(input: ArchiveOpportunityInput): Promise<Opportunity>;
   restoreArchivedOpportunity(input: RestoreArchivedOpportunityInput): Promise<Opportunity>;
   hardDeleteArchivedOpportunity(input: HardDeleteArchivedOpportunityInput): Promise<void>;
@@ -73,7 +87,10 @@ export type CreateOpportunityServiceOptions = {
 
 export class ApplicationError extends Error {
   constructor(
-    readonly code: 'opportunity.nameRequired' | 'opportunity.notFound',
+    readonly code:
+      | 'opportunity.nameRequired'
+      | 'opportunity.notFound'
+      | 'baseMatrix.revisionConflict',
     message: string,
   ) {
     super(message);
@@ -124,13 +141,8 @@ export const createOpportunityService = ({
     }
 
     const opportunity = await repository.markOpportunityOpened(input.opportunityId, clock.now());
-    return {
-      opportunity,
-      baseCapabilityMatrix: {
-        opportunityId: opportunity.id,
-        requirements: [],
-      },
-    };
+    const baseCapabilityMatrix = await repository.loadBaseCapabilityMatrix(opportunity.id);
+    return { opportunity, baseCapabilityMatrix };
   },
 
   async openArchivedOpportunity(input) {
@@ -139,13 +151,29 @@ export const createOpportunityService = ({
       throw new ApplicationError('opportunity.notFound', 'Opportunity not found.');
     }
 
-    return {
-      opportunity,
-      baseCapabilityMatrix: {
-        opportunityId: opportunity.id,
-        requirements: [],
-      },
-    };
+    const baseCapabilityMatrix = await repository.loadBaseCapabilityMatrix(opportunity.id);
+    return { opportunity, baseCapabilityMatrix };
+  },
+
+  async saveBaseCapabilityMatrix(input) {
+    const existing = await repository.findActiveOpportunityById(input.opportunityId);
+    if (!existing) {
+      throw new ApplicationError('opportunity.notFound', 'Opportunity not found.');
+    }
+
+    const currentMatrix = await repository.loadBaseCapabilityMatrix(input.opportunityId);
+    if (currentMatrix.revision !== input.revision) {
+      throw new ApplicationError(
+        'baseMatrix.revisionConflict',
+        'Base Capability Matrix has changed since it was opened.',
+      );
+    }
+
+    return repository.saveBaseCapabilityMatrix({
+      opportunityId: input.opportunityId,
+      revision: input.revision,
+      requirements: normalizeRequirementPositions(input.requirements),
+    });
   },
 
   async archiveOpportunity(input) {

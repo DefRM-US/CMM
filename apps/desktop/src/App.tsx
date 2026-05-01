@@ -1,7 +1,9 @@
 import type {
+  BaseCapabilityMatrixDto,
   CreateOpportunityIpcInput,
   OpenOpportunityIpcOutput,
   OpportunityDto,
+  RequirementDto,
 } from '@cmm/contracts';
 import { Button, Field, TextArea, TextInput } from '@cmm/ui';
 import type { FormEvent } from 'react';
@@ -20,11 +22,56 @@ type OpenedOpportunityState = OpenOpportunityIpcOutput & {
   lifecycle: OpportunityListMode;
 };
 
+type MatrixSaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error' | 'conflict';
+
+type NumberedRequirement = {
+  requirement: RequirementDto;
+  displayNumber: string;
+};
+
 const emptyForm: OpportunityFormState = {
   name: '',
   solicitationNumber: '',
   issuingAgency: '',
   description: '',
+};
+
+const orderRequirements = (requirements: RequirementDto[]): RequirementDto[] =>
+  [...requirements].sort((left, right) => left.position - right.position);
+
+const normalizeRequirementPositions = (requirements: RequirementDto[]): RequirementDto[] =>
+  requirements.map((requirement, position) => ({
+    ...requirement,
+    level: Math.max(1, requirement.level),
+    position,
+  }));
+
+const computeRequirementNumbers = (
+  requirements: RequirementDto[],
+  includeRetired: boolean,
+): NumberedRequirement[] => {
+  const counters: number[] = [];
+  return orderRequirements(requirements)
+    .filter((requirement) => includeRetired || requirement.retiredAt === null)
+    .map((requirement) => {
+      const level = Math.max(1, requirement.level);
+      counters.length = level;
+      counters[level - 1] = (counters[level - 1] ?? 0) + 1;
+      for (let index = 0; index < level - 1; index += 1) {
+        counters[index] = counters[index] ?? 1;
+      }
+      return {
+        requirement,
+        displayNumber: counters.slice(0, level).join('.'),
+      };
+    });
+};
+
+const createRequirementId = (): string => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `requirement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
 const toCreateInput = (form: OpportunityFormState): CreateOpportunityIpcInput => ({
@@ -52,6 +99,8 @@ function App(): React.JSX.Element {
   const [archivedOpportunities, setArchivedOpportunities] = useState<OpportunityDto[]>([]);
   const [listMode, setListMode] = useState<OpportunityListMode>('active');
   const [openedOpportunity, setOpenedOpportunity] = useState<OpenedOpportunityState | null>(null);
+  const [showRetiredRequirements, setShowRetiredRequirements] = useState(false);
+  const [matrixSaveState, setMatrixSaveState] = useState<MatrixSaveState>('idle');
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +132,172 @@ function App(): React.JSX.Element {
       ...opened,
       lifecycle: listMode,
     });
+    setShowRetiredRequirements(false);
+    setMatrixSaveState('idle');
     await refreshOpportunities();
+  };
+
+  const updateMatrixDraft = (
+    updater: (matrix: BaseCapabilityMatrixDto) => BaseCapabilityMatrixDto,
+  ) => {
+    if (isArchivedWorkspace) {
+      return;
+    }
+
+    setOpenedOpportunity((current) => {
+      if (!current || current.lifecycle === 'archived') {
+        return current;
+      }
+
+      const updatedMatrix = updater(current.baseCapabilityMatrix);
+      return {
+        ...current,
+        baseCapabilityMatrix: {
+          ...updatedMatrix,
+          requirements: normalizeRequirementPositions(updatedMatrix.requirements),
+        },
+      };
+    });
+    setMatrixSaveState('dirty');
+  };
+
+  const addRequirement = () => {
+    updateMatrixDraft((matrix) => ({
+      ...matrix,
+      requirements: [
+        ...orderRequirements(matrix.requirements),
+        {
+          id: createRequirementId(),
+          text: '',
+          level: 1,
+          position: matrix.requirements.length,
+          retiredAt: null,
+        },
+      ],
+    }));
+  };
+
+  const editRequirementText = (requirementId: string, text: string) => {
+    updateMatrixDraft((matrix) => ({
+      ...matrix,
+      requirements: matrix.requirements.map((requirement) =>
+        requirement.id === requirementId
+          ? {
+              ...requirement,
+              text,
+            }
+          : requirement,
+      ),
+    }));
+  };
+
+  const moveRequirement = (requirementId: string, direction: -1 | 1) => {
+    updateMatrixDraft((matrix) => {
+      const requirements = orderRequirements(matrix.requirements);
+      const currentIndex = requirements.findIndex(
+        (requirement) => requirement.id === requirementId,
+      );
+      const nextIndex = currentIndex + direction;
+      if (currentIndex === -1 || nextIndex < 0 || nextIndex >= requirements.length) {
+        return matrix;
+      }
+
+      const [moved] = requirements.splice(currentIndex, 1);
+      if (!moved) {
+        return matrix;
+      }
+
+      requirements.splice(nextIndex, 0, moved);
+      return {
+        ...matrix,
+        requirements,
+      };
+    });
+  };
+
+  const indentRequirement = (requirementId: string) => {
+    updateMatrixDraft((matrix) => {
+      const requirements = orderRequirements(matrix.requirements);
+      const currentIndex = requirements.findIndex(
+        (requirement) => requirement.id === requirementId,
+      );
+      const requirement = requirements[currentIndex];
+      const previousRequirement = requirements[currentIndex - 1];
+      if (!requirement || !previousRequirement) {
+        return matrix;
+      }
+
+      const nextLevel = Math.min(requirement.level + 1, previousRequirement.level + 1);
+      return {
+        ...matrix,
+        requirements: requirements.map((row) =>
+          row.id === requirementId
+            ? {
+                ...row,
+                level: nextLevel,
+              }
+            : row,
+        ),
+      };
+    });
+  };
+
+  const outdentRequirement = (requirementId: string) => {
+    updateMatrixDraft((matrix) => ({
+      ...matrix,
+      requirements: matrix.requirements.map((requirement) =>
+        requirement.id === requirementId
+          ? {
+              ...requirement,
+              level: Math.max(1, requirement.level - 1),
+            }
+          : requirement,
+      ),
+    }));
+  };
+
+  const retireRequirement = (requirementId: string) => {
+    updateMatrixDraft((matrix) => ({
+      ...matrix,
+      requirements: matrix.requirements.map((requirement) =>
+        requirement.id === requirementId
+          ? {
+              ...requirement,
+              retiredAt: new Date().toISOString(),
+            }
+          : requirement,
+      ),
+    }));
+  };
+
+  const saveMatrix = async () => {
+    if (!openedOpportunity || openedOpportunity.lifecycle === 'archived') {
+      return;
+    }
+
+    setError(null);
+    setMatrixSaveState('saving');
+    try {
+      const saved = await window.cmmApi.saveBaseCapabilityMatrix(
+        openedOpportunity.baseCapabilityMatrix,
+      );
+      setOpenedOpportunity((current) =>
+        current
+          ? {
+              ...current,
+              baseCapabilityMatrix: saved,
+            }
+          : current,
+      );
+      setMatrixSaveState('saved');
+    } catch (unknownError) {
+      const message =
+        unknownError instanceof Error
+          ? unknownError.message
+          : 'Unable to save Base Capability Matrix.';
+      setError(message);
+      setMatrixSaveState(message.includes('changed since') ? 'conflict' : 'error');
+    }
   };
 
   const createOpportunity = async (event: FormEvent<HTMLFormElement>) => {
@@ -181,6 +395,28 @@ function App(): React.JSX.Element {
   const emptyListLabel =
     listMode === 'active' ? 'No Opportunities yet' : 'No archived Opportunities';
   const isArchivedWorkspace = openedOpportunity?.lifecycle === 'archived';
+  const numberedRequirements = openedOpportunity
+    ? computeRequirementNumbers(
+        openedOpportunity.baseCapabilityMatrix.requirements,
+        showRetiredRequirements,
+      )
+    : [];
+  const retiredRequirementCount =
+    openedOpportunity?.baseCapabilityMatrix.requirements.filter(
+      (requirement) => requirement.retiredAt !== null,
+    ).length ?? 0;
+  const matrixStatusLabel =
+    matrixSaveState === 'dirty'
+      ? 'Unsaved'
+      : matrixSaveState === 'saving'
+        ? 'Saving'
+        : matrixSaveState === 'saved'
+          ? 'Saved'
+          : matrixSaveState === 'conflict'
+            ? 'Conflict'
+            : matrixSaveState === 'error'
+              ? 'Error'
+              : '';
 
   return (
     <div className="app-shell">
@@ -325,14 +561,113 @@ function App(): React.JSX.Element {
               </div>
             </header>
             <section
-              className="matrix-empty"
+              className="matrix-workspace"
               aria-label={
                 isArchivedWorkspace
                   ? 'Read-only Base Capability Matrix workspace'
                   : 'Base Capability Matrix workspace'
               }
             >
-              <p>No requirements yet.</p>
+              {!isArchivedWorkspace ? (
+                <div className="matrix-toolbar">
+                  <Button variant="primary" onClick={addRequirement}>
+                    Add Requirement
+                  </Button>
+                  <Button
+                    disabled={matrixSaveState !== 'dirty'}
+                    variant="secondary"
+                    onClick={() => void saveMatrix()}
+                  >
+                    Save Matrix
+                  </Button>
+                  {retiredRequirementCount > 0 ? (
+                    <Button
+                      aria-pressed={showRetiredRequirements}
+                      variant="ghost"
+                      onClick={() => setShowRetiredRequirements((current) => !current)}
+                    >
+                      {showRetiredRequirements
+                        ? 'Hide retired Requirements'
+                        : 'Show retired Requirements'}
+                    </Button>
+                  ) : null}
+                  {matrixStatusLabel ? (
+                    <span className="matrix-save-status">{matrixStatusLabel}</span>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {numberedRequirements.length === 0 ? (
+                <p className="matrix-empty-message">No requirements yet.</p>
+              ) : (
+                <ol className="matrix-outline" aria-label="Requirements">
+                  {numberedRequirements.map(({ requirement, displayNumber }, index) => {
+                    const isRetired = requirement.retiredAt !== null;
+                    const isEditable = !isArchivedWorkspace && !isRetired;
+                    return (
+                      <li
+                        className={
+                          isRetired ? 'requirement-row requirement-row-retired' : 'requirement-row'
+                        }
+                        key={requirement.id}
+                        style={{ marginLeft: `${Math.max(0, requirement.level - 1) * 28}px` }}
+                      >
+                        <span className="requirement-number">{displayNumber}</span>
+                        <TextInput
+                          aria-label={`Requirement ${displayNumber} text`}
+                          className="requirement-text"
+                          disabled={!isEditable}
+                          value={requirement.text}
+                          onChange={(event) =>
+                            editRequirementText(requirement.id, event.target.value)
+                          }
+                        />
+                        {isEditable ? (
+                          <div className="requirement-actions">
+                            <Button
+                              aria-label={`Move Requirement ${displayNumber} up`}
+                              disabled={index === 0}
+                              variant="ghost"
+                              onClick={() => moveRequirement(requirement.id, -1)}
+                            >
+                              Up
+                            </Button>
+                            <Button
+                              aria-label={`Move Requirement ${displayNumber} down`}
+                              disabled={index === numberedRequirements.length - 1}
+                              variant="ghost"
+                              onClick={() => moveRequirement(requirement.id, 1)}
+                            >
+                              Down
+                            </Button>
+                            <Button
+                              aria-label={`Indent Requirement ${displayNumber}`}
+                              variant="ghost"
+                              onClick={() => indentRequirement(requirement.id)}
+                            >
+                              Indent
+                            </Button>
+                            <Button
+                              aria-label={`Outdent Requirement ${displayNumber}`}
+                              variant="ghost"
+                              onClick={() => outdentRequirement(requirement.id)}
+                            >
+                              Outdent
+                            </Button>
+                            <Button
+                              aria-label={`Retire Requirement ${displayNumber}`}
+                              variant="ghost"
+                              onClick={() => retireRequirement(requirement.id)}
+                            >
+                              Retire
+                            </Button>
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
             </section>
           </>
         ) : (

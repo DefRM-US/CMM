@@ -75,6 +75,22 @@ test.describe
       await expect(firstSession.page.getByText('No requirements yet.')).toBeVisible();
       await firstSession.page.getByRole('button', { name: 'Add Requirement' }).click();
       await firstSession.page.getByLabel('Requirement 1 text').fill('Provide secure hosting');
+      await firstSession.page.getByLabel('Requirement 1 text').press('Enter');
+      await expect(firstSession.page.getByLabel('Requirement 2 text')).toBeFocused();
+      await firstSession.page.keyboard.type('Operate help desk');
+      await firstSession.page.keyboard.press('Tab');
+      await expect(firstSession.page.getByLabel('Requirement 1.1 text')).toBeFocused();
+      await firstSession.page.keyboard.press('Enter');
+      await expect(firstSession.page.getByLabel('Requirement 1.2 text')).toBeFocused();
+      await firstSession.page.keyboard.type('Train operators');
+      await firstSession.page.keyboard.press('ArrowUp');
+      await expect(firstSession.page.getByLabel('Requirement 1.1 text')).toBeFocused();
+      await firstSession.page.keyboard.press('ArrowDown');
+      await expect(firstSession.page.getByLabel('Requirement 1.2 text')).toBeFocused();
+      await firstSession.page.keyboard.type(' on site');
+      await expect(firstSession.page.getByLabel('Requirement 1.2 text')).toHaveValue(
+        'Train operators on site',
+      );
       await firstSession.page.getByRole('button', { name: 'Save Matrix' }).click();
       await expect(firstSession.page.getByText('Saved')).toBeVisible();
       await expect(

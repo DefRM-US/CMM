@@ -245,6 +245,357 @@ describe('App', () => {
     expect(await screen.findByText('Saved')).toBeVisible();
   });
 
+  it('inserts a new active Requirement from Enter and focuses the new text field', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+      ],
+    };
+    const randomUUID = vi.spyOn(globalThis.crypto, 'randomUUID');
+    randomUUID.mockReturnValue('00000000-0000-4000-8000-000000000002');
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByLabelText('Requirement 1 text'));
+    await user.keyboard('{Enter}');
+
+    const insertedRequirement = await screen.findByLabelText('Requirement 2 text');
+    expect(insertedRequirement).toHaveFocus();
+    expect(insertedRequirement).toHaveValue('');
+    expect(screen.getByLabelText('Requirement 3 text')).toHaveValue('Operate help desk');
+
+    await user.click(screen.getByRole('button', { name: 'Save Matrix' }));
+
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: '00000000-0000-4000-8000-000000000002',
+          text: '',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 1,
+          position: 2,
+          retiredAt: null,
+        },
+      ],
+    });
+  });
+
+  it('indents a focused Requirement subtree with Tab and preserves its identity', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-3',
+          text: 'Staff first-line support',
+          level: 2,
+          position: 2,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-4',
+          text: 'Train operators',
+          level: 1,
+          position: 3,
+          retiredAt: null,
+        },
+      ],
+    };
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByLabelText('Requirement 2 text'));
+    await user.keyboard('{Tab}');
+
+    const indentedRequirement = screen.getByLabelText('Requirement 1.1 text');
+    expect(indentedRequirement).toHaveFocus();
+    expect(indentedRequirement).toHaveValue('Operate help desk');
+    expect(screen.getByLabelText('Requirement 1.1.1 text')).toHaveValue('Staff first-line support');
+    expect(screen.getByLabelText('Requirement 2 text')).toHaveValue('Train operators');
+
+    await user.click(screen.getByRole('button', { name: 'Save Matrix' }));
+
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 2,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-3',
+          text: 'Staff first-line support',
+          level: 3,
+          position: 2,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-4',
+          text: 'Train operators',
+          level: 1,
+          position: 3,
+          retiredAt: null,
+        },
+      ],
+    });
+  });
+
+  it('outdents a focused Requirement subtree with Shift+Tab', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 2,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-3',
+          text: 'Staff first-line support',
+          level: 3,
+          position: 2,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-4',
+          text: 'Train operators',
+          level: 1,
+          position: 3,
+          retiredAt: null,
+        },
+      ],
+    };
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByLabelText('Requirement 1.1 text'));
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+
+    const outdentedRequirement = screen.getByLabelText('Requirement 2 text');
+    expect(outdentedRequirement).toHaveFocus();
+    expect(outdentedRequirement).toHaveValue('Operate help desk');
+    expect(screen.getByLabelText('Requirement 2.1 text')).toHaveValue('Staff first-line support');
+    expect(screen.getByLabelText('Requirement 3 text')).toHaveValue('Train operators');
+
+    await user.click(screen.getByRole('button', { name: 'Save Matrix' }));
+
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-3',
+          text: 'Staff first-line support',
+          level: 2,
+          position: 2,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-4',
+          text: 'Train operators',
+          level: 1,
+          position: 3,
+          retiredAt: null,
+        },
+      ],
+    });
+  });
+
+  it('navigates between Requirement text fields without blocking normal text edits', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-2',
+          text: 'Operate help desk',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-3',
+          text: 'Train operators',
+          level: 1,
+          position: 2,
+          retiredAt: null,
+        },
+      ],
+    };
+    installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByLabelText('Requirement 1 text'));
+    await user.keyboard(' with FedRAMP');
+    await user.keyboard('{Backspace}');
+    await user.keyboard('P');
+
+    expect(screen.getByLabelText('Requirement 1 text')).toHaveValue(
+      'Provide secure hosting with FedRAMP',
+    );
+
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByLabelText('Requirement 2 text')).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByLabelText('Requirement 3 text')).toHaveFocus();
+
+    await user.keyboard('{ArrowUp}');
+    expect(screen.getByLabelText('Requirement 2 text')).toHaveFocus();
+
+    await user.keyboard('{Shift>}{ArrowUp}{/Shift}');
+    expect(screen.getByLabelText('Requirement 2 text')).toHaveFocus();
+  });
+
+  it('does not trap focus when a keyboard outline command is not valid', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByLabelText('Requirement 1 text'));
+    await user.keyboard('{Shift>}{Tab}{/Shift}');
+
+    expect(screen.getByRole('button', { name: 'Add Requirement' })).toHaveFocus();
+  });
+
   it('loads archived Opportunity matrices in a read-only workspace', async () => {
     installCmmApi({
       openArchivedOpportunity: vi.fn(async () => ({

@@ -2,20 +2,93 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { createOpportunityService } from '@cmm/application';
+import { cmmWindowLifecycleChannels, validateWindowCloseResponse } from '@cmm/contracts';
 import {
   type CmmSqliteDatabase,
   createCmmSqliteDatabase,
   createSqliteOpportunityRepository,
 } from '@cmm/persistence-sqlite';
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, type IpcMainEvent, ipcMain } from 'electron';
 import { registerCmmIpcHandlers } from './cmm-ipc';
 
 const rendererRoot = path.resolve(__dirname, '../dist');
 const preloadPath = path.resolve(__dirname, 'preload.js');
+const closeGuardTimeoutMs = 5000;
 
 let database: CmmSqliteDatabase | null = null;
+let allowAppQuit = false;
+let quitAfterGuardedWindowClose = false;
 
 const getDataDir = () => process.env.CMM_DATA_DIR ?? path.join(app.getPath('userData'), 'data');
+
+const maybeQuitAfterGuardedWindowClose = () => {
+  if (!quitAfterGuardedWindowClose || BrowserWindow.getAllWindows().length > 0) {
+    return;
+  }
+
+  quitAfterGuardedWindowClose = false;
+  allowAppQuit = true;
+  app.quit();
+};
+
+const attachWindowCloseGuard = (window: BrowserWindow) => {
+  let allowClose = false;
+
+  window.on('close', (event) => {
+    if (allowClose || window.webContents.isDestroyed()) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const requestId = randomUUID();
+    let timeout: ReturnType<typeof setTimeout>;
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      ipcMain.off(cmmWindowLifecycleChannels.respondClose, handleCloseResponse);
+    };
+
+    const closeWindow = () => {
+      if (window.isDestroyed()) {
+        return;
+      }
+
+      allowClose = true;
+      window.close();
+    };
+
+    const handleCloseResponse = (_event: IpcMainEvent, rawResponse: unknown) => {
+      let response: ReturnType<typeof validateWindowCloseResponse>;
+      try {
+        response = validateWindowCloseResponse(rawResponse);
+      } catch {
+        return;
+      }
+
+      if (response.requestId !== requestId) {
+        return;
+      }
+
+      cleanup();
+      if (response.canClose) {
+        closeWindow();
+      } else {
+        quitAfterGuardedWindowClose = false;
+      }
+    };
+
+    timeout = setTimeout(() => {
+      quitAfterGuardedWindowClose = false;
+      cleanup();
+    }, closeGuardTimeoutMs);
+
+    ipcMain.on(cmmWindowLifecycleChannels.respondClose, handleCloseResponse);
+    window.webContents.send(cmmWindowLifecycleChannels.requestClose, { requestId });
+  });
+
+  window.on('closed', maybeQuitAfterGuardedWindowClose);
+};
 
 const createWindow = async () => {
   const window = new BrowserWindow({
@@ -30,6 +103,7 @@ const createWindow = async () => {
       nodeIntegration: false,
     },
   });
+  attachWindowCloseGuard(window);
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
   if (devServerUrl) {
@@ -69,12 +143,31 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  if (allowAppQuit) {
+    return;
+  }
+
+  const windows = BrowserWindow.getAllWindows();
+  if (windows.length === 0) {
+    allowAppQuit = true;
+    return;
+  }
+
+  event.preventDefault();
+  quitAfterGuardedWindowClose = true;
+  for (const window of windows) {
+    window.close();
+  }
+});
+
+app.on('will-quit', () => {
   database?.close();
   database = null;
 });
 
 app.on('window-all-closed', () => {
+  maybeQuitAfterGuardedWindowClose();
   if (process.platform !== 'darwin') {
     app.quit();
   }

@@ -23,6 +23,7 @@ export interface CmmApi {
   hardDeleteArchivedOpportunity(
     input: OpportunityLifecycleIpcInput,
   ): Promise<HardDeleteArchivedOpportunityIpcOutput>;
+  onWindowCloseRequest(handler: () => boolean | Promise<boolean>): () => void;
 }
 
 declare global {

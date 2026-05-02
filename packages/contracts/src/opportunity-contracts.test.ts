@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { cmmIpcContracts, validateIpcInput, validateIpcOutput } from './index';
+import {
+  cmmIpcContracts,
+  cmmWindowLifecycleChannels,
+  validateIpcInput,
+  validateIpcOutput,
+  validateWindowCloseRequest,
+  validateWindowCloseResponse,
+} from './index';
 
 const opportunity = {
   id: 'opportunity-1',
@@ -51,6 +58,8 @@ describe('Opportunity IPC contracts', () => {
       'cmm:opportunities:hard-delete-archived',
     );
     expect(cmmIpcContracts.saveBaseCapabilityMatrix.channel).toBe('cmm:base-matrices:save');
+    expect(cmmWindowLifecycleChannels.requestClose).toBe('cmm:window:request-close');
+    expect(cmmWindowLifecycleChannels.respondClose).toBe('cmm:window:respond-close');
 
     expect(
       validateIpcInput(cmmIpcContracts.createOpportunity, {
@@ -147,5 +156,13 @@ describe('Opportunity IPC contracts', () => {
     ).toEqual({
       opportunityId: 'opportunity-1',
     });
+    expect(validateWindowCloseRequest({ requestId: 'close-1' })).toEqual({
+      requestId: 'close-1',
+    });
+    expect(validateWindowCloseResponse({ requestId: 'close-1', canClose: false })).toEqual({
+      requestId: 'close-1',
+      canClose: false,
+    });
+    expect(() => validateWindowCloseResponse({ requestId: '', canClose: true })).toThrow();
   });
 });

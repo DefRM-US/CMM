@@ -7,7 +7,7 @@ import type {
 } from '@cmm/contracts';
 import { Button, Field, TextArea, TextInput } from '@cmm/ui';
 import type { FormEvent, KeyboardEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type OpportunityFormState = {
   name: string;
@@ -22,7 +22,11 @@ type OpenedOpportunityState = OpenOpportunityIpcOutput & {
   lifecycle: OpportunityListMode;
 };
 
-type MatrixSaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error' | 'conflict';
+type MatrixSaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'failed' | 'conflicted';
+type MatrixFlushResult = 'clean' | 'saved' | 'dirty' | 'failed' | 'conflicted';
+type MatrixFlushOptions = {
+  force?: boolean;
+};
 
 type NumberedRequirement = {
   requirement: RequirementDto;
@@ -35,6 +39,8 @@ const emptyForm: OpportunityFormState = {
   issuingAgency: '',
   description: '',
 };
+
+const autosaveDelayMs = 500;
 
 const orderRequirements = (requirements: RequirementDto[]): RequirementDto[] =>
   [...requirements].sort((left, right) => left.position - right.position);
@@ -113,6 +119,12 @@ const formatOpenedAt = (opportunity: OpportunityDto): string => {
   }).format(new Date(opportunity.lastOpenedAt));
 };
 
+const getErrorMessage = (unknownError: unknown, fallback: string): string =>
+  unknownError instanceof Error ? unknownError.message : fallback;
+
+const isBaseCapabilityMatrixRevisionConflict = (message: string): boolean =>
+  message.includes('changed since') || message.includes('revision conflict');
+
 function App(): React.JSX.Element {
   const [opportunities, setOpportunities] = useState<OpportunityDto[]>([]);
   const [archivedOpportunities, setArchivedOpportunities] = useState<OpportunityDto[]>([]);
@@ -124,6 +136,10 @@ function App(): React.JSX.Element {
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const openedOpportunityRef = useRef<OpenedOpportunityState | null>(null);
+  const matrixSaveStateRef = useRef<MatrixSaveState>('idle');
+  const draftVersionRef = useRef(0);
+  const savePromiseRef = useRef<Promise<MatrixFlushResult> | null>(null);
 
   const refreshOpportunities = useCallback(async () => {
     const [active, archived] = await Promise.all([
@@ -136,11 +152,17 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     void refreshOpportunities().catch((unknownError: unknown) => {
-      setError(
-        unknownError instanceof Error ? unknownError.message : 'Unable to load Opportunities.',
-      );
+      setError(getErrorMessage(unknownError, 'Unable to load Opportunities.'));
     });
   }, [refreshOpportunities]);
+
+  useEffect(() => {
+    openedOpportunityRef.current = openedOpportunity;
+  }, [openedOpportunity]);
+
+  useEffect(() => {
+    matrixSaveStateRef.current = matrixSaveState;
+  }, [matrixSaveState]);
 
   useEffect(() => {
     if (!pendingRequirementFocusId) {
@@ -158,7 +180,140 @@ function App(): React.JSX.Element {
     setPendingRequirementFocusId(null);
   }, [pendingRequirementFocusId]);
 
+  const setTrackedMatrixSaveState = useCallback((state: MatrixSaveState) => {
+    matrixSaveStateRef.current = state;
+    setMatrixSaveState(state);
+  }, []);
+
+  const flushBaseCapabilityMatrix = useCallback(
+    async (options: MatrixFlushOptions = {}): Promise<MatrixFlushResult> => {
+      if (savePromiseRef.current) {
+        return savePromiseRef.current;
+      }
+
+      const current = openedOpportunityRef.current;
+      const currentSaveState = matrixSaveStateRef.current;
+      if (!current || current.lifecycle === 'archived') {
+        return 'clean';
+      }
+
+      if (currentSaveState === 'conflicted' && !options.force) {
+        return 'conflicted';
+      }
+
+      if (
+        currentSaveState !== 'dirty' &&
+        currentSaveState !== 'failed' &&
+        !(currentSaveState === 'conflicted' && options.force)
+      ) {
+        return 'clean';
+      }
+
+      const matrixSnapshot = current.baseCapabilityMatrix;
+      const savedOpportunityId = current.opportunity.id;
+      const saveDraftVersion = draftVersionRef.current;
+
+      const savePromise = (async (): Promise<MatrixFlushResult> => {
+        setError(null);
+        setTrackedMatrixSaveState('saving');
+
+        try {
+          const saved = await window.cmmApi.saveBaseCapabilityMatrix(matrixSnapshot);
+          const wasSuperseded = draftVersionRef.current !== saveDraftVersion;
+
+          setOpenedOpportunity((latest) => {
+            if (
+              !latest ||
+              latest.lifecycle !== 'active' ||
+              latest.opportunity.id !== savedOpportunityId
+            ) {
+              return latest;
+            }
+
+            return {
+              ...latest,
+              baseCapabilityMatrix: wasSuperseded
+                ? {
+                    ...latest.baseCapabilityMatrix,
+                    revision: saved.revision,
+                  }
+                : saved,
+            };
+          });
+
+          setTrackedMatrixSaveState(wasSuperseded ? 'dirty' : 'saved');
+          return wasSuperseded ? 'dirty' : 'saved';
+        } catch (unknownError) {
+          const message = getErrorMessage(unknownError, 'Unable to save Base Capability Matrix.');
+          const nextState = isBaseCapabilityMatrixRevisionConflict(message)
+            ? 'conflicted'
+            : 'failed';
+          setError(message);
+          setTrackedMatrixSaveState(nextState);
+          return nextState;
+        } finally {
+          savePromiseRef.current = null;
+        }
+      })();
+
+      savePromiseRef.current = savePromise;
+      return savePromise;
+    },
+    [setTrackedMatrixSaveState],
+  );
+
+  const flushBaseCapabilityMatrixBeforeProceeding = useCallback(async (): Promise<boolean> => {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await flushBaseCapabilityMatrix();
+      if (result === 'clean' || result === 'saved') {
+        return true;
+      }
+
+      if (result !== 'dirty') {
+        setError(
+          result === 'conflicted'
+            ? 'Resolve the Base Capability Matrix conflict before continuing.'
+            : 'Save or discard Base Capability Matrix edits before continuing.',
+        );
+        return false;
+      }
+    }
+
+    setError('Save or discard Base Capability Matrix edits before continuing.');
+    return false;
+  }, [flushBaseCapabilityMatrix]);
+
+  useEffect(
+    () => window.cmmApi.onWindowCloseRequest(flushBaseCapabilityMatrixBeforeProceeding),
+    [flushBaseCapabilityMatrixBeforeProceeding],
+  );
+
+  useEffect(() => {
+    if (
+      matrixSaveState !== 'dirty' ||
+      !openedOpportunity ||
+      openedOpportunity.lifecycle === 'archived'
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void flushBaseCapabilityMatrix();
+    }, autosaveDelayMs);
+
+    return () => window.clearTimeout(timer);
+  }, [flushBaseCapabilityMatrix, matrixSaveState, openedOpportunity]);
+
   const openOpportunity = async (opportunityId: string) => {
+    const current = openedOpportunityRef.current;
+    if (
+      current &&
+      (current.opportunity.id !== opportunityId || current.lifecycle !== listMode) &&
+      !(await flushBaseCapabilityMatrixBeforeProceeding())
+    ) {
+      return;
+    }
+
     setError(null);
     const opened =
       listMode === 'active'
@@ -169,7 +324,8 @@ function App(): React.JSX.Element {
       lifecycle: listMode,
     });
     setShowRetiredRequirements(false);
-    setMatrixSaveState('idle');
+    draftVersionRef.current = 0;
+    setTrackedMatrixSaveState('idle');
     await refreshOpportunities();
   };
 
@@ -180,6 +336,7 @@ function App(): React.JSX.Element {
       return;
     }
 
+    draftVersionRef.current += 1;
     setOpenedOpportunity((current) => {
       if (!current || current.lifecycle === 'archived') {
         return current;
@@ -194,7 +351,9 @@ function App(): React.JSX.Element {
         },
       };
     });
-    setMatrixSaveState('dirty');
+    if (matrixSaveStateRef.current !== 'conflicted') {
+      setTrackedMatrixSaveState('dirty');
+    }
   };
 
   const addRequirement = () => {
@@ -446,33 +605,35 @@ function App(): React.JSX.Element {
     };
 
   const saveMatrix = async () => {
-    if (!openedOpportunity || openedOpportunity.lifecycle === 'archived') {
+    await flushBaseCapabilityMatrix({ force: matrixSaveStateRef.current === 'conflicted' });
+  };
+
+  const discardMatrixDraft = async () => {
+    const current = openedOpportunityRef.current;
+    if (!current || current.lifecycle !== 'active') {
       return;
     }
 
     setError(null);
-    setMatrixSaveState('saving');
     try {
-      const saved = await window.cmmApi.saveBaseCapabilityMatrix(
-        openedOpportunity.baseCapabilityMatrix,
-      );
-      setOpenedOpportunity((current) =>
-        current
-          ? {
-              ...current,
-              baseCapabilityMatrix: saved,
-            }
-          : current,
-      );
-      setMatrixSaveState('saved');
+      const opened = await window.cmmApi.openOpportunity({
+        opportunityId: current.opportunity.id,
+      });
+      setOpenedOpportunity({
+        ...opened,
+        lifecycle: 'active',
+      });
+      draftVersionRef.current = 0;
+      setShowRetiredRequirements(false);
+      setTrackedMatrixSaveState('idle');
+      await refreshOpportunities();
     } catch (unknownError) {
-      const message =
-        unknownError instanceof Error
-          ? unknownError.message
-          : 'Unable to save Base Capability Matrix.';
-      setError(message);
-      setMatrixSaveState(message.includes('changed since') ? 'conflict' : 'error');
+      setError(getErrorMessage(unknownError, 'Unable to reload Base Capability Matrix.'));
     }
+  };
+
+  const stayOnCurrentOpportunity = () => {
+    setError(null);
   };
 
   const createOpportunity = async (event: FormEvent<HTMLFormElement>) => {
@@ -485,9 +646,7 @@ function App(): React.JSX.Element {
       setIsCreating(false);
       await openOpportunity(created.id);
     } catch (unknownError) {
-      setError(
-        unknownError instanceof Error ? unknownError.message : 'Unable to create Opportunity.',
-      );
+      setError(getErrorMessage(unknownError, 'Unable to create Opportunity.'));
     }
   };
 
@@ -498,6 +657,10 @@ function App(): React.JSX.Element {
 
     setError(null);
     try {
+      if (!(await flushBaseCapabilityMatrixBeforeProceeding())) {
+        return;
+      }
+
       const archived = await window.cmmApi.archiveOpportunity({
         opportunityId: openedOpportunity.opportunity.id,
       });
@@ -509,9 +672,7 @@ function App(): React.JSX.Element {
         lifecycle: 'archived',
       });
     } catch (unknownError) {
-      setError(
-        unknownError instanceof Error ? unknownError.message : 'Unable to archive Opportunity.',
-      );
+      setError(getErrorMessage(unknownError, 'Unable to archive Opportunity.'));
     }
   };
 
@@ -533,9 +694,7 @@ function App(): React.JSX.Element {
         lifecycle: 'active',
       });
     } catch (unknownError) {
-      setError(
-        unknownError instanceof Error ? unknownError.message : 'Unable to restore Opportunity.',
-      );
+      setError(getErrorMessage(unknownError, 'Unable to restore Opportunity.'));
     }
   };
 
@@ -560,9 +719,7 @@ function App(): React.JSX.Element {
       setListMode('archived');
       setOpenedOpportunity(null);
     } catch (unknownError) {
-      setError(
-        unknownError instanceof Error ? unknownError.message : 'Unable to hard delete Opportunity.',
-      );
+      setError(getErrorMessage(unknownError, 'Unable to hard delete Opportunity.'));
     }
   };
 
@@ -582,15 +739,15 @@ function App(): React.JSX.Element {
     ).length ?? 0;
   const matrixStatusLabel =
     matrixSaveState === 'dirty'
-      ? 'Unsaved'
+      ? 'Dirty'
       : matrixSaveState === 'saving'
         ? 'Saving'
         : matrixSaveState === 'saved'
           ? 'Saved'
-          : matrixSaveState === 'conflict'
-            ? 'Conflict'
-            : matrixSaveState === 'error'
-              ? 'Error'
+          : matrixSaveState === 'conflicted'
+            ? 'Conflicted'
+            : matrixSaveState === 'failed'
+              ? 'Failed'
               : '';
 
   return (
@@ -749,7 +906,7 @@ function App(): React.JSX.Element {
                     Add Requirement
                   </Button>
                   <Button
-                    disabled={matrixSaveState !== 'dirty'}
+                    disabled={matrixSaveState === 'saving'}
                     variant="secondary"
                     onClick={() => void saveMatrix()}
                   >
@@ -768,6 +925,19 @@ function App(): React.JSX.Element {
                   ) : null}
                   {matrixStatusLabel ? (
                     <span className="matrix-save-status">{matrixStatusLabel}</span>
+                  ) : null}
+                  {matrixSaveState === 'failed' || matrixSaveState === 'conflicted' ? (
+                    <div className="matrix-recovery-actions">
+                      <Button variant="secondary" onClick={() => void saveMatrix()}>
+                        Retry save
+                      </Button>
+                      <Button variant="secondary" onClick={() => void discardMatrixDraft()}>
+                        Discard local draft
+                      </Button>
+                      <Button variant="ghost" onClick={stayOnCurrentOpportunity}>
+                        Stay on this Opportunity
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               ) : null}

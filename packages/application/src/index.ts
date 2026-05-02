@@ -62,9 +62,14 @@ export type SaveBaseCapabilityMatrixInput = {
   requirements: Requirement[];
 };
 
+export type BaseCapabilityMatrixExportChoices = {
+  includeBlankRequirements: boolean;
+  includeRetiredRequirements: boolean;
+};
+
 export type ExportBaseCapabilityMatrixInput = {
   opportunityId: OpportunityId;
-};
+} & BaseCapabilityMatrixExportChoices;
 
 export type OpenOpportunityResult = {
   opportunity: Opportunity;
@@ -75,6 +80,7 @@ export type BuildBaseCapabilityMatrixWorkbookInput = {
   opportunity: Opportunity;
   exportTimestamp: IsoDateTime;
   requirements: Requirement[];
+  exportChoices: BaseCapabilityMatrixExportChoices;
 };
 
 export type BaseCapabilityMatrixWorkbookBuilder = {
@@ -218,6 +224,10 @@ export const createOpportunityService = ({
       opportunity,
       exportTimestamp,
       requirements: baseCapabilityMatrix.requirements,
+      exportChoices: {
+        includeBlankRequirements: input.includeBlankRequirements,
+        includeRetiredRequirements: input.includeRetiredRequirements,
+      },
     });
 
     return {

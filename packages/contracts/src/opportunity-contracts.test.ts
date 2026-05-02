@@ -149,9 +149,13 @@ describe('Opportunity IPC contracts', () => {
     expect(
       validateIpcInput(cmmIpcContracts.exportBaseCapabilityMatrix, {
         opportunityId: 'opportunity-1',
+        includeBlankRequirements: true,
+        includeRetiredRequirements: false,
       }),
     ).toEqual({
       opportunityId: 'opportunity-1',
+      includeBlankRequirements: true,
+      includeRetiredRequirements: false,
     });
     expect(
       validateIpcOutput(cmmIpcContracts.exportBaseCapabilityMatrix, {

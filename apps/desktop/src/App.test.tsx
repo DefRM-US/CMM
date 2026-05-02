@@ -690,11 +690,205 @@ describe('App', () => {
     );
     expect(api.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
       opportunityId: activeOpportunity.id,
+      includeBlankRequirements: false,
+      includeRetiredRequirements: false,
     });
     expect(calls).toEqual(['save', 'export']);
     expect(
       await screen.findByText('Exported Arctic Radar Upgrade - Base Capability Matrix.xlsx'),
     ).toBeVisible();
+  });
+
+  it('shows warnings and defaults to excluding blank and retired Requirements before export', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-blank',
+          text: '   ',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-retired',
+          text: 'Retired draft row',
+          level: 1,
+          position: 2,
+          retiredAt: '2026-05-01T10:00:00.000Z',
+        },
+      ],
+    };
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+      exportBaseCapabilityMatrix: vi.fn(async () => ({
+        status: 'exported' as const,
+        filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByRole('button', { name: 'Export Workbook' }));
+
+    expect(
+      await screen.findByText(
+        'Blank Requirements may send draft or empty rows to potential consortium members.',
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'Retired Requirements may reintroduce historical content into the sent baseline.',
+      ),
+    ).toBeVisible();
+    expect(api.exportBaseCapabilityMatrix).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Continue Export' }));
+
+    expect(api.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      includeBlankRequirements: false,
+      includeRetiredRequirements: false,
+    });
+  });
+
+  it('flushes dirty Base Capability Matrix edits before showing export preflight', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const calls: string[] = [];
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+      saveBaseCapabilityMatrix: vi.fn(async (matrix) => {
+        calls.push('save');
+        return {
+          ...matrix,
+          revision: matrix.revision + 1,
+        };
+      }),
+      exportBaseCapabilityMatrix: vi.fn(async () => {
+        calls.push('export');
+        return {
+          status: 'exported' as const,
+          filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+        };
+      }),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.click(screen.getByRole('button', { name: 'Export Workbook' }));
+
+    await waitFor(() =>
+      expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+        opportunityId: activeOpportunity.id,
+        revision: 1,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: '',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    );
+    expect(
+      await screen.findByText(
+        'Blank Requirements may send draft or empty rows to potential consortium members.',
+      ),
+    ).toBeVisible();
+    expect(api.exportBaseCapabilityMatrix).not.toHaveBeenCalled();
+    expect(calls).toEqual(['save']);
+  });
+
+  it('exports explicit preflight choices after the user sees the warnings', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-blank',
+          text: '',
+          level: 1,
+          position: 1,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-retired',
+          text: 'Retired draft row',
+          level: 1,
+          position: 2,
+          retiredAt: '2026-05-01T10:00:00.000Z',
+        },
+      ],
+    };
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+      exportBaseCapabilityMatrix: vi.fn(async () => ({
+        status: 'exported' as const,
+        filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByRole('button', { name: 'Export Workbook' }));
+    await screen.findByText(
+      'Blank Requirements may send draft or empty rows to potential consortium members.',
+    );
+
+    await user.click(screen.getByLabelText('Include blank Requirements'));
+    await user.click(screen.getByLabelText('Include retired Requirements'));
+    await user.click(screen.getByRole('button', { name: 'Continue Export' }));
+
+    expect(api.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      includeBlankRequirements: true,
+      includeRetiredRequirements: true,
+    });
   });
 
   it('inserts a new active Requirement from Enter and focuses the new text field', async () => {

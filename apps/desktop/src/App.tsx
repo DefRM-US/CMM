@@ -27,6 +27,14 @@ type MatrixFlushResult = 'clean' | 'saved' | 'dirty' | 'failed' | 'conflicted';
 type MatrixFlushOptions = {
   force?: boolean;
 };
+type BaseCapabilityMatrixExportChoices = {
+  includeBlankRequirements: boolean;
+  includeRetiredRequirements: boolean;
+};
+type ExportPreflightState = BaseCapabilityMatrixExportChoices & {
+  blankRequirementCount: number;
+  retiredRequirementCount: number;
+};
 
 type NumberedRequirement = {
   requirement: RequirementDto;
@@ -125,6 +133,30 @@ const getErrorMessage = (unknownError: unknown, fallback: string): string =>
 const isBaseCapabilityMatrixRevisionConflict = (message: string): boolean =>
   message.includes('changed since') || message.includes('revision conflict');
 
+const defaultExportChoices: BaseCapabilityMatrixExportChoices = {
+  includeBlankRequirements: false,
+  includeRetiredRequirements: false,
+};
+
+const getExportPreflightState = (matrix: BaseCapabilityMatrixDto): ExportPreflightState | null => {
+  const blankRequirementCount = matrix.requirements.filter(
+    (requirement) => requirement.text.trim().length === 0,
+  ).length;
+  const retiredRequirementCount = matrix.requirements.filter(
+    (requirement) => requirement.retiredAt !== null,
+  ).length;
+
+  if (blankRequirementCount === 0 && retiredRequirementCount === 0) {
+    return null;
+  }
+
+  return {
+    ...defaultExportChoices,
+    blankRequirementCount,
+    retiredRequirementCount,
+  };
+};
+
 function App(): React.JSX.Element {
   const [opportunities, setOpportunities] = useState<OpportunityDto[]>([]);
   const [archivedOpportunities, setArchivedOpportunities] = useState<OpportunityDto[]>([]);
@@ -132,6 +164,7 @@ function App(): React.JSX.Element {
   const [openedOpportunity, setOpenedOpportunity] = useState<OpenedOpportunityState | null>(null);
   const [showRetiredRequirements, setShowRetiredRequirements] = useState(false);
   const [matrixSaveState, setMatrixSaveState] = useState<MatrixSaveState>('idle');
+  const [exportPreflight, setExportPreflight] = useState<ExportPreflightState | null>(null);
   const [pendingRequirementFocusId, setPendingRequirementFocusId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
@@ -325,6 +358,7 @@ function App(): React.JSX.Element {
       lifecycle: listMode,
     });
     setShowRetiredRequirements(false);
+    setExportPreflight(null);
     draftVersionRef.current = 0;
     setTrackedMatrixSaveState('idle');
     await refreshOpportunities();
@@ -338,6 +372,7 @@ function App(): React.JSX.Element {
     }
 
     draftVersionRef.current += 1;
+    setExportPreflight(null);
     setOpenedOpportunity((current) => {
       if (!current || current.lifecycle === 'archived') {
         return current;
@@ -626,6 +661,7 @@ function App(): React.JSX.Element {
       });
       draftVersionRef.current = 0;
       setShowRetiredRequirements(false);
+      setExportPreflight(null);
       setTrackedMatrixSaveState('idle');
       await refreshOpportunities();
     } catch (unknownError) {
@@ -684,15 +720,60 @@ function App(): React.JSX.Element {
 
     setError(null);
     setNotice(null);
+    setExportPreflight(null);
     try {
       if (!(await flushBaseCapabilityMatrixBeforeProceeding())) {
         return;
       }
 
-      const result = await window.cmmApi.exportBaseCapabilityMatrix({
-        opportunityId: openedOpportunity.opportunity.id,
+      const current = openedOpportunityRef.current;
+      if (!current || current.lifecycle !== 'active') {
+        return;
+      }
+
+      const preflight = getExportPreflightState(current.baseCapabilityMatrix);
+      if (preflight) {
+        setExportPreflight(preflight);
+        return;
+      }
+
+      await exportBaseCapabilityMatrix(defaultExportChoices);
+    } catch (unknownError) {
+      setError(getErrorMessage(unknownError, 'Unable to export Base Capability Matrix.'));
+    }
+  };
+
+  const exportBaseCapabilityMatrix = async (exportChoices: BaseCapabilityMatrixExportChoices) => {
+    const current = openedOpportunityRef.current;
+    if (!current || current.lifecycle !== 'active') {
+      return;
+    }
+
+    const result = await window.cmmApi.exportBaseCapabilityMatrix({
+      opportunityId: current.opportunity.id,
+      ...exportChoices,
+    });
+    setNotice(result.status === 'exported' ? `Exported ${result.filename}` : 'Export canceled.');
+  };
+
+  const confirmExportPreflight = async () => {
+    if (!exportPreflight) {
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    try {
+      if (!(await flushBaseCapabilityMatrixBeforeProceeding())) {
+        return;
+      }
+
+      const { includeBlankRequirements, includeRetiredRequirements } = exportPreflight;
+      setExportPreflight(null);
+      await exportBaseCapabilityMatrix({
+        includeBlankRequirements,
+        includeRetiredRequirements,
       });
-      setNotice(result.status === 'exported' ? `Exported ${result.filename}` : 'Export canceled.');
     } catch (unknownError) {
       setError(getErrorMessage(unknownError, 'Unable to export Base Capability Matrix.'));
     }
@@ -969,6 +1050,68 @@ function App(): React.JSX.Element {
                     </div>
                   ) : null}
                   {notice ? <span className="matrix-save-status">{notice}</span> : null}
+                  {exportPreflight ? (
+                    <section aria-label="Export preflight choices" className="export-preflight">
+                      {exportPreflight.blankRequirementCount > 0 ? (
+                        <div className="export-preflight-choice">
+                          <label className="export-preflight-option">
+                            <input
+                              checked={exportPreflight.includeBlankRequirements}
+                              type="checkbox"
+                              onChange={(event) =>
+                                setExportPreflight((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        includeBlankRequirements: event.target.checked,
+                                      }
+                                    : current,
+                                )
+                              }
+                            />
+                            <span>Include blank Requirements</span>
+                          </label>
+                          <p>
+                            Blank Requirements may send draft or empty rows to potential consortium
+                            members.
+                          </p>
+                        </div>
+                      ) : null}
+                      {exportPreflight.retiredRequirementCount > 0 ? (
+                        <div className="export-preflight-choice">
+                          <label className="export-preflight-option">
+                            <input
+                              checked={exportPreflight.includeRetiredRequirements}
+                              type="checkbox"
+                              onChange={(event) =>
+                                setExportPreflight((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        includeRetiredRequirements: event.target.checked,
+                                      }
+                                    : current,
+                                )
+                              }
+                            />
+                            <span>Include retired Requirements</span>
+                          </label>
+                          <p>
+                            Retired Requirements may reintroduce historical content into the sent
+                            baseline.
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="export-preflight-actions">
+                        <Button variant="primary" onClick={() => void confirmExportPreflight()}>
+                          Continue Export
+                        </Button>
+                        <Button variant="ghost" onClick={() => setExportPreflight(null)}>
+                          Cancel Export
+                        </Button>
+                      </div>
+                    </section>
+                  ) : null}
                 </div>
               ) : null}
 

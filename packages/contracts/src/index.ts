@@ -28,6 +28,11 @@ const opportunityIdInputSchema = z.object({
     .refine((value) => value.trim().length > 0, 'Opportunity ID is required.'),
 });
 
+const exportBaseCapabilityMatrixInputSchema = opportunityIdInputSchema.extend({
+  includeBlankRequirements: z.boolean(),
+  includeRetiredRequirements: z.boolean(),
+});
+
 const requirementSchema = z.object({
   id: z.string().min(1),
   text: z.string(),
@@ -79,7 +84,9 @@ export type OpenOpportunityIpcInput = z.infer<typeof opportunityIdInputSchema>;
 export type OpenOpportunityIpcOutput = z.infer<typeof openOpportunityOutputSchema>;
 export type OpportunityLifecycleIpcInput = z.infer<typeof opportunityIdInputSchema>;
 export type SaveBaseCapabilityMatrixIpcInput = z.infer<typeof baseCapabilityMatrixSchema>;
-export type ExportBaseCapabilityMatrixIpcInput = z.infer<typeof opportunityIdInputSchema>;
+export type ExportBaseCapabilityMatrixIpcInput = z.infer<
+  typeof exportBaseCapabilityMatrixInputSchema
+>;
 export type ExportBaseCapabilityMatrixIpcOutput = z.infer<
   typeof exportBaseCapabilityMatrixOutputSchema
 >;
@@ -132,7 +139,7 @@ export const cmmIpcContracts = {
   }),
   exportBaseCapabilityMatrix: defineContract({
     channel: 'cmm:base-matrices:export',
-    inputSchema: opportunityIdInputSchema,
+    inputSchema: exportBaseCapabilityMatrixInputSchema,
     outputSchema: exportBaseCapabilityMatrixOutputSchema,
   }),
   archiveOpportunity: defineContract({

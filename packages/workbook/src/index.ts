@@ -13,10 +13,16 @@ const responseStartRow = 9;
 
 export type BaseCapabilityMatrixWorkbookRequirement = Requirement;
 
+export type BaseCapabilityMatrixExportChoices = {
+  includeBlankRequirements?: boolean;
+  includeRetiredRequirements?: boolean;
+};
+
 export type BuildBaseCapabilityMatrixWorkbookInput = {
   opportunity: Opportunity;
   exportTimestamp: IsoDateTime;
   requirements: BaseCapabilityMatrixWorkbookRequirement[];
+  exportChoices?: BaseCapabilityMatrixExportChoices;
 };
 
 export type ParsedMemberResponseWorkbook = {
@@ -116,7 +122,7 @@ const writeMetadataSheet = (
   sheet.getCell('A3').value = 'exportTimestamp';
   sheet.getCell('B3').value = input.exportTimestamp;
 
-  const exportedRequirements = getExportedRequirements(input.requirements);
+  const exportedRequirements = getExportedRequirements(input.requirements, input.exportChoices);
   sheet.getCell('A5').value = 'requirementId';
   sheet.getCell('B5').value = 'requirementNumber';
   exportedRequirements.forEach(({ requirement, displayNumber }, index) => {
@@ -161,7 +167,7 @@ const writeMatrixSheet = (
   header.getCell(6).value = 'CMM Requirement ID';
   header.font = { bold: true };
 
-  const exportedRequirements = getExportedRequirements(input.requirements);
+  const exportedRequirements = getExportedRequirements(input.requirements, input.exportChoices);
   exportedRequirements.forEach(({ requirement, displayNumber }, index) => {
     const row = sheet.getRow(responseStartRow + index);
     row.getCell(1).value = displayNumber;
@@ -192,11 +198,22 @@ const writeMatrixSheet = (
   });
 };
 
-const getExportedRequirements = (requirements: Requirement[]) =>
+const getExportedRequirements = (
+  requirements: Requirement[],
+  exportChoices: BaseCapabilityMatrixExportChoices = {},
+) =>
   computeRequirementNumbers(
-    requirements.filter(
-      (requirement) => requirement.retiredAt === null && requirement.text.trim().length > 0,
-    ),
+    requirements.filter((requirement) => {
+      const isBlank = requirement.text.trim().length === 0;
+      const isRetired = requirement.retiredAt !== null;
+      return (
+        (!isBlank || exportChoices.includeBlankRequirements === true) &&
+        (!isRetired || exportChoices.includeRetiredRequirements === true)
+      );
+    }),
+    {
+      includeRetired: exportChoices.includeRetiredRequirements === true,
+    },
   );
 
 const unlockCell = (cell: ExcelJS.Cell): void => {

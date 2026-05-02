@@ -62,9 +62,31 @@ export type SaveBaseCapabilityMatrixInput = {
   requirements: Requirement[];
 };
 
+export type ExportBaseCapabilityMatrixInput = {
+  opportunityId: OpportunityId;
+};
+
 export type OpenOpportunityResult = {
   opportunity: Opportunity;
   baseCapabilityMatrix: BaseCapabilityMatrix;
+};
+
+export type BuildBaseCapabilityMatrixWorkbookInput = {
+  opportunity: Opportunity;
+  exportTimestamp: IsoDateTime;
+  requirements: Requirement[];
+};
+
+export type BaseCapabilityMatrixWorkbookBuilder = {
+  buildBaseCapabilityMatrixWorkbook(
+    input: BuildBaseCapabilityMatrixWorkbookInput,
+  ): Promise<Uint8Array>;
+};
+
+export type ExportBaseCapabilityMatrixResult = {
+  workbook: Uint8Array;
+  suggestedFilename: string;
+  exportTimestamp: IsoDateTime;
 };
 
 export type OpportunityService = {
@@ -74,6 +96,9 @@ export type OpportunityService = {
   openOpportunity(input: OpenOpportunityInput): Promise<OpenOpportunityResult>;
   openArchivedOpportunity(input: OpenOpportunityInput): Promise<OpenOpportunityResult>;
   saveBaseCapabilityMatrix(input: SaveBaseCapabilityMatrixInput): Promise<BaseCapabilityMatrix>;
+  exportBaseCapabilityMatrix(
+    input: ExportBaseCapabilityMatrixInput,
+  ): Promise<ExportBaseCapabilityMatrixResult>;
   archiveOpportunity(input: ArchiveOpportunityInput): Promise<Opportunity>;
   restoreArchivedOpportunity(input: RestoreArchivedOpportunityInput): Promise<Opportunity>;
   hardDeleteArchivedOpportunity(input: HardDeleteArchivedOpportunityInput): Promise<void>;
@@ -83,6 +108,7 @@ export type CreateOpportunityServiceOptions = {
   repository: OpportunityRepository;
   clock: Clock;
   ids: IdGenerator;
+  workbookBuilder?: BaseCapabilityMatrixWorkbookBuilder;
 };
 
 export class ApplicationError extends Error {
@@ -102,6 +128,7 @@ export const createOpportunityService = ({
   repository,
   clock,
   ids,
+  workbookBuilder,
 }: CreateOpportunityServiceOptions): OpportunityService => ({
   async createOpportunity(input) {
     const name = normalizeRequiredText(input.name);
@@ -176,6 +203,30 @@ export const createOpportunityService = ({
     });
   },
 
+  async exportBaseCapabilityMatrix(input) {
+    const opportunity = await repository.findActiveOpportunityById(input.opportunityId);
+    if (!opportunity) {
+      throw new ApplicationError('opportunity.notFound', 'Opportunity not found.');
+    }
+    if (!workbookBuilder) {
+      throw new Error('Base Capability Matrix workbook builder is not configured.');
+    }
+
+    const baseCapabilityMatrix = await repository.loadBaseCapabilityMatrix(input.opportunityId);
+    const exportTimestamp = clock.now();
+    const workbook = await workbookBuilder.buildBaseCapabilityMatrixWorkbook({
+      opportunity,
+      exportTimestamp,
+      requirements: baseCapabilityMatrix.requirements,
+    });
+
+    return {
+      workbook,
+      suggestedFilename: `${toWorkbookFilenameStem(opportunity.name)} - Base Capability Matrix.xlsx`,
+      exportTimestamp,
+    };
+  },
+
   async archiveOpportunity(input) {
     const existing = await repository.findActiveOpportunityById(input.opportunityId);
     if (!existing) {
@@ -203,3 +254,13 @@ export const createOpportunityService = ({
     await repository.hardDeleteArchivedOpportunity(input.opportunityId);
   },
 });
+
+const invalidFilenameCharacters = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*']);
+
+const sanitizeFilenameCharacter = (character: string): string =>
+  invalidFilenameCharacters.has(character) || character.charCodeAt(0) < 32 ? ' ' : character;
+
+const toWorkbookFilenameStem = (name: string): string => {
+  const stem = name.split('').map(sanitizeFilenameCharacter).join('').replace(/\s+/g, ' ').trim();
+  return stem.length > 0 ? stem : 'Opportunity';
+};

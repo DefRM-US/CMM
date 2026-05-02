@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createOpportunityService } from '@cmm/application';
 import { cmmWindowLifecycleChannels, validateWindowCloseResponse } from '@cmm/contracts';
@@ -8,7 +9,9 @@ import {
   createCmmSqliteDatabase,
   createSqliteOpportunityRepository,
 } from '@cmm/persistence-sqlite';
-import { app, BrowserWindow, type IpcMainEvent, ipcMain } from 'electron';
+import { buildBaseCapabilityMatrixWorkbook } from '@cmm/workbook';
+import { app, BrowserWindow, dialog, type IpcMainEvent, ipcMain } from 'electron';
+import { createBaseCapabilityMatrixExportFileService } from './base-capability-matrix-export';
 import { registerCmmIpcHandlers } from './cmm-ipc';
 
 const rendererRoot = path.resolve(__dirname, '../dist');
@@ -127,9 +130,17 @@ const registerHandlers = () => {
     ids: {
       next: () => randomUUID(),
     },
+    workbookBuilder: {
+      buildBaseCapabilityMatrixWorkbook,
+    },
+  });
+  const baseCapabilityMatrixExportFileService = createBaseCapabilityMatrixExportFileService({
+    opportunityService,
+    showSaveDialog: (options) => dialog.showSaveDialog(options),
+    writeFile,
   });
 
-  registerCmmIpcHandlers(ipcMain, { opportunityService });
+  registerCmmIpcHandlers(ipcMain, { opportunityService, baseCapabilityMatrixExportFileService });
 };
 
 app.whenReady().then(async () => {

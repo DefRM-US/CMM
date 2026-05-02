@@ -58,6 +58,7 @@ describe('Opportunity IPC contracts', () => {
       'cmm:opportunities:hard-delete-archived',
     );
     expect(cmmIpcContracts.saveBaseCapabilityMatrix.channel).toBe('cmm:base-matrices:save');
+    expect(cmmIpcContracts.exportBaseCapabilityMatrix.channel).toBe('cmm:base-matrices:export');
     expect(cmmWindowLifecycleChannels.requestClose).toBe('cmm:window:request-close');
     expect(cmmWindowLifecycleChannels.respondClose).toBe('cmm:window:respond-close');
 
@@ -145,6 +146,37 @@ describe('Opportunity IPC contracts', () => {
     expect(
       validateIpcOutput(cmmIpcContracts.saveBaseCapabilityMatrix, baseCapabilityMatrix),
     ).toEqual(baseCapabilityMatrix);
+    expect(
+      validateIpcInput(cmmIpcContracts.exportBaseCapabilityMatrix, {
+        opportunityId: 'opportunity-1',
+      }),
+    ).toEqual({
+      opportunityId: 'opportunity-1',
+    });
+    expect(
+      validateIpcOutput(cmmIpcContracts.exportBaseCapabilityMatrix, {
+        status: 'exported',
+        filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+      }),
+    ).toEqual({
+      status: 'exported',
+      filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+    });
+    expect(
+      validateIpcOutput(cmmIpcContracts.exportBaseCapabilityMatrix, {
+        status: 'canceled',
+        filename: null,
+      }),
+    ).toEqual({
+      status: 'canceled',
+      filename: null,
+    });
+    expect(() =>
+      validateIpcOutput(cmmIpcContracts.exportBaseCapabilityMatrix, {
+        status: 'exported',
+        filename: null,
+      }),
+    ).toThrow();
     expect(validateIpcOutput(cmmIpcContracts.archiveOpportunity, opportunity)).toEqual(opportunity);
     expect(validateIpcOutput(cmmIpcContracts.restoreArchivedOpportunity, opportunity)).toEqual(
       opportunity,

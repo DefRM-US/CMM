@@ -1,6 +1,10 @@
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
-import { buildBaseCapabilityMatrixWorkbook, parseMemberResponseWorkbook } from './index';
+import {
+  type BaseCapabilityMatrixExportChoices,
+  buildBaseCapabilityMatrixWorkbook,
+  parseMemberResponseWorkbook,
+} from './index';
 
 type ProtectedWorksheetModel = ExcelJS.WorksheetModel & {
   sheetProtection?: {
@@ -8,58 +12,73 @@ type ProtectedWorksheetModel = ExcelJS.WorksheetModel & {
   };
 };
 
-const buildWorkbook = () =>
-  buildBaseCapabilityMatrixWorkbook({
-    opportunity: {
-      id: 'opportunity-1',
-      name: 'Arctic Radar Upgrade',
-      solicitationNumber: 'RFP-2026-17',
-      issuingAgency: 'Naval Systems Command',
-      description: null,
-      createdAt: '2026-05-01T09:00:00.000Z',
-      updatedAt: '2026-05-01T09:05:00.000Z',
-      lastOpenedAt: null,
-      archivedAt: null,
+const defaultExportChoices: BaseCapabilityMatrixExportChoices = {
+  includeBlankRequirements: false,
+  includeRetiredRequirements: false,
+};
+
+const workbookInput = {
+  opportunity: {
+    id: 'opportunity-1',
+    name: 'Arctic Radar Upgrade',
+    solicitationNumber: 'RFP-2026-17',
+    issuingAgency: 'Naval Systems Command',
+    description: null,
+    createdAt: '2026-05-01T09:00:00.000Z',
+    updatedAt: '2026-05-01T09:05:00.000Z',
+    lastOpenedAt: null,
+    archivedAt: null,
+  },
+  exportTimestamp: '2026-05-02T10:00:00.000Z',
+  requirements: [
+    {
+      id: 'requirement-1',
+      text: 'Provide secure hosting',
+      level: 1,
+      position: 0,
+      retiredAt: null,
     },
-    exportTimestamp: '2026-05-02T10:00:00.000Z',
-    requirements: [
-      {
-        id: 'requirement-1',
-        text: 'Provide secure hosting',
-        level: 1,
-        position: 0,
-        retiredAt: null,
-      },
-      {
-        id: 'requirement-2',
-        text: 'Operate help desk',
-        level: 2,
-        position: 1,
-        retiredAt: null,
-      },
-      {
-        id: 'requirement-retired',
-        text: 'Retired draft row',
-        level: 1,
-        position: 2,
-        retiredAt: '2026-05-01T10:00:00.000Z',
-      },
-      {
-        id: 'requirement-blank',
-        text: '   ',
-        level: 1,
-        position: 3,
-        retiredAt: null,
-      },
-    ],
+    {
+      id: 'requirement-2',
+      text: 'Operate help desk',
+      level: 2,
+      position: 1,
+      retiredAt: null,
+    },
+    {
+      id: 'requirement-retired',
+      text: 'Retired draft row',
+      level: 1,
+      position: 2,
+      retiredAt: '2026-05-01T10:00:00.000Z',
+    },
+    {
+      id: 'requirement-blank',
+      text: '   ',
+      level: 1,
+      position: 3,
+      retiredAt: null,
+    },
+  ],
+};
+
+const buildWorkbook = (exportChoices = defaultExportChoices) =>
+  buildBaseCapabilityMatrixWorkbook({
+    ...workbookInput,
+    exportChoices,
   });
+
+const loadWorkbook = async (buffer: Uint8Array): Promise<ExcelJS.Workbook> => {
+  const workbook = new ExcelJS.Workbook();
+  const workbookBuffer = buffer as unknown as Parameters<typeof workbook.xlsx.load>[0];
+  await workbook.xlsx.load(workbookBuffer);
+  return workbook;
+};
 
 describe('Base Capability Matrix workbook export', () => {
   it('builds a protected CMM-authored workbook with hidden metadata and editable response fields', async () => {
     const buffer = await buildWorkbook();
-    const workbook = new ExcelJS.Workbook();
-    const workbookBuffer = buffer as unknown as Parameters<typeof workbook.xlsx.load>[0];
-    await workbook.xlsx.load(workbookBuffer);
+    const workbook = await loadWorkbook(buffer);
 
     const matrixSheet = workbook.getWorksheet('Base Capability Matrix');
     const metadataSheet = workbook.getWorksheet('CMM Metadata');
@@ -164,5 +183,60 @@ describe('Base Capability Matrix workbook export', () => {
         },
       ],
     });
+  });
+
+  it('includes blank and retired Requirements when export choices opt into them', async () => {
+    const buffer = await buildWorkbook({
+      includeBlankRequirements: true,
+      includeRetiredRequirements: true,
+    });
+    const workbook = await loadWorkbook(buffer);
+
+    const matrixSheet = workbook.getWorksheet('Base Capability Matrix');
+    const metadataSheet = workbook.getWorksheet('CMM Metadata');
+    expect(matrixSheet).toBeDefined();
+    expect(metadataSheet).toBeDefined();
+    if (!matrixSheet || !metadataSheet) {
+      throw new Error('Expected workbook sheets to exist.');
+    }
+
+    expect(metadataSheet.getCell('A8').value).toBe('requirement-retired');
+    expect(metadataSheet.getCell('B8').value).toBe('2');
+    expect(metadataSheet.getCell('A9').value).toBe('requirement-blank');
+    expect(metadataSheet.getCell('B9').value).toBe('3');
+
+    expect(matrixSheet.getCell('A11').value).toBe('2');
+    expect(matrixSheet.getCell('B11').value).toBe('Retired draft row');
+    expect(matrixSheet.getCell('F11').value).toBe('requirement-retired');
+    expect(matrixSheet.getCell('A12').value).toBe('3');
+    expect(matrixSheet.getCell('B12').value).toBe('');
+    expect(matrixSheet.getCell('F12').value).toBe('requirement-blank');
+    expect(matrixSheet.getCell('A13').value).toBeNull();
+  });
+
+  it('applies blank and retired export choices independently', async () => {
+    const blankOnlyWorkbook = await parseMemberResponseWorkbook(
+      await buildWorkbook({
+        includeBlankRequirements: true,
+        includeRetiredRequirements: false,
+      }),
+    );
+    expect(blankOnlyWorkbook.rows.map((row) => row.requirementId)).toEqual([
+      'requirement-1',
+      'requirement-2',
+      'requirement-blank',
+    ]);
+
+    const retiredOnlyWorkbook = await parseMemberResponseWorkbook(
+      await buildWorkbook({
+        includeBlankRequirements: false,
+        includeRetiredRequirements: true,
+      }),
+    );
+    expect(retiredOnlyWorkbook.rows.map((row) => row.requirementId)).toEqual([
+      'requirement-1',
+      'requirement-2',
+      'requirement-retired',
+    ]);
   });
 });

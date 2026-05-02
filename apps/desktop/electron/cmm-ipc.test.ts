@@ -143,12 +143,23 @@ describe('registerCmmIpcHandlers', () => {
     await expect(exportMatrixHandler?.({}, { opportunityId: '' })).rejects.toThrow(
       'Opportunity ID is required.',
     );
-    await expect(exportMatrixHandler?.({}, { opportunityId: 'opportunity-1' })).resolves.toEqual({
+    await expect(
+      exportMatrixHandler?.(
+        {},
+        {
+          opportunityId: 'opportunity-1',
+          includeBlankRequirements: true,
+          includeRetiredRequirements: false,
+        },
+      ),
+    ).resolves.toEqual({
       status: 'exported',
       filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
     });
     expect(baseCapabilityMatrixExportFileService.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
       opportunityId: 'opportunity-1',
+      includeBlankRequirements: true,
+      includeRetiredRequirements: false,
     });
 
     const hardDeleteHandler = ipcMain.handlers.get(

@@ -35,13 +35,19 @@ describe('Base Capability Matrix export file service', () => {
     });
 
     await expect(
-      exportFileService.exportBaseCapabilityMatrix({ opportunityId: 'opportunity-1' }),
+      exportFileService.exportBaseCapabilityMatrix({
+        opportunityId: 'opportunity-1',
+        includeBlankRequirements: false,
+        includeRetiredRequirements: false,
+      }),
     ).resolves.toEqual({
       status: 'exported',
       filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
     });
     expect(service.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
       opportunityId: 'opportunity-1',
+      includeBlankRequirements: false,
+      includeRetiredRequirements: false,
     });
     expect(writeFile).toHaveBeenCalledWith(
       '/tmp/Arctic Radar Upgrade - Base Capability Matrix.xlsx',
@@ -61,7 +67,11 @@ describe('Base Capability Matrix export file service', () => {
     });
 
     await expect(
-      exportFileService.exportBaseCapabilityMatrix({ opportunityId: 'opportunity-1' }),
+      exportFileService.exportBaseCapabilityMatrix({
+        opportunityId: 'opportunity-1',
+        includeBlankRequirements: false,
+        includeRetiredRequirements: false,
+      }),
     ).resolves.toEqual({
       status: 'canceled',
       filename: null,

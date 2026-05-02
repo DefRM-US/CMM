@@ -56,6 +56,25 @@ describe('Base Capability Matrix requirements', () => {
         displayNumber: '2',
       },
     ]);
+
+    expect(computeRequirementNumbers(requirements, { includeRetired: true })).toEqual([
+      {
+        requirement: requirements[0],
+        displayNumber: '1',
+      },
+      {
+        requirement: requirements[1],
+        displayNumber: '1.1',
+      },
+      {
+        requirement: requirements[2],
+        displayNumber: '1.2',
+      },
+      {
+        requirement: requirements[3],
+        displayNumber: '2',
+      },
+    ]);
   });
 
   it('preserves Requirement identity across text, order, level, and retirement edits', () => {

@@ -303,6 +303,48 @@ textarea {
   font-weight: 750;
 }
 
+.export-preflight {
+  display: grid;
+  flex-basis: 100%;
+  gap: 12px;
+  border: 1px solid #c8d2c5;
+  background: #f7faf4;
+  color: #1c2228;
+  padding: 14px;
+}
+
+.export-preflight-choice {
+  display: grid;
+  gap: 4px;
+}
+
+.export-preflight-choice p {
+  margin: 0;
+  color: #6f4f12;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.export-preflight-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.export-preflight-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #315f68;
+}
+
+.export-preflight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .matrix-outline {
   display: grid;
   gap: 8px;

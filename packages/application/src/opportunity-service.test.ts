@@ -426,7 +426,11 @@ describe('OpportunityService', () => {
     });
 
     await expect(
-      service.exportBaseCapabilityMatrix({ opportunityId: opportunity.id }),
+      service.exportBaseCapabilityMatrix({
+        opportunityId: opportunity.id,
+        includeBlankRequirements: false,
+        includeRetiredRequirements: false,
+      }),
     ).resolves.toEqual({
       workbook: new Uint8Array([1, 2, 3]),
       suggestedFilename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
@@ -437,8 +441,56 @@ describe('OpportunityService', () => {
         opportunity,
         exportTimestamp: '2026-05-02T10:00:00.000Z',
         requirements: saved.requirements,
+        exportChoices: {
+          includeBlankRequirements: false,
+          includeRetiredRequirements: false,
+        },
       },
     ]);
+  });
+
+  it('passes Base Capability Matrix export choices to the workbook builder', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const builtWorkbooks: BuildBaseCapabilityMatrixWorkbookInput[] = [];
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-02T10:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+      workbookBuilder: {
+        async buildBaseCapabilityMatrixWorkbook(input) {
+          builtWorkbooks.push(input);
+          return new Uint8Array([1, 2, 3]);
+        },
+      },
+    });
+
+    const opportunity = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    await service.saveBaseCapabilityMatrix({
+      opportunityId: opportunity.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    });
+
+    await service.exportBaseCapabilityMatrix({
+      opportunityId: opportunity.id,
+      includeBlankRequirements: true,
+      includeRetiredRequirements: false,
+    });
+
+    expect(builtWorkbooks[0]).toMatchObject({
+      exportChoices: {
+        includeBlankRequirements: true,
+        includeRetiredRequirements: false,
+      },
+    });
   });
 
   it('hard-deletes an archived Opportunity', async () => {

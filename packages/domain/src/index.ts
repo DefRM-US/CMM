@@ -40,6 +40,10 @@ export type RequirementNumber = {
   displayNumber: string;
 };
 
+export type RequirementNumberOptions = {
+  includeRetired?: boolean;
+};
+
 const orderRequirements = (requirements: Requirement[]): Requirement[] =>
   [...requirements].sort((left, right) => left.position - right.position);
 
@@ -73,10 +77,13 @@ export const normalizeOptionalText = (value: string | null | undefined): string 
   return normalized.length > 0 ? normalized : null;
 };
 
-export const computeRequirementNumbers = (requirements: Requirement[]): RequirementNumber[] => {
+export const computeRequirementNumbers = (
+  requirements: Requirement[],
+  options: RequirementNumberOptions = {},
+): RequirementNumber[] => {
   const counters: number[] = [];
   return orderRequirements(requirements)
-    .filter((requirement) => requirement.retiredAt === null)
+    .filter((requirement) => options.includeRetired || requirement.retiredAt === null)
     .map((requirement) => {
       const level = Math.max(1, requirement.level);
       counters.length = level;

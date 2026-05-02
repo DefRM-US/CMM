@@ -69,6 +69,11 @@ describe('registerCmmIpcHandlers', () => {
         baseCapabilityMatrix,
       })),
       saveBaseCapabilityMatrix: vi.fn(async () => baseCapabilityMatrix),
+      exportBaseCapabilityMatrix: vi.fn(async () => ({
+        workbook: new Uint8Array([1, 2, 3]),
+        suggestedFilename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+        exportTimestamp: '2026-05-02T10:00:00.000Z',
+      })),
       archiveOpportunity: vi.fn(async () => ({
         ...opportunity,
         archivedAt: '2026-05-01T09:10:00.000Z',
@@ -76,8 +81,14 @@ describe('registerCmmIpcHandlers', () => {
       restoreArchivedOpportunity: vi.fn(async () => opportunity),
       hardDeleteArchivedOpportunity: vi.fn(async () => undefined),
     };
+    const baseCapabilityMatrixExportFileService = {
+      exportBaseCapabilityMatrix: vi.fn(async () => ({
+        status: 'exported' as const,
+        filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+      })),
+    };
 
-    registerCmmIpcHandlers(ipcMain, { opportunityService });
+    registerCmmIpcHandlers(ipcMain, { opportunityService, baseCapabilityMatrixExportFileService });
 
     expect(Array.from(ipcMain.handlers.keys()).sort()).toEqual(
       [
@@ -87,6 +98,7 @@ describe('registerCmmIpcHandlers', () => {
         cmmIpcContracts.openOpportunity.channel,
         cmmIpcContracts.openArchivedOpportunity.channel,
         cmmIpcContracts.saveBaseCapabilityMatrix.channel,
+        cmmIpcContracts.exportBaseCapabilityMatrix.channel,
         cmmIpcContracts.archiveOpportunity.channel,
         cmmIpcContracts.restoreArchivedOpportunity.channel,
         cmmIpcContracts.hardDeleteArchivedOpportunity.channel,
@@ -124,6 +136,20 @@ describe('registerCmmIpcHandlers', () => {
       baseCapabilityMatrix,
     );
     expect(opportunityService.saveBaseCapabilityMatrix).toHaveBeenCalledWith(baseCapabilityMatrix);
+
+    const exportMatrixHandler = ipcMain.handlers.get(
+      cmmIpcContracts.exportBaseCapabilityMatrix.channel,
+    );
+    await expect(exportMatrixHandler?.({}, { opportunityId: '' })).rejects.toThrow(
+      'Opportunity ID is required.',
+    );
+    await expect(exportMatrixHandler?.({}, { opportunityId: 'opportunity-1' })).resolves.toEqual({
+      status: 'exported',
+      filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+    });
+    expect(baseCapabilityMatrixExportFileService.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: 'opportunity-1',
+    });
 
     const hardDeleteHandler = ipcMain.handlers.get(
       cmmIpcContracts.hardDeleteArchivedOpportunity.channel,

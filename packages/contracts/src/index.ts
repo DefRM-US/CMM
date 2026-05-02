@@ -51,6 +51,17 @@ const hardDeleteArchivedOpportunityOutputSchema = z.object({
   opportunityId: z.string().min(1),
 });
 
+const exportBaseCapabilityMatrixOutputSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('exported'),
+    filename: z.string().min(1),
+  }),
+  z.object({
+    status: z.literal('canceled'),
+    filename: z.null(),
+  }),
+]);
+
 const windowCloseRequestSchema = z.object({
   requestId: z.string().min(1),
 });
@@ -68,6 +79,10 @@ export type OpenOpportunityIpcInput = z.infer<typeof opportunityIdInputSchema>;
 export type OpenOpportunityIpcOutput = z.infer<typeof openOpportunityOutputSchema>;
 export type OpportunityLifecycleIpcInput = z.infer<typeof opportunityIdInputSchema>;
 export type SaveBaseCapabilityMatrixIpcInput = z.infer<typeof baseCapabilityMatrixSchema>;
+export type ExportBaseCapabilityMatrixIpcInput = z.infer<typeof opportunityIdInputSchema>;
+export type ExportBaseCapabilityMatrixIpcOutput = z.infer<
+  typeof exportBaseCapabilityMatrixOutputSchema
+>;
 export type HardDeleteArchivedOpportunityIpcOutput = z.infer<
   typeof hardDeleteArchivedOpportunityOutputSchema
 >;
@@ -114,6 +129,11 @@ export const cmmIpcContracts = {
     channel: 'cmm:base-matrices:save',
     inputSchema: baseCapabilityMatrixSchema,
     outputSchema: baseCapabilityMatrixSchema,
+  }),
+  exportBaseCapabilityMatrix: defineContract({
+    channel: 'cmm:base-matrices:export',
+    inputSchema: opportunityIdInputSchema,
+    outputSchema: exportBaseCapabilityMatrixOutputSchema,
   }),
   archiveOpportunity: defineContract({
     channel: 'cmm:opportunities:archive',

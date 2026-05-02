@@ -1,6 +1,10 @@
 import type { BaseCapabilityMatrix, IsoDateTime, Opportunity, OpportunityId } from '@cmm/domain';
 import { describe, expect, it } from 'vitest';
-import { createOpportunityService, type OpportunityRepository } from './index';
+import {
+  type BuildBaseCapabilityMatrixWorkbookInput,
+  createOpportunityService,
+  type OpportunityRepository,
+} from './index';
 
 class InMemoryOpportunityRepository implements OpportunityRepository {
   readonly opportunities = new Map<OpportunityId, Opportunity>();
@@ -385,6 +389,56 @@ describe('OpportunityService', () => {
         requirements: [],
       }),
     ).rejects.toThrow('Opportunity not found.');
+  });
+
+  it('exports the active Opportunity Base Capability Matrix through the workbook builder', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const builtWorkbooks: BuildBaseCapabilityMatrixWorkbookInput[] = [];
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-02T10:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+      workbookBuilder: {
+        async buildBaseCapabilityMatrixWorkbook(input) {
+          builtWorkbooks.push(input);
+          return new Uint8Array([1, 2, 3]);
+        },
+      },
+    });
+
+    const opportunity = await service.createOpportunity({
+      name: 'Arctic Radar Upgrade',
+      solicitationNumber: 'RFP-2026-17',
+      issuingAgency: 'Naval Systems Command',
+    });
+    const saved = await service.saveBaseCapabilityMatrix({
+      opportunityId: opportunity.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    });
+
+    await expect(
+      service.exportBaseCapabilityMatrix({ opportunityId: opportunity.id }),
+    ).resolves.toEqual({
+      workbook: new Uint8Array([1, 2, 3]),
+      suggestedFilename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+      exportTimestamp: '2026-05-02T10:00:00.000Z',
+    });
+    expect(builtWorkbooks).toEqual([
+      {
+        opportunity,
+        exportTimestamp: '2026-05-02T10:00:00.000Z',
+        requirements: saved.requirements,
+      },
+    ]);
   });
 
   it('hard-deletes an archived Opportunity', async () => {

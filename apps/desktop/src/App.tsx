@@ -136,6 +136,7 @@ function App(): React.JSX.Element {
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const openedOpportunityRef = useRef<OpenedOpportunityState | null>(null);
   const matrixSaveStateRef = useRef<MatrixSaveState>('idle');
   const draftVersionRef = useRef(0);
@@ -676,6 +677,27 @@ function App(): React.JSX.Element {
     }
   };
 
+  const exportOpenedBaseCapabilityMatrix = async () => {
+    if (!openedOpportunity || openedOpportunity.lifecycle !== 'active') {
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    try {
+      if (!(await flushBaseCapabilityMatrixBeforeProceeding())) {
+        return;
+      }
+
+      const result = await window.cmmApi.exportBaseCapabilityMatrix({
+        opportunityId: openedOpportunity.opportunity.id,
+      });
+      setNotice(result.status === 'exported' ? `Exported ${result.filename}` : 'Export canceled.');
+    } catch (unknownError) {
+      setError(getErrorMessage(unknownError, 'Unable to export Base Capability Matrix.'));
+    }
+  };
+
   const restoreOpenedOpportunity = async () => {
     if (!openedOpportunity || openedOpportunity.lifecycle !== 'archived') {
       return;
@@ -908,6 +930,13 @@ function App(): React.JSX.Element {
                   <Button
                     disabled={matrixSaveState === 'saving'}
                     variant="secondary"
+                    onClick={() => void exportOpenedBaseCapabilityMatrix()}
+                  >
+                    Export Workbook
+                  </Button>
+                  <Button
+                    disabled={matrixSaveState === 'saving'}
+                    variant="secondary"
                     onClick={() => void saveMatrix()}
                   >
                     Save Matrix
@@ -939,6 +968,7 @@ function App(): React.JSX.Element {
                       </Button>
                     </div>
                   ) : null}
+                  {notice ? <span className="matrix-save-status">{notice}</span> : null}
                 </div>
               ) : null}
 

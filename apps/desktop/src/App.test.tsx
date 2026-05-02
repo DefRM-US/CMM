@@ -60,6 +60,10 @@ const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
       ...matrix,
       revision: matrix.revision + 1,
     })),
+    exportBaseCapabilityMatrix: vi.fn(async () => ({
+      status: 'exported' as const,
+      filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+    })),
     archiveOpportunity: vi.fn(),
     restoreArchivedOpportunity: vi.fn(),
     hardDeleteArchivedOpportunity: vi.fn(),
@@ -623,6 +627,74 @@ describe('App', () => {
         },
       ],
     });
+  });
+
+  it('flushes dirty Base Capability Matrix edits before exporting the workbook', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const calls: string[] = [];
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+      saveBaseCapabilityMatrix: vi.fn(async (matrix) => {
+        calls.push('save');
+        return {
+          ...matrix,
+          revision: matrix.revision + 1,
+        };
+      }),
+      exportBaseCapabilityMatrix: vi.fn(async () => {
+        calls.push('export');
+        return {
+          status: 'exported' as const,
+          filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+        };
+      }),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+    await user.click(screen.getByRole('button', { name: 'Export Workbook' }));
+
+    await waitFor(() =>
+      expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+        opportunityId: activeOpportunity.id,
+        revision: 1,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: 'Provide IL5 hosting',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    );
+    expect(api.exportBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+    });
+    expect(calls).toEqual(['save', 'export']);
+    expect(
+      await screen.findByText('Exported Arctic Radar Upgrade - Base Capability Matrix.xlsx'),
+    ).toBeVisible();
   });
 
   it('inserts a new active Requirement from Enter and focuses the new text field', async () => {

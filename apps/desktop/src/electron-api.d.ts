@@ -2,6 +2,8 @@ import type {
   CreateOpportunityIpcInput,
   BaseCapabilityMatrixDto,
   HardDeleteArchivedOpportunityIpcOutput,
+  ExportBaseCapabilityMatrixIpcInput,
+  ExportBaseCapabilityMatrixIpcOutput,
   OpenOpportunityIpcInput,
   OpenOpportunityIpcOutput,
   OpportunityLifecycleIpcInput,
@@ -18,6 +20,9 @@ export interface CmmApi {
   saveBaseCapabilityMatrix(
     input: SaveBaseCapabilityMatrixIpcInput,
   ): Promise<BaseCapabilityMatrixDto>;
+  exportBaseCapabilityMatrix(
+    input: ExportBaseCapabilityMatrixIpcInput,
+  ): Promise<ExportBaseCapabilityMatrixIpcOutput>;
   archiveOpportunity(input: OpportunityLifecycleIpcInput): Promise<OpportunityDto>;
   restoreArchivedOpportunity(input: OpportunityLifecycleIpcInput): Promise<OpportunityDto>;
   hardDeleteArchivedOpportunity(

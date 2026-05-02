@@ -12,7 +12,8 @@
       "@cmm/contracts": ["../../packages/contracts/src/index.ts"],
       "@cmm/domain": ["../../packages/domain/src/index.ts"],
       "@cmm/persistence-sqlite": ["../../packages/persistence-sqlite/src/index.ts"],
-      "@cmm/ui": ["../../packages/cmm-ui/src/index.tsx"]
+      "@cmm/ui": ["../../packages/cmm-ui/src/index.tsx"],
+      "@cmm/workbook": ["../../packages/workbook/src/index.ts"]
     }
   },
   "include": [
@@ -28,6 +29,7 @@
     "../../packages/cmm-ui/src/**/*.tsx",
     "../../packages/domain/src/**/*.ts",
     "../../packages/persistence-sqlite/src/**/*.ts",
+    "../../packages/workbook/src/**/*.ts",
     "../../packages/core/src/excel-buffer.ts"
   ]
 }

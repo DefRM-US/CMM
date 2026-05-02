@@ -1,6 +1,8 @@
 import type { OpportunityService } from '@cmm/application';
 import {
   cmmIpcContracts,
+  type ExportBaseCapabilityMatrixIpcInput,
+  type ExportBaseCapabilityMatrixIpcOutput,
   type IpcContract,
   validateIpcInput,
   validateIpcOutput,
@@ -14,6 +16,11 @@ export type IpcMainLike = {
 
 export type CmmIpcServices = {
   opportunityService: OpportunityService;
+  baseCapabilityMatrixExportFileService: {
+    exportBaseCapabilityMatrix(
+      input: ExportBaseCapabilityMatrixIpcInput,
+    ): Promise<ExportBaseCapabilityMatrixIpcOutput>;
+  };
 };
 
 const registerValidatedHandler = <Input, Output>(
@@ -30,7 +37,7 @@ const registerValidatedHandler = <Input, Output>(
 
 export const registerCmmIpcHandlers = (
   ipcMain: IpcMainLike,
-  { opportunityService }: CmmIpcServices,
+  { opportunityService, baseCapabilityMatrixExportFileService }: CmmIpcServices,
 ): void => {
   registerValidatedHandler(ipcMain, cmmIpcContracts.createOpportunity, (input) =>
     opportunityService.createOpportunity(input),
@@ -49,6 +56,9 @@ export const registerCmmIpcHandlers = (
   );
   registerValidatedHandler(ipcMain, cmmIpcContracts.saveBaseCapabilityMatrix, (input) =>
     opportunityService.saveBaseCapabilityMatrix(input),
+  );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.exportBaseCapabilityMatrix, (input) =>
+    baseCapabilityMatrixExportFileService.exportBaseCapabilityMatrix(input),
   );
   registerValidatedHandler(ipcMain, cmmIpcContracts.archiveOpportunity, (input) =>
     opportunityService.archiveOpportunity(input),

@@ -2,6 +2,7 @@ import {
   type CreateOpportunityIpcInput,
   cmmIpcContracts,
   cmmWindowLifecycleChannels,
+  type ExportBaseCapabilityMatrixIpcInput,
   type OpenOpportunityIpcInput,
   type OpportunityLifecycleIpcInput,
   type SaveBaseCapabilityMatrixIpcInput,
@@ -23,6 +24,8 @@ contextBridge.exposeInMainWorld('cmmApi', {
     ipcRenderer.invoke(cmmIpcContracts.openArchivedOpportunity.channel, input),
   saveBaseCapabilityMatrix: (input: SaveBaseCapabilityMatrixIpcInput) =>
     ipcRenderer.invoke(cmmIpcContracts.saveBaseCapabilityMatrix.channel, input),
+  exportBaseCapabilityMatrix: (input: ExportBaseCapabilityMatrixIpcInput) =>
+    ipcRenderer.invoke(cmmIpcContracts.exportBaseCapabilityMatrix.channel, input),
   archiveOpportunity: (input: OpportunityLifecycleIpcInput) =>
     ipcRenderer.invoke(cmmIpcContracts.archiveOpportunity.channel, input),
   restoreArchivedOpportunity: (input: OpportunityLifecycleIpcInput) =>

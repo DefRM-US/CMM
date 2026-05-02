@@ -16,6 +16,8 @@ const opportunityService = (): OpportunityService => ({
     suggestedFilename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
     exportTimestamp: '2026-05-02T10:00:00.000Z',
   })),
+  previewMemberResponseImport: vi.fn(),
+  saveMemberResponseImport: vi.fn(),
   archiveOpportunity: vi.fn(),
   restoreArchivedOpportunity: vi.fn(),
   hardDeleteArchivedOpportunity: vi.fn(),

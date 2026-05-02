@@ -163,6 +163,7 @@ describe('Base Capability Matrix workbook export', () => {
         opportunityId: 'opportunity-1',
         exportTimestamp: '2026-05-02T10:00:00.000Z',
       },
+      workbookTitle: 'Arctic Radar Upgrade',
       memberName: 'Polar Systems LLC',
       rows: [
         {

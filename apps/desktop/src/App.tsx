@@ -1,6 +1,7 @@
 import type {
   BaseCapabilityMatrixDto,
   CreateOpportunityIpcInput,
+  MemberResponseImportPreviewDto,
   OpenOpportunityIpcOutput,
   OpportunityDto,
   RequirementDto,
@@ -34,6 +35,11 @@ type BaseCapabilityMatrixExportChoices = {
 type ExportPreflightState = BaseCapabilityMatrixExportChoices & {
   blankRequirementCount: number;
   retiredRequirementCount: number;
+};
+type MemberResponseImportReviewState = {
+  preview: MemberResponseImportPreviewDto;
+  memberName: string;
+  saveState: 'idle' | 'saving';
 };
 
 type NumberedRequirement = {
@@ -165,6 +171,8 @@ function App(): React.JSX.Element {
   const [showRetiredRequirements, setShowRetiredRequirements] = useState(false);
   const [matrixSaveState, setMatrixSaveState] = useState<MatrixSaveState>('idle');
   const [exportPreflight, setExportPreflight] = useState<ExportPreflightState | null>(null);
+  const [memberResponseImportReview, setMemberResponseImportReview] =
+    useState<MemberResponseImportReviewState | null>(null);
   const [pendingRequirementFocusId, setPendingRequirementFocusId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
@@ -359,6 +367,7 @@ function App(): React.JSX.Element {
     });
     setShowRetiredRequirements(false);
     setExportPreflight(null);
+    setMemberResponseImportReview(null);
     draftVersionRef.current = 0;
     setTrackedMatrixSaveState('idle');
     await refreshOpportunities();
@@ -373,6 +382,7 @@ function App(): React.JSX.Element {
 
     draftVersionRef.current += 1;
     setExportPreflight(null);
+    setMemberResponseImportReview(null);
     setOpenedOpportunity((current) => {
       if (!current || current.lifecycle === 'archived') {
         return current;
@@ -779,6 +789,98 @@ function App(): React.JSX.Element {
     }
   };
 
+  const importMemberResponseWorkbook = async () => {
+    if (!openedOpportunity || openedOpportunity.lifecycle !== 'active') {
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    setExportPreflight(null);
+    setMemberResponseImportReview(null);
+    try {
+      if (!(await flushBaseCapabilityMatrixBeforeProceeding())) {
+        return;
+      }
+
+      const current = openedOpportunityRef.current;
+      if (!current || current.lifecycle !== 'active') {
+        return;
+      }
+
+      const result = await window.cmmApi.selectMemberResponseWorkbookForImport({
+        opportunityId: current.opportunity.id,
+      });
+
+      if (result.status === 'canceled') {
+        setNotice('Import canceled.');
+        return;
+      }
+
+      if (result.status === 'rejected') {
+        setError(
+          'No usable response rows found. Ask the potential consortium member to fill in at least one response field, then import the returned workbook again.',
+        );
+        return;
+      }
+
+      setMemberResponseImportReview({
+        preview: result.preview,
+        memberName: result.preview.suggestedMemberName,
+        saveState: 'idle',
+      });
+    } catch (unknownError) {
+      setError(getErrorMessage(unknownError, 'Unable to import Member Response.'));
+    }
+  };
+
+  const updateMemberResponseImportName = (memberName: string) => {
+    setMemberResponseImportReview((current) =>
+      current
+        ? {
+            ...current,
+            memberName,
+          }
+        : current,
+    );
+  };
+
+  const saveMemberResponseImport = async () => {
+    if (!memberResponseImportReview) {
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
+    setMemberResponseImportReview((current) =>
+      current
+        ? {
+            ...current,
+            saveState: 'saving',
+          }
+        : current,
+    );
+
+    try {
+      const saved = await window.cmmApi.saveMemberResponseImport({
+        ...memberResponseImportReview.preview,
+        memberName: memberResponseImportReview.memberName,
+      });
+      setMemberResponseImportReview(null);
+      setNotice(`Imported Member Response for ${saved.memberName}.`);
+    } catch (unknownError) {
+      setError(getErrorMessage(unknownError, 'Unable to save Member Response.'));
+      setMemberResponseImportReview((current) =>
+        current
+          ? {
+              ...current,
+              saveState: 'idle',
+            }
+          : current,
+      );
+    }
+  };
+
   const restoreOpenedOpportunity = async () => {
     if (!openedOpportunity || openedOpportunity.lifecycle !== 'archived') {
       return;
@@ -1018,6 +1120,13 @@ function App(): React.JSX.Element {
                   <Button
                     disabled={matrixSaveState === 'saving'}
                     variant="secondary"
+                    onClick={() => void importMemberResponseWorkbook()}
+                  >
+                    Import Member Response
+                  </Button>
+                  <Button
+                    disabled={matrixSaveState === 'saving'}
+                    variant="secondary"
                     onClick={() => void saveMatrix()}
                   >
                     Save Matrix
@@ -1113,6 +1222,37 @@ function App(): React.JSX.Element {
                     </section>
                   ) : null}
                 </div>
+              ) : null}
+
+              {memberResponseImportReview ? (
+                <section
+                  aria-label="Member Response import review"
+                  className="member-response-import-review"
+                >
+                  <Field htmlFor="member-response-member-name" label="Potential Consortium Member">
+                    <TextInput
+                      autoFocus
+                      id="member-response-member-name"
+                      value={memberResponseImportReview.memberName}
+                      onChange={(event) => updateMemberResponseImportName(event.target.value)}
+                    />
+                  </Field>
+                  <div className="import-review-actions">
+                    <Button
+                      disabled={
+                        memberResponseImportReview.saveState === 'saving' ||
+                        memberResponseImportReview.memberName.trim().length === 0
+                      }
+                      variant="primary"
+                      onClick={() => void saveMemberResponseImport()}
+                    >
+                      Save Member Response
+                    </Button>
+                    <Button variant="ghost" onClick={() => setMemberResponseImportReview(null)}>
+                      Cancel Import
+                    </Button>
+                  </div>
+                </section>
               ) : null}
 
               {numberedRequirements.length === 0 ? (

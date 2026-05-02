@@ -4,6 +4,8 @@ import {
   type ExportBaseCapabilityMatrixIpcInput,
   type ExportBaseCapabilityMatrixIpcOutput,
   type IpcContract,
+  type SelectMemberResponseWorkbookForImportIpcInput,
+  type SelectMemberResponseWorkbookForImportIpcOutput,
   validateIpcInput,
   validateIpcOutput,
 } from '@cmm/contracts';
@@ -21,6 +23,11 @@ export type CmmIpcServices = {
       input: ExportBaseCapabilityMatrixIpcInput,
     ): Promise<ExportBaseCapabilityMatrixIpcOutput>;
   };
+  memberResponseImportFileService: {
+    selectMemberResponseWorkbookForImport(
+      input: SelectMemberResponseWorkbookForImportIpcInput,
+    ): Promise<SelectMemberResponseWorkbookForImportIpcOutput>;
+  };
 };
 
 const registerValidatedHandler = <Input, Output>(
@@ -37,7 +44,11 @@ const registerValidatedHandler = <Input, Output>(
 
 export const registerCmmIpcHandlers = (
   ipcMain: IpcMainLike,
-  { opportunityService, baseCapabilityMatrixExportFileService }: CmmIpcServices,
+  {
+    opportunityService,
+    baseCapabilityMatrixExportFileService,
+    memberResponseImportFileService,
+  }: CmmIpcServices,
 ): void => {
   registerValidatedHandler(ipcMain, cmmIpcContracts.createOpportunity, (input) =>
     opportunityService.createOpportunity(input),
@@ -59,6 +70,14 @@ export const registerCmmIpcHandlers = (
   );
   registerValidatedHandler(ipcMain, cmmIpcContracts.exportBaseCapabilityMatrix, (input) =>
     baseCapabilityMatrixExportFileService.exportBaseCapabilityMatrix(input),
+  );
+  registerValidatedHandler(
+    ipcMain,
+    cmmIpcContracts.selectMemberResponseWorkbookForImport,
+    (input) => memberResponseImportFileService.selectMemberResponseWorkbookForImport(input),
+  );
+  registerValidatedHandler(ipcMain, cmmIpcContracts.saveMemberResponseImport, (input) =>
+    opportunityService.saveMemberResponseImport(input),
   );
   registerValidatedHandler(ipcMain, cmmIpcContracts.archiveOpportunity, (input) =>
     opportunityService.archiveOpportunity(input),

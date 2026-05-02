@@ -345,6 +345,21 @@ textarea {
   gap: 8px;
 }
 
+.member-response-import-review {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #c8d2c5;
+  background: #f7faf4;
+  color: #1c2228;
+  padding: 14px;
+}
+
+.import-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .matrix-outline {
   display: grid;
   gap: 8px;

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createOpportunityService } from '@cmm/application';
 import { cmmWindowLifecycleChannels, validateWindowCloseResponse } from '@cmm/contracts';
@@ -9,10 +9,11 @@ import {
   createCmmSqliteDatabase,
   createSqliteOpportunityRepository,
 } from '@cmm/persistence-sqlite';
-import { buildBaseCapabilityMatrixWorkbook } from '@cmm/workbook';
+import { buildBaseCapabilityMatrixWorkbook, parseMemberResponseWorkbook } from '@cmm/workbook';
 import { app, BrowserWindow, dialog, type IpcMainEvent, ipcMain } from 'electron';
 import { createBaseCapabilityMatrixExportFileService } from './base-capability-matrix-export';
 import { registerCmmIpcHandlers } from './cmm-ipc';
+import { createMemberResponseImportFileService } from './member-response-import';
 
 const rendererRoot = path.resolve(__dirname, '../dist');
 const preloadPath = path.resolve(__dirname, 'preload.js');
@@ -139,8 +140,18 @@ const registerHandlers = () => {
     showSaveDialog: (options) => dialog.showSaveDialog(options),
     writeFile,
   });
+  const memberResponseImportFileService = createMemberResponseImportFileService({
+    opportunityService,
+    showOpenDialog: (options) => dialog.showOpenDialog(options),
+    readFile,
+    parseMemberResponseWorkbook,
+  });
 
-  registerCmmIpcHandlers(ipcMain, { opportunityService, baseCapabilityMatrixExportFileService });
+  registerCmmIpcHandlers(ipcMain, {
+    opportunityService,
+    baseCapabilityMatrixExportFileService,
+    memberResponseImportFileService,
+  });
 };
 
 app.whenReady().then(async () => {

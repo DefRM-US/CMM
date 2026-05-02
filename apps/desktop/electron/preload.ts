@@ -6,6 +6,8 @@ import {
   type OpenOpportunityIpcInput,
   type OpportunityLifecycleIpcInput,
   type SaveBaseCapabilityMatrixIpcInput,
+  type SaveMemberResponseImportIpcInput,
+  type SelectMemberResponseWorkbookForImportIpcInput,
   validateWindowCloseRequest,
   type WindowCloseResponseDto,
 } from '@cmm/contracts';
@@ -26,6 +28,10 @@ contextBridge.exposeInMainWorld('cmmApi', {
     ipcRenderer.invoke(cmmIpcContracts.saveBaseCapabilityMatrix.channel, input),
   exportBaseCapabilityMatrix: (input: ExportBaseCapabilityMatrixIpcInput) =>
     ipcRenderer.invoke(cmmIpcContracts.exportBaseCapabilityMatrix.channel, input),
+  selectMemberResponseWorkbookForImport: (input: SelectMemberResponseWorkbookForImportIpcInput) =>
+    ipcRenderer.invoke(cmmIpcContracts.selectMemberResponseWorkbookForImport.channel, input),
+  saveMemberResponseImport: (input: SaveMemberResponseImportIpcInput) =>
+    ipcRenderer.invoke(cmmIpcContracts.saveMemberResponseImport.channel, input),
   archiveOpportunity: (input: OpportunityLifecycleIpcInput) =>
     ipcRenderer.invoke(cmmIpcContracts.archiveOpportunity.channel, input),
   restoreArchivedOpportunity: (input: OpportunityLifecycleIpcInput) =>

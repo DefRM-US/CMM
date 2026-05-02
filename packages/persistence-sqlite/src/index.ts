@@ -1,5 +1,15 @@
-import type { OpportunityRepository } from '@cmm/application';
-import type { BaseCapabilityMatrix, Opportunity, OpportunityId, Requirement } from '@cmm/domain';
+import type {
+  OpportunityRepository,
+  SaveActiveMemberResponseRepositoryInput,
+} from '@cmm/application';
+import type {
+  BaseCapabilityMatrix,
+  MemberResponse,
+  MemberResponseRow,
+  Opportunity,
+  OpportunityId,
+  Requirement,
+} from '@cmm/domain';
 import type { Database as SqliteDatabase } from 'better-sqlite3';
 import Database from 'better-sqlite3';
 
@@ -62,6 +72,53 @@ const migrations: Migration[] = [
         ON requirements (opportunity_id, position);
     `,
   },
+  {
+    id: 3,
+    name: '0003_create_member_responses',
+    sql: `
+      CREATE TABLE member_responses (
+        id TEXT PRIMARY KEY,
+        opportunity_id TEXT NOT NULL
+          REFERENCES opportunities(id) ON DELETE CASCADE,
+        member_name TEXT NOT NULL,
+        normalized_member_name TEXT NOT NULL,
+        source_filename TEXT,
+        workbook_title TEXT,
+        imported_at TEXT NOT NULL,
+        archived_at TEXT,
+        evaluation_state TEXT
+          CHECK (
+            evaluation_state IS NULL
+            OR evaluation_state IN ('candidate', 'selected', 'hidden')
+          )
+      );
+
+      CREATE UNIQUE INDEX member_responses_active_member_name_idx
+        ON member_responses (opportunity_id, normalized_member_name)
+        WHERE archived_at IS NULL;
+
+      CREATE INDEX member_responses_opportunity_active_order_idx
+        ON member_responses (opportunity_id, archived_at, imported_at);
+
+      CREATE TABLE member_response_rows (
+        id TEXT PRIMARY KEY,
+        member_response_id TEXT NOT NULL
+          REFERENCES member_responses(id) ON DELETE CASCADE,
+        requirement_id TEXT NOT NULL,
+        requirement_number TEXT NOT NULL,
+        requirement_text TEXT NOT NULL,
+        capability_score INTEGER
+          CHECK (capability_score IS NULL OR capability_score IN (0, 1, 2, 3)),
+        past_performance_reference TEXT NOT NULL,
+        response_comment TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK (position >= 0),
+        UNIQUE (member_response_id, position)
+      );
+
+      CREATE INDEX member_response_rows_response_order_idx
+        ON member_response_rows (member_response_id, position);
+    `,
+  },
 ];
 
 type MigrationRow = {
@@ -94,6 +151,29 @@ type RequirementRow = {
   retired_at: string | null;
 };
 
+type MemberResponseRecordRow = {
+  id: string;
+  opportunity_id: string;
+  member_name: string;
+  source_filename: string | null;
+  workbook_title: string | null;
+  imported_at: string;
+  archived_at: string | null;
+  evaluation_state: 'candidate' | 'selected' | 'hidden' | null;
+};
+
+type MemberResponseRowRecord = {
+  id: string;
+  member_response_id: string;
+  requirement_id: string;
+  requirement_number: string;
+  requirement_text: string;
+  capability_score: 0 | 1 | 2 | 3 | null;
+  past_performance_reference: string;
+  response_comment: string;
+  position: number;
+};
+
 const toOpportunity = (row: OpportunityRow): Opportunity => ({
   id: row.id,
   name: row.name,
@@ -112,6 +192,29 @@ const toRequirement = (row: RequirementRow): Requirement => ({
   level: row.level,
   position: row.position,
   retiredAt: row.retired_at,
+});
+
+const toMemberResponse = (row: MemberResponseRecordRow): MemberResponse => ({
+  id: row.id,
+  opportunityId: row.opportunity_id,
+  memberName: row.member_name,
+  sourceFilename: row.source_filename,
+  workbookTitle: row.workbook_title,
+  importedAt: row.imported_at,
+  archivedAt: row.archived_at,
+  evaluationState: row.evaluation_state,
+});
+
+const toMemberResponseRow = (row: MemberResponseRowRecord): MemberResponseRow => ({
+  id: row.id,
+  memberResponseId: row.member_response_id,
+  requirementId: row.requirement_id,
+  requirementNumber: row.requirement_number,
+  requirementText: row.requirement_text,
+  capabilityScore: row.capability_score,
+  pastPerformanceReference: row.past_performance_reference,
+  responseComment: row.response_comment,
+  position: row.position,
 });
 
 export const runSqliteMigrations = (database: SqliteDatabase): void => {
@@ -321,6 +424,105 @@ export const createSqliteOpportunityRepository = (
     )
   `);
 
+  const listActiveMemberResponses = database.prepare(`
+    SELECT
+      id,
+      opportunity_id,
+      member_name,
+      source_filename,
+      workbook_title,
+      imported_at,
+      archived_at,
+      evaluation_state
+    FROM member_responses
+    WHERE opportunity_id = ? AND archived_at IS NULL
+    ORDER BY imported_at DESC, id ASC
+  `);
+
+  const listMemberResponseRows = database.prepare(`
+    SELECT
+      id,
+      member_response_id,
+      requirement_id,
+      requirement_number,
+      requirement_text,
+      capability_score,
+      past_performance_reference,
+      response_comment,
+      position
+    FROM member_response_rows
+    WHERE member_response_id = ?
+    ORDER BY position ASC
+  `);
+
+  const findMemberResponseById = database.prepare(`
+    SELECT
+      id,
+      opportunity_id,
+      member_name,
+      source_filename,
+      workbook_title,
+      imported_at,
+      archived_at,
+      evaluation_state
+    FROM member_responses
+    WHERE id = ?
+  `);
+
+  const archiveActiveMemberResponses = database.prepare(`
+    UPDATE member_responses
+    SET archived_at = ?, evaluation_state = NULL
+    WHERE opportunity_id = ? AND normalized_member_name = ? AND archived_at IS NULL
+  `);
+
+  const insertMemberResponse = database.prepare(`
+    INSERT INTO member_responses (
+      id,
+      opportunity_id,
+      member_name,
+      normalized_member_name,
+      source_filename,
+      workbook_title,
+      imported_at,
+      archived_at,
+      evaluation_state
+    ) VALUES (
+      @id,
+      @opportunityId,
+      @memberName,
+      @normalizedMemberName,
+      @sourceFilename,
+      @workbookTitle,
+      @importedAt,
+      @archivedAt,
+      @evaluationState
+    )
+  `);
+
+  const insertMemberResponseRow = database.prepare(`
+    INSERT INTO member_response_rows (
+      id,
+      member_response_id,
+      requirement_id,
+      requirement_number,
+      requirement_text,
+      capability_score,
+      past_performance_reference,
+      response_comment,
+      position
+    ) VALUES (
+      @id,
+      @memberResponseId,
+      @requirementId,
+      @requirementNumber,
+      @requirementText,
+      @capabilityScore,
+      @pastPerformanceReference,
+      @responseComment,
+      @position
+    )
+  `);
+
   const loadMatrix = (opportunityId: OpportunityId): BaseCapabilityMatrix => {
     const matrixRow = findBaseCapabilityMatrix.get(opportunityId) as
       | BaseCapabilityMatrixRow
@@ -369,6 +571,29 @@ export const createSqliteOpportunityRepository = (
 
     return loadMatrix(matrix.opportunityId);
   });
+
+  const saveActiveMemberResponse = database.transaction(
+    (input: SaveActiveMemberResponseRepositoryInput) => {
+      archiveActiveMemberResponses.run(
+        input.archivedAt,
+        input.memberResponse.opportunityId,
+        input.normalizedMemberName,
+      );
+      insertMemberResponse.run({
+        ...input.memberResponse,
+        normalizedMemberName: input.normalizedMemberName,
+      });
+      for (const row of input.rows) {
+        insertMemberResponseRow.run(row);
+      }
+
+      const row = findMemberResponseById.get(input.memberResponse.id);
+      if (!row) {
+        throw new Error('Member Response not found after save.');
+      }
+      return toMemberResponse(row as MemberResponseRecordRow);
+    },
+  );
 
   return {
     async saveOpportunity(opportunity) {
@@ -433,6 +658,22 @@ export const createSqliteOpportunityRepository = (
 
     async saveBaseCapabilityMatrix(matrix) {
       return saveMatrix(matrix);
+    },
+
+    async listActiveMemberResponses(opportunityId) {
+      return listActiveMemberResponses
+        .all(opportunityId)
+        .map((row) => toMemberResponse(row as MemberResponseRecordRow));
+    },
+
+    async loadMemberResponseRows(memberResponseId) {
+      return listMemberResponseRows
+        .all(memberResponseId)
+        .map((row) => toMemberResponseRow(row as MemberResponseRowRecord));
+    },
+
+    async saveActiveMemberResponse(input) {
+      return saveActiveMemberResponse(input);
     },
   };
 };

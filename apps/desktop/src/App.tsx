@@ -6,7 +6,7 @@ import type {
   RequirementDto,
 } from '@cmm/contracts';
 import { Button, Field, TextArea, TextInput } from '@cmm/ui';
-import type { FormEvent } from 'react';
+import type { FormEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 
 type OpportunityFormState = {
@@ -38,6 +38,22 @@ const emptyForm: OpportunityFormState = {
 
 const orderRequirements = (requirements: RequirementDto[]): RequirementDto[] =>
   [...requirements].sort((left, right) => left.position - right.position);
+
+const findRequirementSubtreeEndIndex = (
+  requirements: RequirementDto[],
+  startIndex: number,
+): number => {
+  const root = requirements[startIndex];
+  if (!root) {
+    return startIndex;
+  }
+
+  let endIndex = startIndex + 1;
+  while (endIndex < requirements.length && (requirements[endIndex]?.level ?? 1) > root.level) {
+    endIndex += 1;
+  }
+  return endIndex;
+};
 
 const normalizeRequirementPositions = (requirements: RequirementDto[]): RequirementDto[] =>
   requirements.map((requirement, position) => ({
@@ -74,6 +90,9 @@ const createRequirementId = (): string => {
   return `requirement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
+const requirementTextInputId = (requirementId: string): string =>
+  `requirement-text-${requirementId}`;
+
 const toCreateInput = (form: OpportunityFormState): CreateOpportunityIpcInput => ({
   name: form.name,
   solicitationNumber: form.solicitationNumber || null,
@@ -101,6 +120,7 @@ function App(): React.JSX.Element {
   const [openedOpportunity, setOpenedOpportunity] = useState<OpenedOpportunityState | null>(null);
   const [showRetiredRequirements, setShowRetiredRequirements] = useState(false);
   const [matrixSaveState, setMatrixSaveState] = useState<MatrixSaveState>('idle');
+  const [pendingRequirementFocusId, setPendingRequirementFocusId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<OpportunityFormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +141,22 @@ function App(): React.JSX.Element {
       );
     });
   }, [refreshOpportunities]);
+
+  useEffect(() => {
+    if (!pendingRequirementFocusId) {
+      return;
+    }
+
+    const input = document.getElementById(
+      requirementTextInputId(pendingRequirementFocusId),
+    ) as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+    setPendingRequirementFocusId(null);
+  }, [pendingRequirementFocusId]);
 
   const openOpportunity = async (opportunityId: string) => {
     setError(null);
@@ -177,6 +213,47 @@ function App(): React.JSX.Element {
     }));
   };
 
+  const insertRequirementAfter = (requirementId: string) => {
+    if (!openedOpportunity || openedOpportunity.lifecycle === 'archived') {
+      return;
+    }
+
+    const requirements = orderRequirements(openedOpportunity.baseCapabilityMatrix.requirements);
+    const currentIndex = requirements.findIndex((requirement) => requirement.id === requirementId);
+    const currentRequirement = requirements[currentIndex];
+    if (!currentRequirement || currentRequirement.retiredAt !== null) {
+      return;
+    }
+
+    const nextRequirementId = createRequirementId();
+    updateMatrixDraft((matrix) => {
+      const orderedRequirements = orderRequirements(matrix.requirements);
+      const insertIndex = orderedRequirements.findIndex(
+        (requirement) => requirement.id === requirementId,
+      );
+      const precedingRequirement = orderedRequirements[insertIndex];
+      if (!precedingRequirement || precedingRequirement.retiredAt !== null) {
+        return matrix;
+      }
+
+      return {
+        ...matrix,
+        requirements: [
+          ...orderedRequirements.slice(0, insertIndex + 1),
+          {
+            id: nextRequirementId,
+            text: '',
+            level: precedingRequirement.level,
+            position: insertIndex + 1,
+            retiredAt: null,
+          },
+          ...orderedRequirements.slice(insertIndex + 1),
+        ],
+      };
+    });
+    setPendingRequirementFocusId(nextRequirementId);
+  };
+
   const editRequirementText = (requirementId: string, text: string) => {
     updateMatrixDraft((matrix) => ({
       ...matrix,
@@ -228,13 +305,19 @@ function App(): React.JSX.Element {
       }
 
       const nextLevel = Math.min(requirement.level + 1, previousRequirement.level + 1);
+      const levelDelta = nextLevel - requirement.level;
+      if (levelDelta === 0) {
+        return matrix;
+      }
+
+      const subtreeEndIndex = findRequirementSubtreeEndIndex(requirements, currentIndex);
       return {
         ...matrix,
-        requirements: requirements.map((row) =>
-          row.id === requirementId
+        requirements: requirements.map((row, rowIndex) =>
+          rowIndex >= currentIndex && rowIndex < subtreeEndIndex
             ? {
                 ...row,
-                level: nextLevel,
+                level: row.level + levelDelta,
               }
             : row,
         ),
@@ -243,17 +326,29 @@ function App(): React.JSX.Element {
   };
 
   const outdentRequirement = (requirementId: string) => {
-    updateMatrixDraft((matrix) => ({
-      ...matrix,
-      requirements: matrix.requirements.map((requirement) =>
-        requirement.id === requirementId
-          ? {
-              ...requirement,
-              level: Math.max(1, requirement.level - 1),
-            }
-          : requirement,
-      ),
-    }));
+    updateMatrixDraft((matrix) => {
+      const requirements = orderRequirements(matrix.requirements);
+      const currentIndex = requirements.findIndex(
+        (requirement) => requirement.id === requirementId,
+      );
+      const requirement = requirements[currentIndex];
+      if (!requirement || requirement.level === 1) {
+        return matrix;
+      }
+
+      const subtreeEndIndex = findRequirementSubtreeEndIndex(requirements, currentIndex);
+      return {
+        ...matrix,
+        requirements: requirements.map((row, rowIndex) =>
+          rowIndex >= currentIndex && rowIndex < subtreeEndIndex
+            ? {
+                ...row,
+                level: Math.max(1, row.level - 1),
+              }
+            : row,
+        ),
+      };
+    });
   };
 
   const retireRequirement = (requirementId: string) => {
@@ -269,6 +364,86 @@ function App(): React.JSX.Element {
       ),
     }));
   };
+
+  const canIndentRequirement = (requirementId: string): boolean => {
+    if (!openedOpportunity || openedOpportunity.lifecycle === 'archived') {
+      return false;
+    }
+
+    const requirements = orderRequirements(openedOpportunity.baseCapabilityMatrix.requirements);
+    const currentIndex = requirements.findIndex((requirement) => requirement.id === requirementId);
+    const requirement = requirements[currentIndex];
+    const previousRequirement = requirements[currentIndex - 1];
+    if (!requirement || !previousRequirement) {
+      return false;
+    }
+
+    return Math.min(requirement.level + 1, previousRequirement.level + 1) > requirement.level;
+  };
+
+  const canOutdentRequirement = (requirementId: string): boolean => {
+    if (!openedOpportunity || openedOpportunity.lifecycle === 'archived') {
+      return false;
+    }
+
+    const requirement = openedOpportunity.baseCapabilityMatrix.requirements.find(
+      (candidate) => candidate.id === requirementId,
+    );
+    return (requirement?.level ?? 1) > 1;
+  };
+
+  const handleRequirementTextKeyDown =
+    (requirementId: string) => (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) {
+        return;
+      }
+
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        insertRequirementAfter(requirementId);
+        return;
+      }
+
+      if (event.key === 'Tab') {
+        if (
+          event.shiftKey
+            ? !canOutdentRequirement(requirementId)
+            : !canIndentRequirement(requirementId)
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        if (event.shiftKey) {
+          outdentRequirement(requirementId);
+        } else {
+          indentRequirement(requirementId);
+        }
+        setPendingRequirementFocusId(requirementId);
+        return;
+      }
+
+      if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !event.shiftKey) {
+        const selectionStart = event.currentTarget.selectionStart;
+        const selectionEnd = event.currentTarget.selectionEnd;
+        if (selectionStart !== selectionEnd) {
+          return;
+        }
+
+        const editableRequirementIds = numberedRequirements
+          .filter(({ requirement }) => requirement.retiredAt === null)
+          .map(({ requirement }) => requirement.id);
+        const currentIndex = editableRequirementIds.indexOf(requirementId);
+        const nextIndex = currentIndex + (event.key === 'ArrowDown' ? 1 : -1);
+        const nextRequirementId = editableRequirementIds[nextIndex];
+        if (!nextRequirementId) {
+          return;
+        }
+
+        event.preventDefault();
+        setPendingRequirementFocusId(nextRequirementId);
+      }
+    };
 
   const saveMatrix = async () => {
     if (!openedOpportunity || openedOpportunity.lifecycle === 'archived') {
@@ -617,10 +792,12 @@ function App(): React.JSX.Element {
                           aria-label={`Requirement ${displayNumber} text`}
                           className="requirement-text"
                           disabled={!isEditable}
+                          id={requirementTextInputId(requirement.id)}
                           value={requirement.text}
                           onChange={(event) =>
                             editRequirementText(requirement.id, event.target.value)
                           }
+                          onKeyDown={handleRequirementTextKeyDown(requirement.id)}
                         />
                         {isEditable ? (
                           <div className="requirement-actions">

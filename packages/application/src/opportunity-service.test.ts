@@ -1,14 +1,25 @@
-import type { BaseCapabilityMatrix, IsoDateTime, Opportunity, OpportunityId } from '@cmm/domain';
+import type {
+  BaseCapabilityMatrix,
+  IsoDateTime,
+  MemberResponse,
+  MemberResponseRow,
+  Opportunity,
+  OpportunityId,
+} from '@cmm/domain';
 import { describe, expect, it } from 'vitest';
 import {
   type BuildBaseCapabilityMatrixWorkbookInput,
   createOpportunityService,
   type OpportunityRepository,
+  type SaveActiveMemberResponseRepositoryInput,
 } from './index';
 
 class InMemoryOpportunityRepository implements OpportunityRepository {
   readonly opportunities = new Map<OpportunityId, Opportunity>();
   readonly matrices = new Map<OpportunityId, BaseCapabilityMatrix>();
+  readonly memberResponses = new Map<string, MemberResponse>();
+  readonly memberResponseRows = new Map<string, MemberResponseRow[]>();
+  readonly normalizedMemberNames = new Map<string, string>();
 
   async saveOpportunity(opportunity: Opportunity): Promise<void> {
     this.opportunities.set(opportunity.id, opportunity);
@@ -122,6 +133,40 @@ class InMemoryOpportunityRepository implements OpportunityRepository {
     };
     this.matrices.set(matrix.opportunityId, saved);
     return saved;
+  }
+
+  async listActiveMemberResponses(opportunityId: OpportunityId): Promise<MemberResponse[]> {
+    return Array.from(this.memberResponses.values()).filter(
+      (memberResponse) =>
+        memberResponse.opportunityId === opportunityId && memberResponse.archivedAt === null,
+    );
+  }
+
+  async loadMemberResponseRows(memberResponseId: string): Promise<MemberResponseRow[]> {
+    return this.memberResponseRows.get(memberResponseId) ?? [];
+  }
+
+  async saveActiveMemberResponse(
+    input: SaveActiveMemberResponseRepositoryInput,
+  ): Promise<MemberResponse> {
+    for (const [memberResponseId, memberResponse] of this.memberResponses) {
+      if (
+        memberResponse.opportunityId === input.memberResponse.opportunityId &&
+        memberResponse.archivedAt === null &&
+        this.normalizedMemberNames.get(memberResponseId) === input.normalizedMemberName
+      ) {
+        this.memberResponses.set(memberResponseId, {
+          ...memberResponse,
+          archivedAt: input.archivedAt,
+          evaluationState: null,
+        });
+      }
+    }
+
+    this.memberResponses.set(input.memberResponse.id, input.memberResponse);
+    this.normalizedMemberNames.set(input.memberResponse.id, input.normalizedMemberName);
+    this.memberResponseRows.set(input.memberResponse.id, input.rows);
+    return input.memberResponse;
   }
 }
 
@@ -490,6 +535,233 @@ describe('OpportunityService', () => {
         includeBlankRequirements: true,
         includeRetiredRequirements: false,
       },
+    });
+  });
+
+  it('previews a clean Member Response import by mapping hidden Requirement IDs to active and retired Requirements', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const opportunity = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    await service.saveBaseCapabilityMatrix({
+      opportunityId: opportunity.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-active',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+        {
+          id: 'requirement-retired',
+          text: 'Retired draft Requirement',
+          level: 1,
+          position: 1,
+          retiredAt: '2026-05-01T10:00:00.000Z',
+        },
+      ],
+    });
+
+    await expect(
+      service.previewMemberResponseImport({
+        opportunityId: opportunity.id,
+        sourceFilename: 'Polar Systems response.xlsx',
+        parsedWorkbook: {
+          metadata: {
+            workbookFormatVersion: '1',
+            opportunityId: opportunity.id,
+            exportTimestamp: '2026-05-02T10:00:00.000Z',
+          },
+          workbookTitle: 'Arctic Radar Upgrade',
+          memberName: 'Polar Systems LLC',
+          rows: [
+            {
+              requirementId: 'requirement-active',
+              requirementNumber: '99',
+              requirementText: 'Edited visible text',
+              capabilityScore: 3,
+              pastPerformanceReference: 'Hosted IL5 workloads',
+              responseComment: 'Available immediately',
+            },
+            {
+              requirementId: 'requirement-retired',
+              requirementNumber: '100',
+              requirementText: 'Edited retired text',
+              capabilityScore: 1,
+              pastPerformanceReference: 'Legacy support',
+              responseComment: '',
+            },
+          ],
+        },
+      }),
+    ).resolves.toEqual({
+      opportunityId: opportunity.id,
+      sourceFilename: 'Polar Systems response.xlsx',
+      workbookTitle: 'Arctic Radar Upgrade',
+      suggestedMemberName: 'Polar Systems LLC',
+      rows: [
+        {
+          requirementId: 'requirement-active',
+          requirementNumber: '99',
+          requirementText: 'Edited visible text',
+          requirementRetiredAt: null,
+          capabilityScore: 3,
+          pastPerformanceReference: 'Hosted IL5 workloads',
+          responseComment: 'Available immediately',
+        },
+        {
+          requirementId: 'requirement-retired',
+          requirementNumber: '100',
+          requirementText: 'Edited retired text',
+          requirementRetiredAt: '2026-05-01T10:00:00.000Z',
+          capabilityScore: 1,
+          pastPerformanceReference: 'Legacy support',
+          responseComment: '',
+        },
+      ],
+    });
+  });
+
+  it('saves a reviewed Member Response using the confirmed Potential Consortium Member name', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const idValues = ['opportunity-1', 'member-response-1', 'member-response-row-1'];
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z', '2026-05-02T11:00:00.000Z']),
+      ids: {
+        next: () => {
+          const id = idValues.shift();
+          if (!id) {
+            throw new Error('No ID configured for test.');
+          }
+          return id;
+        },
+      },
+    });
+
+    const opportunity = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    await service.saveBaseCapabilityMatrix({
+      opportunityId: opportunity.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    });
+    const preview = await service.previewMemberResponseImport({
+      opportunityId: opportunity.id,
+      sourceFilename: 'Polar Systems response.xlsx',
+      parsedWorkbook: {
+        metadata: {
+          workbookFormatVersion: '1',
+          opportunityId: opportunity.id,
+          exportTimestamp: '2026-05-02T10:00:00.000Z',
+        },
+        workbookTitle: 'Arctic Radar Upgrade',
+        memberName: 'Polar Systems LLC',
+        rows: [
+          {
+            requirementId: 'requirement-1',
+            requirementNumber: '1',
+            requirementText: 'Provide secure hosting',
+            capabilityScore: 3,
+            pastPerformanceReference: 'Hosted IL5 workloads\nSupported SOC operations',
+            responseComment: 'Prime experience\nAvailable immediately',
+          },
+        ],
+      },
+    });
+
+    await expect(
+      service.saveMemberResponseImport({
+        ...preview,
+        memberName: ' Polar Systems International ',
+      }),
+    ).resolves.toEqual({
+      id: 'member-response-1',
+      opportunityId: opportunity.id,
+      memberName: 'Polar Systems International',
+      sourceFilename: 'Polar Systems response.xlsx',
+      workbookTitle: 'Arctic Radar Upgrade',
+      importedAt: '2026-05-02T11:00:00.000Z',
+      archivedAt: null,
+      evaluationState: 'candidate',
+    });
+    expect(repository.memberResponseRows.get('member-response-1')).toEqual([
+      {
+        id: 'member-response-row-1',
+        memberResponseId: 'member-response-1',
+        requirementId: 'requirement-1',
+        requirementNumber: '1',
+        requirementText: 'Provide secure hosting',
+        capabilityScore: 3,
+        pastPerformanceReference: 'Hosted IL5 workloads\nSupported SOC operations',
+        responseComment: 'Prime experience\nAvailable immediately',
+        position: 0,
+      },
+    ]);
+  });
+
+  it('rejects Member Response workbooks with no usable response rows', async () => {
+    const repository = new InMemoryOpportunityRepository();
+    const service = createOpportunityService({
+      repository,
+      clock: createClock(['2026-05-01T09:00:00.000Z']),
+      ids: { next: () => 'opportunity-1' },
+    });
+
+    const opportunity = await service.createOpportunity({ name: 'Arctic Radar Upgrade' });
+    await service.saveBaseCapabilityMatrix({
+      opportunityId: opportunity.id,
+      revision: 0,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    });
+
+    await expect(
+      service.previewMemberResponseImport({
+        opportunityId: opportunity.id,
+        sourceFilename: 'empty response.xlsx',
+        parsedWorkbook: {
+          metadata: {
+            workbookFormatVersion: '1',
+            opportunityId: opportunity.id,
+            exportTimestamp: '2026-05-02T10:00:00.000Z',
+          },
+          workbookTitle: 'Arctic Radar Upgrade',
+          memberName: 'Polar Systems LLC',
+          rows: [
+            {
+              requirementId: 'requirement-1',
+              requirementNumber: '1',
+              requirementText: 'Provide secure hosting',
+              capabilityScore: null,
+              pastPerformanceReference: '   ',
+              responseComment: '',
+            },
+          ],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: 'memberResponse.noUsableRows',
     });
   });
 

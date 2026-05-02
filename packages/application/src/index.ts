@@ -1,10 +1,14 @@
 import type {
   BaseCapabilityMatrix,
+  CapabilityScore,
   CreateOpportunityInput,
   IsoDateTime,
+  MemberResponse,
+  MemberResponseRow,
   Opportunity,
   OpportunityId,
   Requirement,
+  RequirementId,
 } from '@cmm/domain';
 import {
   normalizeOptionalText,
@@ -38,6 +42,9 @@ export type OpportunityRepository = {
   hardDeleteArchivedOpportunity(opportunityId: OpportunityId): Promise<void>;
   loadBaseCapabilityMatrix(opportunityId: OpportunityId): Promise<BaseCapabilityMatrix>;
   saveBaseCapabilityMatrix(matrix: BaseCapabilityMatrix): Promise<BaseCapabilityMatrix>;
+  listActiveMemberResponses(opportunityId: OpportunityId): Promise<MemberResponse[]>;
+  loadMemberResponseRows(memberResponseId: string): Promise<MemberResponseRow[]>;
+  saveActiveMemberResponse(input: SaveActiveMemberResponseRepositoryInput): Promise<MemberResponse>;
 };
 
 export type OpenOpportunityInput = {
@@ -70,6 +77,61 @@ export type BaseCapabilityMatrixExportChoices = {
 export type ExportBaseCapabilityMatrixInput = {
   opportunityId: OpportunityId;
 } & BaseCapabilityMatrixExportChoices;
+
+export type ParsedMemberResponseWorkbookRow = {
+  requirementId: string;
+  requirementNumber: string;
+  requirementText: string;
+  capabilityScore: CapabilityScore | null;
+  pastPerformanceReference: string;
+  responseComment: string;
+};
+
+export type ParsedMemberResponseWorkbook = {
+  metadata: {
+    workbookFormatVersion: string;
+    opportunityId: string;
+    exportTimestamp: IsoDateTime;
+  };
+  workbookTitle: string;
+  memberName: string;
+  rows: ParsedMemberResponseWorkbookRow[];
+};
+
+export type PreviewMemberResponseImportInput = {
+  opportunityId: OpportunityId;
+  sourceFilename: string | null;
+  parsedWorkbook: ParsedMemberResponseWorkbook;
+};
+
+export type MemberResponseImportPreviewRow = {
+  requirementId: RequirementId;
+  requirementNumber: string;
+  requirementText: string;
+  requirementRetiredAt: IsoDateTime | null;
+  capabilityScore: CapabilityScore | null;
+  pastPerformanceReference: string;
+  responseComment: string;
+};
+
+export type MemberResponseImportPreview = {
+  opportunityId: OpportunityId;
+  sourceFilename: string | null;
+  workbookTitle: string | null;
+  suggestedMemberName: string;
+  rows: MemberResponseImportPreviewRow[];
+};
+
+export type SaveMemberResponseImportInput = MemberResponseImportPreview & {
+  memberName: string;
+};
+
+export type SaveActiveMemberResponseRepositoryInput = {
+  memberResponse: MemberResponse;
+  rows: MemberResponseRow[];
+  normalizedMemberName: string;
+  archivedAt: IsoDateTime;
+};
 
 export type OpenOpportunityResult = {
   opportunity: Opportunity;
@@ -105,6 +167,10 @@ export type OpportunityService = {
   exportBaseCapabilityMatrix(
     input: ExportBaseCapabilityMatrixInput,
   ): Promise<ExportBaseCapabilityMatrixResult>;
+  previewMemberResponseImport(
+    input: PreviewMemberResponseImportInput,
+  ): Promise<MemberResponseImportPreview>;
+  saveMemberResponseImport(input: SaveMemberResponseImportInput): Promise<MemberResponse>;
   archiveOpportunity(input: ArchiveOpportunityInput): Promise<Opportunity>;
   restoreArchivedOpportunity(input: RestoreArchivedOpportunityInput): Promise<Opportunity>;
   hardDeleteArchivedOpportunity(input: HardDeleteArchivedOpportunityInput): Promise<void>;
@@ -122,7 +188,9 @@ export class ApplicationError extends Error {
     readonly code:
       | 'opportunity.nameRequired'
       | 'opportunity.notFound'
-      | 'baseMatrix.revisionConflict',
+      | 'baseMatrix.revisionConflict'
+      | 'memberResponse.noUsableRows'
+      | 'memberResponse.memberNameRequired',
     message: string,
   ) {
     super(message);
@@ -237,6 +305,125 @@ export const createOpportunityService = ({
     };
   },
 
+  async previewMemberResponseImport(input) {
+    const opportunity = await repository.findActiveOpportunityById(input.opportunityId);
+    if (!opportunity) {
+      throw new ApplicationError('opportunity.notFound', 'Opportunity not found.');
+    }
+
+    const baseCapabilityMatrix = await repository.loadBaseCapabilityMatrix(input.opportunityId);
+    const requirementsById = new Map(
+      baseCapabilityMatrix.requirements.map((requirement) => [requirement.id, requirement]),
+    );
+    const rows = input.parsedWorkbook.rows.flatMap((parsedRow) => {
+      const requirementId = normalizeRequiredText(parsedRow.requirementId);
+      const requirement = requirementsById.get(requirementId);
+      if (!requirement || !isUsableParsedMemberResponseRow(parsedRow)) {
+        return [];
+      }
+
+      return [
+        {
+          requirementId: requirement.id,
+          requirementNumber: normalizeRequiredText(parsedRow.requirementNumber),
+          requirementText: normalizeRequiredText(parsedRow.requirementText) || requirement.text,
+          requirementRetiredAt: requirement.retiredAt,
+          capabilityScore: parsedRow.capabilityScore,
+          pastPerformanceReference: normalizeResponseText(parsedRow.pastPerformanceReference),
+          responseComment: normalizeResponseText(parsedRow.responseComment),
+        },
+      ];
+    });
+
+    if (rows.length === 0) {
+      throw new ApplicationError(
+        'memberResponse.noUsableRows',
+        'Member Response workbook has no usable response rows.',
+      );
+    }
+
+    return {
+      opportunityId: input.opportunityId,
+      sourceFilename: normalizeOptionalText(input.sourceFilename),
+      workbookTitle: normalizeOptionalText(input.parsedWorkbook.workbookTitle),
+      suggestedMemberName: getSuggestedMemberName(
+        input.parsedWorkbook.memberName,
+        input.sourceFilename,
+      ),
+      rows,
+    };
+  },
+
+  async saveMemberResponseImport(input) {
+    const opportunity = await repository.findActiveOpportunityById(input.opportunityId);
+    if (!opportunity) {
+      throw new ApplicationError('opportunity.notFound', 'Opportunity not found.');
+    }
+
+    const memberName = normalizeMemberName(input.memberName);
+    if (!memberName) {
+      throw new ApplicationError(
+        'memberResponse.memberNameRequired',
+        'Potential Consortium Member name is required.',
+      );
+    }
+
+    const baseCapabilityMatrix = await repository.loadBaseCapabilityMatrix(input.opportunityId);
+    const requirementsById = new Map(
+      baseCapabilityMatrix.requirements.map((requirement) => [requirement.id, requirement]),
+    );
+    const usableRows = input.rows.flatMap((row) => {
+      const requirement = requirementsById.get(row.requirementId);
+      if (!requirement || !isUsableMemberResponseImportRow(row)) {
+        return [];
+      }
+
+      return [
+        {
+          requirementId: requirement.id,
+          requirementNumber: normalizeRequiredText(row.requirementNumber),
+          requirementText: normalizeRequiredText(row.requirementText) || requirement.text,
+          capabilityScore: row.capabilityScore,
+          pastPerformanceReference: normalizeResponseText(row.pastPerformanceReference),
+          responseComment: normalizeResponseText(row.responseComment),
+        },
+      ];
+    });
+
+    if (usableRows.length === 0) {
+      throw new ApplicationError(
+        'memberResponse.noUsableRows',
+        'Member Response workbook has no usable response rows.',
+      );
+    }
+
+    const importedAt = clock.now();
+    const memberResponseId = ids.next();
+    const memberResponse: MemberResponse = {
+      id: memberResponseId,
+      opportunityId: input.opportunityId,
+      memberName,
+      sourceFilename: normalizeOptionalText(input.sourceFilename),
+      workbookTitle: normalizeOptionalText(input.workbookTitle),
+      importedAt,
+      archivedAt: null,
+      evaluationState: 'candidate',
+    };
+    const rows: MemberResponseRow[] = usableRows.map((row, position) => ({
+      id: ids.next(),
+      memberResponseId,
+      ...row,
+      position,
+    }));
+
+    return repository.saveActiveMemberResponse({
+      memberResponse,
+      rows,
+      normalizedMemberName: normalizeMemberIdentity(memberName),
+      archivedAt: importedAt,
+    });
+  },
+
   async archiveOpportunity(input) {
     const existing = await repository.findActiveOpportunityById(input.opportunityId);
     if (!existing) {
@@ -273,4 +460,40 @@ const sanitizeFilenameCharacter = (character: string): string =>
 const toWorkbookFilenameStem = (name: string): string => {
   const stem = name.split('').map(sanitizeFilenameCharacter).join('').replace(/\s+/g, ' ').trim();
   return stem.length > 0 ? stem : 'Opportunity';
+};
+
+const normalizeResponseText = (value: string): string =>
+  value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+const isUsableParsedMemberResponseRow = (row: ParsedMemberResponseWorkbookRow): boolean =>
+  row.capabilityScore !== null ||
+  normalizeResponseText(row.pastPerformanceReference).length > 0 ||
+  normalizeResponseText(row.responseComment).length > 0;
+
+const isUsableMemberResponseImportRow = (row: MemberResponseImportPreviewRow): boolean =>
+  row.capabilityScore !== null ||
+  normalizeResponseText(row.pastPerformanceReference).length > 0 ||
+  normalizeResponseText(row.responseComment).length > 0;
+
+const normalizeMemberName = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+const normalizeMemberIdentity = (value: string): string => normalizeMemberName(value).toLowerCase();
+
+const getSuggestedMemberName = (
+  workbookMemberName: string,
+  sourceFilename: string | null,
+): string => {
+  const normalizedMemberName = normalizeRequiredText(workbookMemberName);
+  if (normalizedMemberName) {
+    return normalizedMemberName;
+  }
+
+  const filename = normalizeOptionalText(sourceFilename);
+  if (!filename) {
+    return '';
+  }
+
+  const extensionStart = filename.lastIndexOf('.');
+  const stem = extensionStart > 0 ? filename.slice(0, extensionStart) : filename;
+  return normalizeRequiredText(stem);
 };

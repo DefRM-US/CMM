@@ -4,11 +4,15 @@ import type {
   HardDeleteArchivedOpportunityIpcOutput,
   ExportBaseCapabilityMatrixIpcInput,
   ExportBaseCapabilityMatrixIpcOutput,
+  MemberResponseDto,
   OpenOpportunityIpcInput,
   OpenOpportunityIpcOutput,
   OpportunityLifecycleIpcInput,
   OpportunityDto,
   SaveBaseCapabilityMatrixIpcInput,
+  SaveMemberResponseImportIpcInput,
+  SelectMemberResponseWorkbookForImportIpcInput,
+  SelectMemberResponseWorkbookForImportIpcOutput,
 } from '@cmm/contracts';
 
 export interface CmmApi {
@@ -23,6 +27,10 @@ export interface CmmApi {
   exportBaseCapabilityMatrix(
     input: ExportBaseCapabilityMatrixIpcInput,
   ): Promise<ExportBaseCapabilityMatrixIpcOutput>;
+  selectMemberResponseWorkbookForImport(
+    input: SelectMemberResponseWorkbookForImportIpcInput,
+  ): Promise<SelectMemberResponseWorkbookForImportIpcOutput>;
+  saveMemberResponseImport(input: SaveMemberResponseImportIpcInput): Promise<MemberResponseDto>;
   archiveOpportunity(input: OpportunityLifecycleIpcInput): Promise<OpportunityDto>;
   restoreArchivedOpportunity(input: OpportunityLifecycleIpcInput): Promise<OpportunityDto>;
   hardDeleteArchivedOpportunity(

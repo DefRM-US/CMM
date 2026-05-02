@@ -37,6 +37,24 @@ const emptyBaseCapabilityMatrix = (opportunityId: string): BaseCapabilityMatrixD
   requirements: [],
 });
 
+const memberResponseImportPreview = {
+  opportunityId: activeOpportunity.id,
+  sourceFilename: 'Polar Systems response.xlsx',
+  workbookTitle: 'Arctic Radar Upgrade',
+  suggestedMemberName: 'Polar Systems LLC',
+  rows: [
+    {
+      requirementId: 'requirement-1',
+      requirementNumber: '1',
+      requirementText: 'Provide secure hosting',
+      requirementRetiredAt: null,
+      capabilityScore: 3 as const,
+      pastPerformanceReference: 'Hosted IL5 workloads',
+      responseComment: 'Available immediately',
+    },
+  ],
+};
+
 const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
   const api: Window['cmmApi'] = {
     createOpportunity: vi.fn(),
@@ -63,6 +81,20 @@ const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
     exportBaseCapabilityMatrix: vi.fn(async () => ({
       status: 'exported' as const,
       filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
+    })),
+    selectMemberResponseWorkbookForImport: vi.fn(async () => ({
+      status: 'readyForReview' as const,
+      preview: memberResponseImportPreview,
+    })),
+    saveMemberResponseImport: vi.fn(async (input) => ({
+      id: 'member-response-1',
+      opportunityId: input.opportunityId,
+      memberName: input.memberName.trim(),
+      sourceFilename: input.sourceFilename,
+      workbookTitle: input.workbookTitle,
+      importedAt: '2026-05-02T11:00:00.000Z',
+      archivedAt: null,
+      evaluationState: 'candidate' as const,
     })),
     archiveOpportunity: vi.fn(),
     restoreArchivedOpportunity: vi.fn(),
@@ -889,6 +921,72 @@ describe('App', () => {
       includeBlankRequirements: true,
       includeRetiredRequirements: true,
     });
+  });
+
+  it('imports a Member Response after Potential Consortium Member name confirmation', async () => {
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix: {
+          opportunityId: activeOpportunity.id,
+          revision: 1,
+          requirements: [
+            {
+              id: 'requirement-1',
+              text: 'Provide secure hosting',
+              level: 1,
+              position: 0,
+              retiredAt: null,
+            },
+          ],
+        },
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByRole('button', { name: 'Import Member Response' }));
+
+    expect(api.selectMemberResponseWorkbookForImport).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+    });
+    expect(await screen.findByDisplayValue('Polar Systems LLC')).toBeVisible();
+
+    await user.clear(screen.getByLabelText('Potential Consortium Member'));
+    await user.type(screen.getByLabelText('Potential Consortium Member'), 'Polar Systems Intl');
+    await user.click(screen.getByRole('button', { name: 'Save Member Response' }));
+
+    expect(api.saveMemberResponseImport).toHaveBeenCalledWith({
+      ...memberResponseImportPreview,
+      memberName: 'Polar Systems Intl',
+    });
+    expect(
+      await screen.findByText('Imported Member Response for Polar Systems Intl.'),
+    ).toBeVisible();
+  });
+
+  it('shows recovery when an imported workbook has no usable Member Response rows', async () => {
+    installCmmApi({
+      selectMemberResponseWorkbookForImport: vi.fn(async () => ({
+        status: 'rejected' as const,
+        error: { code: 'memberResponse.noUsableRows' as const },
+        preview: null,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.click(screen.getByRole('button', { name: 'Import Member Response' }));
+
+    expect(
+      await screen.findByText(
+        'No usable response rows found. Ask the potential consortium member to fill in at least one response field, then import the returned workbook again.',
+      ),
+    ).toBeVisible();
   });
 
   it('inserts a new active Requirement from Enter and focuses the new text field', async () => {

@@ -1,6 +1,8 @@
 export type IsoDateTime = string;
 export type OpportunityId = string;
 export type RequirementId = string;
+export type CapabilityScore = 0 | 1 | 2 | 3;
+export type MemberResponseId = string;
 
 export type Opportunity = {
   id: OpportunityId;
@@ -33,6 +35,31 @@ export type Requirement = {
   level: number;
   position: number;
   retiredAt: IsoDateTime | null;
+};
+
+export type MemberResponseEvaluationState = 'candidate' | 'selected' | 'hidden';
+
+export type MemberResponse = {
+  id: MemberResponseId;
+  opportunityId: OpportunityId;
+  memberName: string;
+  sourceFilename: string | null;
+  workbookTitle: string | null;
+  importedAt: IsoDateTime;
+  archivedAt: IsoDateTime | null;
+  evaluationState: MemberResponseEvaluationState | null;
+};
+
+export type MemberResponseRow = {
+  id: string;
+  memberResponseId: MemberResponseId;
+  requirementId: RequirementId;
+  requirementNumber: string;
+  requirementText: string;
+  capabilityScore: CapabilityScore | null;
+  pastPerformanceReference: string;
+  responseComment: string;
+  position: number;
 };
 
 export type RequirementNumber = {

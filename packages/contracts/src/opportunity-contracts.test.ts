@@ -41,6 +41,35 @@ const baseCapabilityMatrix = {
   ],
 };
 
+const memberResponseImportPreview = {
+  opportunityId: 'opportunity-1',
+  sourceFilename: 'Polar Systems response.xlsx',
+  workbookTitle: 'Arctic Radar Upgrade',
+  suggestedMemberName: 'Polar Systems LLC',
+  rows: [
+    {
+      requirementId: 'requirement-1',
+      requirementNumber: '1',
+      requirementText: 'Provide secure hosting',
+      requirementRetiredAt: null,
+      capabilityScore: 3,
+      pastPerformanceReference: 'Hosted IL5 workloads\nSupported SOC operations',
+      responseComment: 'Prime experience\nAvailable immediately',
+    },
+  ],
+};
+
+const memberResponse = {
+  id: 'member-response-1',
+  opportunityId: 'opportunity-1',
+  memberName: 'Polar Systems LLC',
+  sourceFilename: 'Polar Systems response.xlsx',
+  workbookTitle: 'Arctic Radar Upgrade',
+  importedAt: '2026-05-02T11:00:00.000Z',
+  archivedAt: null,
+  evaluationState: 'candidate',
+};
+
 describe('Opportunity IPC contracts', () => {
   it('validates create, list, and open Opportunity IPC payloads', () => {
     expect(cmmIpcContracts.createOpportunity.channel).toBe('cmm:opportunities:create');
@@ -59,6 +88,12 @@ describe('Opportunity IPC contracts', () => {
     );
     expect(cmmIpcContracts.saveBaseCapabilityMatrix.channel).toBe('cmm:base-matrices:save');
     expect(cmmIpcContracts.exportBaseCapabilityMatrix.channel).toBe('cmm:base-matrices:export');
+    expect(cmmIpcContracts.selectMemberResponseWorkbookForImport.channel).toBe(
+      'cmm:member-responses:select-import-workbook',
+    );
+    expect(cmmIpcContracts.saveMemberResponseImport.channel).toBe(
+      'cmm:member-responses:save-import',
+    );
     expect(cmmWindowLifecycleChannels.requestClose).toBe('cmm:window:request-close');
     expect(cmmWindowLifecycleChannels.respondClose).toBe('cmm:window:respond-close');
 
@@ -181,6 +216,69 @@ describe('Opportunity IPC contracts', () => {
         filename: null,
       }),
     ).toThrow();
+    expect(
+      validateIpcInput(cmmIpcContracts.selectMemberResponseWorkbookForImport, {
+        opportunityId: 'opportunity-1',
+      }),
+    ).toEqual({
+      opportunityId: 'opportunity-1',
+    });
+    expect(
+      validateIpcOutput(cmmIpcContracts.selectMemberResponseWorkbookForImport, {
+        status: 'readyForReview',
+        preview: memberResponseImportPreview,
+      }),
+    ).toEqual({
+      status: 'readyForReview',
+      preview: memberResponseImportPreview,
+    });
+    expect(
+      validateIpcOutput(cmmIpcContracts.selectMemberResponseWorkbookForImport, {
+        status: 'canceled',
+        preview: null,
+      }),
+    ).toEqual({
+      status: 'canceled',
+      preview: null,
+    });
+    expect(
+      validateIpcOutput(cmmIpcContracts.selectMemberResponseWorkbookForImport, {
+        status: 'rejected',
+        error: { code: 'memberResponse.noUsableRows' },
+        preview: null,
+      }),
+    ).toEqual({
+      status: 'rejected',
+      error: { code: 'memberResponse.noUsableRows' },
+      preview: null,
+    });
+    expect(() =>
+      validateIpcOutput(cmmIpcContracts.selectMemberResponseWorkbookForImport, {
+        status: 'readyForReview',
+        preview: {
+          ...memberResponseImportPreview,
+          rows: [],
+        },
+      }),
+    ).toThrow();
+    expect(
+      validateIpcInput(cmmIpcContracts.saveMemberResponseImport, {
+        ...memberResponseImportPreview,
+        memberName: 'Polar Systems LLC',
+      }),
+    ).toEqual({
+      ...memberResponseImportPreview,
+      memberName: 'Polar Systems LLC',
+    });
+    expect(() =>
+      validateIpcInput(cmmIpcContracts.saveMemberResponseImport, {
+        ...memberResponseImportPreview,
+        memberName: '   ',
+      }),
+    ).toThrow('Potential Consortium Member name is required.');
+    expect(validateIpcOutput(cmmIpcContracts.saveMemberResponseImport, memberResponse)).toEqual(
+      memberResponse,
+    );
     expect(validateIpcOutput(cmmIpcContracts.archiveOpportunity, opportunity)).toEqual(opportunity);
     expect(validateIpcOutput(cmmIpcContracts.restoreArchivedOpportunity, opportunity)).toEqual(
       opportunity,

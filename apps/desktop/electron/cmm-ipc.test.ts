@@ -42,6 +42,35 @@ const baseCapabilityMatrix = {
   ],
 };
 
+const memberResponseImportPreview = {
+  opportunityId: opportunity.id,
+  sourceFilename: 'Polar Systems response.xlsx',
+  workbookTitle: 'Arctic Radar Upgrade',
+  suggestedMemberName: 'Polar Systems LLC',
+  rows: [
+    {
+      requirementId: 'requirement-1',
+      requirementNumber: '1',
+      requirementText: 'Provide secure hosting',
+      requirementRetiredAt: null,
+      capabilityScore: 3 as const,
+      pastPerformanceReference: 'Hosted IL5 workloads',
+      responseComment: 'Available immediately',
+    },
+  ],
+};
+
+const memberResponse = {
+  id: 'member-response-1',
+  opportunityId: opportunity.id,
+  memberName: 'Polar Systems LLC',
+  sourceFilename: 'Polar Systems response.xlsx',
+  workbookTitle: 'Arctic Radar Upgrade',
+  importedAt: '2026-05-02T11:00:00.000Z',
+  archivedAt: null,
+  evaluationState: 'candidate' as const,
+};
+
 describe('registerCmmIpcHandlers', () => {
   it('registers validated Opportunity handlers without exposing raw IPC to the renderer', async () => {
     const ipcMain = new FakeIpcMain();
@@ -74,6 +103,8 @@ describe('registerCmmIpcHandlers', () => {
         suggestedFilename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
         exportTimestamp: '2026-05-02T10:00:00.000Z',
       })),
+      previewMemberResponseImport: vi.fn(async () => memberResponseImportPreview),
+      saveMemberResponseImport: vi.fn(async () => memberResponse),
       archiveOpportunity: vi.fn(async () => ({
         ...opportunity,
         archivedAt: '2026-05-01T09:10:00.000Z',
@@ -87,8 +118,18 @@ describe('registerCmmIpcHandlers', () => {
         filename: 'Arctic Radar Upgrade - Base Capability Matrix.xlsx',
       })),
     };
+    const memberResponseImportFileService = {
+      selectMemberResponseWorkbookForImport: vi.fn(async () => ({
+        status: 'readyForReview' as const,
+        preview: memberResponseImportPreview,
+      })),
+    };
 
-    registerCmmIpcHandlers(ipcMain, { opportunityService, baseCapabilityMatrixExportFileService });
+    registerCmmIpcHandlers(ipcMain, {
+      opportunityService,
+      baseCapabilityMatrixExportFileService,
+      memberResponseImportFileService,
+    });
 
     expect(Array.from(ipcMain.handlers.keys()).sort()).toEqual(
       [
@@ -99,6 +140,8 @@ describe('registerCmmIpcHandlers', () => {
         cmmIpcContracts.openArchivedOpportunity.channel,
         cmmIpcContracts.saveBaseCapabilityMatrix.channel,
         cmmIpcContracts.exportBaseCapabilityMatrix.channel,
+        cmmIpcContracts.selectMemberResponseWorkbookForImport.channel,
+        cmmIpcContracts.saveMemberResponseImport.channel,
         cmmIpcContracts.archiveOpportunity.channel,
         cmmIpcContracts.restoreArchivedOpportunity.channel,
         cmmIpcContracts.hardDeleteArchivedOpportunity.channel,
@@ -160,6 +203,50 @@ describe('registerCmmIpcHandlers', () => {
       opportunityId: 'opportunity-1',
       includeBlankRequirements: true,
       includeRetiredRequirements: false,
+    });
+
+    const selectMemberResponseImportHandler = ipcMain.handlers.get(
+      cmmIpcContracts.selectMemberResponseWorkbookForImport.channel,
+    );
+    await expect(selectMemberResponseImportHandler?.({}, { opportunityId: '' })).rejects.toThrow(
+      'Opportunity ID is required.',
+    );
+    await expect(
+      selectMemberResponseImportHandler?.({}, { opportunityId: 'opportunity-1' }),
+    ).resolves.toEqual({
+      status: 'readyForReview',
+      preview: memberResponseImportPreview,
+    });
+    expect(
+      memberResponseImportFileService.selectMemberResponseWorkbookForImport,
+    ).toHaveBeenCalledWith({
+      opportunityId: 'opportunity-1',
+    });
+
+    const saveMemberResponseImportHandler = ipcMain.handlers.get(
+      cmmIpcContracts.saveMemberResponseImport.channel,
+    );
+    await expect(
+      saveMemberResponseImportHandler?.(
+        {},
+        {
+          ...memberResponseImportPreview,
+          memberName: '   ',
+        },
+      ),
+    ).rejects.toThrow('Potential Consortium Member name is required.');
+    await expect(
+      saveMemberResponseImportHandler?.(
+        {},
+        {
+          ...memberResponseImportPreview,
+          memberName: 'Polar Systems LLC',
+        },
+      ),
+    ).resolves.toEqual(memberResponse);
+    expect(opportunityService.saveMemberResponseImport).toHaveBeenCalledWith({
+      ...memberResponseImportPreview,
+      memberName: 'Polar Systems LLC',
     });
 
     const hardDeleteHandler = ipcMain.handlers.get(

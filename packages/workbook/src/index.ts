@@ -31,6 +31,7 @@ export type ParsedMemberResponseWorkbook = {
     opportunityId: string;
     exportTimestamp: IsoDateTime;
   };
+  workbookTitle: string;
   memberName: string;
   rows: {
     requirementId: string;
@@ -106,6 +107,7 @@ export const parseMemberResponseWorkbook = async (
       opportunityId: cellValueToText(metadataSheet.getCell('B2').value),
       exportTimestamp: cellValueToText(metadataSheet.getCell('B3').value),
     },
+    workbookTitle: cellValueToText(matrixSheet.getCell('B1').value),
     memberName: cellValueToText(matrixSheet.getCell('B4').value),
     rows,
   };

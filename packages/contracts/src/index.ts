@@ -51,6 +51,15 @@ const hardDeleteArchivedOpportunityOutputSchema = z.object({
   opportunityId: z.string().min(1),
 });
 
+const windowCloseRequestSchema = z.object({
+  requestId: z.string().min(1),
+});
+
+const windowCloseResponseSchema = z.object({
+  requestId: z.string().min(1),
+  canClose: z.boolean(),
+});
+
 export type OpportunityDto = z.infer<typeof opportunitySchema>;
 export type RequirementDto = z.infer<typeof requirementSchema>;
 export type BaseCapabilityMatrixDto = z.infer<typeof baseCapabilityMatrixSchema>;
@@ -62,6 +71,8 @@ export type SaveBaseCapabilityMatrixIpcInput = z.infer<typeof baseCapabilityMatr
 export type HardDeleteArchivedOpportunityIpcOutput = z.infer<
   typeof hardDeleteArchivedOpportunityOutputSchema
 >;
+export type WindowCloseRequestDto = z.infer<typeof windowCloseRequestSchema>;
+export type WindowCloseResponseDto = z.infer<typeof windowCloseResponseSchema>;
 
 export type IpcContract<Input, Output> = {
   channel: string;
@@ -121,6 +132,11 @@ export const cmmIpcContracts = {
   }),
 };
 
+export const cmmWindowLifecycleChannels = {
+  requestClose: 'cmm:window:request-close',
+  respondClose: 'cmm:window:respond-close',
+} as const;
+
 export const validateIpcInput = <Input, Output>(
   contract: IpcContract<Input, Output>,
   value: unknown,
@@ -130,3 +146,9 @@ export const validateIpcOutput = <Input, Output>(
   contract: IpcContract<Input, Output>,
   value: unknown,
 ): Output => contract.outputSchema.parse(value);
+
+export const validateWindowCloseRequest = (value: unknown): WindowCloseRequestDto =>
+  windowCloseRequestSchema.parse(value);
+
+export const validateWindowCloseResponse = (value: unknown): WindowCloseResponseDto =>
+  windowCloseResponseSchema.parse(value);

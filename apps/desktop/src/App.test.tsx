@@ -1,5 +1,5 @@
 import type { BaseCapabilityMatrixDto, OpportunityDto } from '@cmm/contracts';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
@@ -22,6 +22,13 @@ const archivedOpportunity: OpportunityDto = {
   name: 'Archived Radar Upgrade',
   updatedAt: '2026-05-01T09:10:00.000Z',
   archivedAt: '2026-05-01T09:10:00.000Z',
+};
+
+const secondActiveOpportunity: OpportunityDto = {
+  ...activeOpportunity,
+  id: 'opportunity-second',
+  name: 'Harbor Sensor Refresh',
+  solicitationNumber: 'RFP-2026-22',
 };
 
 const emptyBaseCapabilityMatrix = (opportunityId: string): BaseCapabilityMatrixDto => ({
@@ -56,6 +63,7 @@ const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
     archiveOpportunity: vi.fn(),
     restoreArchivedOpportunity: vi.fn(),
     hardDeleteArchivedOpportunity: vi.fn(),
+    onWindowCloseRequest: vi.fn(() => () => undefined),
     ...overrides,
   };
 
@@ -68,6 +76,7 @@ const installCmmApi = (overrides: Partial<Window['cmmApi']> = {}) => {
 };
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -128,6 +137,70 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Restore Opportunity' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Hard delete Opportunity' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Open Arctic Radar Upgrade' })).toBeVisible();
+  });
+
+  it('flushes dirty Base Capability Matrix edits before archiving an active Opportunity', async () => {
+    const archivedFromActive = {
+      ...activeOpportunity,
+      updatedAt: '2026-05-01T09:10:00.000Z',
+      archivedAt: '2026-05-01T09:10:00.000Z',
+    };
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    let active: OpportunityDto[] = [activeOpportunity];
+    let archived: OpportunityDto[] = [];
+    const api = installCmmApi({
+      listActiveOpportunities: vi.fn(async () => active),
+      listArchivedOpportunities: vi.fn(async () => archived),
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+      archiveOpportunity: vi.fn(async () => {
+        active = [];
+        archived = [archivedFromActive];
+        return archivedFromActive;
+      }),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+    await user.click(screen.getByRole('button', { name: 'Archive Opportunity' }));
+
+    await waitFor(() =>
+      expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+        opportunityId: activeOpportunity.id,
+        revision: 1,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: 'Provide IL5 hosting',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    );
+    expect(api.archiveOpportunity).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+    });
+    expect(await screen.findByText('Read-only')).toBeVisible();
   });
 
   it('restores archived Opportunities to active work', async () => {
@@ -243,6 +316,313 @@ describe('App', () => {
       ],
     });
     expect(await screen.findByText('Saved')).toBeVisible();
+  });
+
+  it('autosaves dirty active Base Capability Matrix edits and advances the local revision', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+
+    expect(screen.getByText('Dirty')).toBeVisible();
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    await waitFor(() =>
+      expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+        opportunityId: activeOpportunity.id,
+        revision: 1,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: 'Provide IL5 hosting',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    );
+    expect(await screen.findByText('Saved')).toBeVisible();
+
+    await user.type(screen.getByLabelText('Requirement 1 text'), ' and DR');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    await waitFor(() =>
+      expect(api.saveBaseCapabilityMatrix).toHaveBeenLastCalledWith({
+        opportunityId: activeOpportunity.id,
+        revision: 2,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: 'Provide IL5 hosting and DR',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    );
+  });
+
+  it('flushes dirty Base Capability Matrix edits before switching Opportunities', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const api = installCmmApi({
+      listActiveOpportunities: vi.fn(async () => [activeOpportunity, secondActiveOpportunity]),
+      openOpportunity: vi.fn(async ({ opportunityId }) => ({
+        opportunity:
+          opportunityId === secondActiveOpportunity.id
+            ? secondActiveOpportunity
+            : activeOpportunity,
+        baseCapabilityMatrix:
+          opportunityId === secondActiveOpportunity.id
+            ? emptyBaseCapabilityMatrix(secondActiveOpportunity.id)
+            : baseCapabilityMatrix,
+      })),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+    await user.click(screen.getByRole('button', { name: 'Open Harbor Sensor Refresh' }));
+
+    await waitFor(() =>
+      expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+        opportunityId: activeOpportunity.id,
+        revision: 1,
+        requirements: [
+          {
+            id: 'requirement-1',
+            text: 'Provide IL5 hosting',
+            level: 1,
+            position: 0,
+            retiredAt: null,
+          },
+        ],
+      }),
+    );
+    expect(await screen.findByText('RFP-2026-22')).toBeVisible();
+  });
+
+  it('pauses autosave on stale revision conflicts and blocks guarded actions until recovery', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const api = installCmmApi({
+      listActiveOpportunities: vi.fn(async () => [activeOpportunity, secondActiveOpportunity]),
+      openOpportunity: vi.fn(async ({ opportunityId }) => ({
+        opportunity:
+          opportunityId === secondActiveOpportunity.id
+            ? secondActiveOpportunity
+            : activeOpportunity,
+        baseCapabilityMatrix:
+          opportunityId === secondActiveOpportunity.id
+            ? emptyBaseCapabilityMatrix(secondActiveOpportunity.id)
+            : baseCapabilityMatrix,
+      })),
+      saveBaseCapabilityMatrix: vi.fn(async () => {
+        throw new Error('Base Capability Matrix has changed since it was opened.');
+      }),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    expect(await screen.findByText('Conflicted')).toBeVisible();
+    expect(screen.getByDisplayValue('Provide IL5 hosting')).toBeVisible();
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledTimes(1);
+
+    await user.type(screen.getByLabelText('Requirement 1 text'), ' with failover');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Open Harbor Sensor Refresh' }));
+
+    expect(api.openOpportunity).toHaveBeenCalledTimes(1);
+    expect(screen.getByDisplayValue('Provide IL5 hosting with failover')).toBeVisible();
+    expect(
+      screen.getByText('Resolve the Base Capability Matrix conflict before continuing.'),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Retry save' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Discard local draft' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Stay on this Opportunity' })).toBeVisible();
+  });
+
+  it('offers retry, stay, and discard recovery choices after a failed guarded flush', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const api = installCmmApi({
+      listActiveOpportunities: vi.fn(async () => [activeOpportunity, secondActiveOpportunity]),
+      openOpportunity: vi.fn(async ({ opportunityId }) => ({
+        opportunity:
+          opportunityId === secondActiveOpportunity.id
+            ? secondActiveOpportunity
+            : activeOpportunity,
+        baseCapabilityMatrix:
+          opportunityId === secondActiveOpportunity.id
+            ? emptyBaseCapabilityMatrix(secondActiveOpportunity.id)
+            : baseCapabilityMatrix,
+      })),
+      saveBaseCapabilityMatrix: vi.fn(async () => {
+        throw new Error('Disk is temporarily unavailable.');
+      }),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+    await user.click(screen.getByRole('button', { name: 'Open Harbor Sensor Refresh' }));
+
+    expect(await screen.findByText('Failed')).toBeVisible();
+    expect(screen.getByDisplayValue('Provide IL5 hosting')).toBeVisible();
+    expect(api.openOpportunity).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Stay on this Opportunity' }));
+
+    expect(
+      screen.queryByText('Save or discard Base Capability Matrix edits before continuing.'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Provide IL5 hosting')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Retry save' }));
+
+    await waitFor(() => expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Failed')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Discard local draft' }));
+
+    expect(await screen.findByDisplayValue('Provide secure hosting')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Open Harbor Sensor Refresh' }));
+
+    expect(await screen.findByText('RFP-2026-22')).toBeVisible();
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledTimes(2);
+  });
+
+  it('flushes dirty Base Capability Matrix edits before allowing window close', async () => {
+    const baseCapabilityMatrix: BaseCapabilityMatrixDto = {
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide secure hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    };
+    const closeRequest: {
+      handler: (() => boolean | Promise<boolean>) | null;
+    } = {
+      handler: null,
+    };
+    const api = installCmmApi({
+      openOpportunity: vi.fn(async () => ({
+        opportunity: activeOpportunity,
+        baseCapabilityMatrix,
+      })),
+      onWindowCloseRequest: vi.fn((handler) => {
+        closeRequest.handler = handler;
+        return () => {
+          closeRequest.handler = null;
+        };
+      }),
+    });
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole('button', { name: 'Open Arctic Radar Upgrade' }));
+    await user.clear(screen.getByLabelText('Requirement 1 text'));
+    await user.type(screen.getByLabelText('Requirement 1 text'), 'Provide IL5 hosting');
+
+    if (!closeRequest.handler) {
+      throw new Error('Window close handler was not registered.');
+    }
+    await expect(Promise.resolve(closeRequest.handler())).resolves.toBe(true);
+
+    expect(api.saveBaseCapabilityMatrix).toHaveBeenCalledWith({
+      opportunityId: activeOpportunity.id,
+      revision: 1,
+      requirements: [
+        {
+          id: 'requirement-1',
+          text: 'Provide IL5 hosting',
+          level: 1,
+          position: 0,
+          retiredAt: null,
+        },
+      ],
+    });
   });
 
   it('inserts a new active Requirement from Enter and focuses the new text field', async () => {
@@ -593,7 +973,7 @@ describe('App', () => {
     await user.click(screen.getByLabelText('Requirement 1 text'));
     await user.keyboard('{Shift>}{Tab}{/Shift}');
 
-    expect(screen.getByRole('button', { name: 'Add Requirement' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Save Matrix' })).toHaveFocus();
   });
 
   it('loads archived Opportunity matrices in a read-only workspace', async () => {
